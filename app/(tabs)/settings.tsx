@@ -3,11 +3,26 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const STANDARD_SUGGESTIONS = [
+    'Growth mindset', 'Transpancy', 'Mutual respect',
+    'Shared ambition', 'Adventure', 'Emotional depth'
+];
+
+const BOUNDARY_SUGGESTIONS = [
+    'No phones at dinner', 'Me-time Sunday', 'Work-life balance',
+    'Direct feedback', 'Social limits', 'Early nights'
+];
+
 export default function SettingsScreen() {
     const [standards, setStandards] = useState(['Growth mindset', 'Shared ambition']);
     const [newStandard, setNewStandard] = useState('');
     const [name, setName] = useState('izzy');
-    const [notes, setNotes] = useState('');
+    const [zodiac, setZodiac] = useState('CAPRICORN');
+    const [boundaries, setBoundaries] = useState<string[]>(['No phone after 11 PM', 'Direct communication only']);
+    const [newBoundary, setNewBoundary] = useState('');
+    const [logs, setLogs] = useState<string[]>(['Reflecting on intentionality and personal space this month.']);
+    const [newLog, setNewLog] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
 
     const addStandard = () => {
         if (newStandard.trim().length > 0) {
@@ -22,6 +37,32 @@ export default function SettingsScreen() {
         setStandards(updated);
     };
 
+    const addBoundary = () => {
+        if (newBoundary.trim().length > 0) {
+            setBoundaries([...boundaries, newBoundary]);
+            setNewBoundary('');
+        }
+    };
+
+    const removeBoundary = (index: number) => {
+        const updated = [...boundaries];
+        updated.splice(index, 1);
+        setBoundaries(updated);
+    };
+
+    const addLog = () => {
+        if (newLog.trim().length > 0) {
+            setLogs([newLog, ...logs]);
+            setNewLog('');
+        }
+    };
+
+    const removeLog = (index: number) => {
+        const updated = [...logs];
+        updated.splice(index, 1);
+        setLogs(updated);
+    };
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
@@ -30,102 +71,202 @@ export default function SettingsScreen() {
             >
                 <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-                    {/* Header Section */}
+                    {/* Header */}
                     <View style={styles.header}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                            <View style={styles.logoContainer}>
-                                <Ionicons name="heart-outline" size={24} color="#ec4899" />
+                        <View style={styles.headerLeft}>
+                            <View style={styles.headerIconWrapper}>
+                                <View style={styles.headerIcon}>
+                                    <Ionicons name="person-outline" size={20} color="#ec4899" />
+                                </View>
                             </View>
                             <Text style={styles.pageTitle}>My Profile</Text>
                         </View>
-
-                        <View style={styles.headerMeta}>
-                            <Text style={styles.pageSubtitle}>WHO AM I?</Text>
-                        </View>
+                        <TouchableOpacity
+                            style={styles.editButtonHeader}
+                            onPress={() => setIsEditing(!isEditing)}
+                        >
+                            <Ionicons
+                                name={isEditing ? "checkmark-outline" : "pencil-outline"}
+                                size={18}
+                                color={isEditing ? "#ec4899" : "#1C1C1E"}
+                            />
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Main Profile Card */}
-                    <View style={styles.card}>
+                    {/* IDENTITY BLOCK */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>IDENTITY</Text>
 
-                        {/* Name Field */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>MY NAME</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={name}
-                                onChangeText={setName}
-                            />
-                        </View>
-
-                        {/* Zodiac Field (Static for now or Picker later) */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>ZODIAC SIGN</Text>
-                            <View style={styles.staticInput}>
-                                <Text style={styles.staticInputText}>CAPRICORN</Text>
+                        {/* Name */}
+                        <View style={styles.dataRow}>
+                            <Text style={styles.dataLabel}>MY NAME</Text>
+                            <View style={styles.dataValueContainer}>
+                                {isEditing ? (
+                                    <TextInput
+                                        style={styles.dataInput}
+                                        value={name}
+                                        onChangeText={setName}
+                                        placeholder="Add name"
+                                    />
+                                ) : (
+                                    <Text style={styles.dataValue}>{name}</Text>
+                                )}
                             </View>
                         </View>
 
-                        {/* Standards Section */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>MY STANDARDS</Text>
+                        {/* Zodiac */}
+                        <View style={styles.dataRow}>
+                            <Text style={styles.dataLabel}>ZODIAC SIGN</Text>
+                            <View style={styles.dataValueContainer}>
+                                {isEditing ? (
+                                    <TextInput
+                                        style={[styles.dataInput, styles.zodiacSubText]}
+                                        value={zodiac}
+                                        onChangeText={setZodiac}
+                                        autoCapitalize="characters"
+                                        placeholder="Add zodiac"
+                                    />
+                                ) : (
+                                    <Text style={[styles.dataValue, styles.zodiacSubText]}>{zodiac}</Text>
+                                )}
+                            </View>
+                        </View>
+                    </View>
 
-                            {/* List of Standards */}
+                    {/* STANDARDS BLOCK */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>MY STANDARDS</Text>
+
+                        <View style={styles.standardsList}>
                             {standards.map((item, index) => (
                                 <View key={index} style={styles.standardItem}>
                                     <Text style={styles.standardText}>{item}</Text>
-                                    <TouchableOpacity onPress={() => removeStandard(index)}>
-                                        <Text style={styles.removeText}>REMOVE</Text>
-                                    </TouchableOpacity>
+                                    {isEditing && (
+                                        <TouchableOpacity onPress={() => removeStandard(index)} style={styles.removeButton}>
+                                            <Ionicons name="close-outline" size={18} color="#9CA3AF" />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))}
+                        </View>
 
-                            {/* Add New Standard */}
-                            <View style={styles.addStandardContainer}>
+                        {/* Add Standard */}
+                        {isEditing && (
+                            <View>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionsRow}>
+                                    {STANDARD_SUGGESTIONS
+                                        .filter(s => !standards.includes(s))
+                                        .map((s, i) => (
+                                            <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => setStandards([...standards, s])}>
+                                                <Text style={styles.suggestionText}>{s}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                </ScrollView>
+                                <View style={styles.addStandardContainer}>
+                                    <TextInput
+                                        style={styles.addInput}
+                                        placeholder="Add a standard..."
+                                        placeholderTextColor="#9CA3AF"
+                                        value={newStandard}
+                                        onChangeText={setNewStandard}
+                                    />
+                                    <TouchableOpacity style={styles.addButton} onPress={addStandard}>
+                                        <Ionicons name="add-outline" size={20} color="#1C1C1E" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* BOUNDARIES BLOCK */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>BOUNDARIES</Text>
+
+                        {/* Boundaries List */}
+                        <View style={styles.standardsList}>
+                            {boundaries.map((item, index) => (
+                                <View key={index} style={styles.standardItem}>
+                                    <Text style={styles.standardText}>{item}</Text>
+                                    {isEditing && (
+                                        <TouchableOpacity onPress={() => removeBoundary(index)} style={styles.removeButton}>
+                                            <Ionicons name="close-outline" size={18} color="#9CA3AF" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            ))}
+                        </View>
+
+                        {/* Add Boundary */}
+                        {isEditing && (
+                            <View>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionsRow}>
+                                    {BOUNDARY_SUGGESTIONS
+                                        .filter(b => !boundaries.includes(b))
+                                        .map((b, i) => (
+                                            <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => setBoundaries([...boundaries, b])}>
+                                                <Text style={styles.suggestionText}>{b}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                </ScrollView>
+                                <View style={styles.addStandardContainer}>
+                                    <TextInput
+                                        style={styles.addInput}
+                                        placeholder="Add a boundary..."
+                                        placeholderTextColor="#9CA3AF"
+                                        value={newBoundary}
+                                        onChangeText={setNewBoundary}
+                                    />
+                                    <TouchableOpacity style={styles.addButton} onPress={addBoundary}>
+                                        <Ionicons name="add-outline" size={20} color="#1C1C1E" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* NOTES BLOCK */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>REFLECTIONS LOG</Text>
+
+                        {isEditing && (
+                            <View style={[styles.notesContainer, { marginBottom: 32, paddingBottom: 68 }]}>
                                 <TextInput
-                                    style={styles.addInput}
-                                    placeholder="e.g. Action-based planning..."
-                                    placeholderTextColor="#D1D1D6"
-                                    value={newStandard}
-                                    onChangeText={setNewStandard}
+                                    style={styles.notesInput}
+                                    placeholder="Log a new reflection..."
+                                    placeholderTextColor="#CBD5E1"
+                                    multiline
+                                    value={newLog}
+                                    onChangeText={setNewLog}
                                 />
-                                <TouchableOpacity style={styles.addButton} onPress={addStandard}>
-                                    <Text style={styles.addButtonText}>ADD</Text>
+                                <TouchableOpacity style={styles.saveLogIconButton} onPress={addLog}>
+                                    <Ionicons name="arrow-up-circle" size={32} color="#1C1C1E" />
                                 </TouchableOpacity>
                             </View>
-                        </View>
+                        )}
 
-                        {/* Notes Section */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>SPECIFIC NOTES</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Any specific boundaries or preferences..."
-                                placeholderTextColor="#D1D1D6"
-                                multiline
-                                textAlignVertical="top"
-                                value={notes}
-                                onChangeText={setNotes}
-                            />
-                        </View>
-
-                    </View>
-
-                    {/* Data & Backup Card */}
-                    <View style={styles.backupCard}>
-                        <Text style={styles.backupTitle}>Data & Backup</Text>
-                        <Text style={styles.backupDescription}>
-                            All your tea is stored locally. Maintain backups periodically to preserve long-term pattern history across devices.
-                        </Text>
-
-                        <View style={styles.backupActions}>
-                            <TouchableOpacity style={styles.outlineButton}>
-                                <Text style={styles.outlineButtonText}>EXPORT DATA</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.outlineButton}>
-                                <Text style={styles.outlineButtonText}>IMPORT DATA</Text>
-                            </TouchableOpacity>
+                        <View style={styles.logsList}>
+                            {logs.map((item, index) => (
+                                <View key={index} style={styles.logItem}>
+                                    <View style={styles.logHeader}>
+                                        <Text style={styles.logDate}>
+                                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                                        </Text>
+                                        {isEditing && (
+                                            <TouchableOpacity onPress={() => removeLog(index)}>
+                                                <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                    <Text style={styles.logText}>{item}</Text>
+                                </View>
+                            ))}
                         </View>
                     </View>
+
+                    {/* DATA / BACKUP (Minimal) */}
+                    <TouchableOpacity style={styles.backupLink}>
+                        <Text style={styles.backupText}>DATA & BACKUP</Text>
+                    </TouchableOpacity>
 
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -140,196 +281,228 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'android' ? 40 : 0,
     },
     container: {
-        paddingBottom: 40,
-        paddingHorizontal: 20,
+        paddingBottom: 100,
+        paddingHorizontal: 32, // More breathing room
     },
+    // Header
     header: {
-        marginTop: 20,
-        marginBottom: 30,
+        marginTop: 32,
+        marginBottom: 64, // Architectural spacing
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    logoContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: '#FCE7F3', // Light pink
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    headerIconWrapper: {
+        padding: 3,
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: '#ec4899', // pink-500 ring
+    },
+    headerIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
     },
     pageTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         fontSize: 32,
-        color: '#1C1C1E',
+        color: '#0F172A',
+        fontWeight: '500',
     },
-    headerMeta: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    editButtonHeader: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 12,
-        paddingLeft: 4,
     },
-    pageSubtitle: {
+    // Sections
+    sectionContainer: {
+        marginBottom: 64,
+    },
+    sectionTitle: {
         fontSize: 10,
-        fontWeight: '800',
-        color: '#1C1C1E',
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-    },
-    statusContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#22C55E', // Green-500
-        marginRight: 6,
-    },
-    statusText: {
-        fontSize: 9,
         fontWeight: '700',
-        color: '#8E8E93',
-        letterSpacing: 1,
+        color: '#94A3B8',
+        letterSpacing: 3,
         textTransform: 'uppercase',
-    },
-    card: {
-        backgroundColor: '#F9FAFB', // Light gray bg from design
-        borderRadius: 24,
-        padding: 24,
         marginBottom: 32,
     },
-    formGroup: {
-        marginBottom: 24,
+    // Data Rows (Identity)
+    dataRow: {
+        marginBottom: 32,
     },
-    label: {
-        fontSize: 9,
-        fontWeight: '800',
-        color: '#8E8E93',
-        letterSpacing: 1,
+    dataLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#64748B',
+        letterSpacing: 1.5,
         textTransform: 'uppercase',
         marginBottom: 12,
-        fontStyle: 'italic',
     },
-    input: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E5EA',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        fontSize: 16,
-        color: '#1C1C1E',
+    dataValueContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        paddingBottom: 14,
     },
-    staticInput: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E5EA',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+    dataValue: {
+        fontSize: 20,
+        color: '#1E293B',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
-    staticInputText: {
+    dataInput: {
+        fontSize: 20,
+        color: '#334155',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        padding: 0,
+        flex: 1,
+    },
+    placeholderValue: {
+        color: '#CBD5E1',
+    },
+    zodiacSubText: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#1C1C1E',
-        textTransform: 'uppercase',
         letterSpacing: 1,
     },
+    editIcon: {
+        opacity: 0.5,
+        marginLeft: 8,
+    },
+    // Standards
+    standardsList: {
+        gap: 8,
+        marginBottom: 24,
+    },
     standardItem: {
-        backgroundColor: '#F3F4F6', // Slightly darker gray for items
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
     standardText: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 16,
-        color: '#1C1C1E',
+        fontSize: 15,
+        color: '#334155',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
-    removeText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#ec4899', // Pink-500
-        letterSpacing: 1,
-        textTransform: 'uppercase',
+    removeButton: {
+        padding: 4,
     },
     addStandardContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        marginTop: 12,
+        gap: 16,
     },
     addInput: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E5EA',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        fontSize: 16,
-        color: '#1C1C1E',
+        fontSize: 15,
+        color: '#475569',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
     addButton: {
-        backgroundColor: '#1C1C1E', // Black
-        borderRadius: 20, // Circle-ish or pill
-        height: 40,
-        paddingHorizontal: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#1C1C1E',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    addButtonText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    textArea: {
-        minHeight: 120,
-    },
-    backupCard: {
-        backgroundColor: '#FDF2F8', // Pink-50
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-    },
-    backupTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 24,
-        color: '#1C1C1E',
-        marginBottom: 12,
-    },
-    backupDescription: {
-        fontSize: 14,
-        color: '#4B5563', // Gray-600
-        lineHeight: 20,
-        marginBottom: 24,
-        fontStyle: 'italic',
-    },
-    backupActions: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    outlineButton: {
-        borderWidth: 1,
-        borderColor: '#1C1C1E',
+    // Notes
+    notesContainer: {
+        backgroundColor: '#F8FAFC',
         borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        alignItems: 'center',
-        flex: 1,
+        padding: 24,
+        minHeight: 180,
     },
-    outlineButtonText: {
+    notesInput: {
+        fontSize: 16,
+        lineHeight: 26,
+        color: '#334155',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        textAlignVertical: 'top',
+        minHeight: 140,
+    },
+    // Backup (Minimal)
+    backupLink: {
+        alignItems: 'center',
+        paddingVertical: 32,
+    },
+    backupText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#94A3B8',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+    },
+    // Suggestions
+    suggestionsRow: {
+        marginBottom: 16,
+    },
+    suggestionChip: {
+        backgroundColor: '#fdf2f8', // pink-50
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#fce7f3', // pink-100
+    },
+    suggestionText: {
+        fontSize: 12,
+        color: '#db2777', // pink-600 for contrast
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    // Reflection Log Specific
+    saveLogIconButton: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+    },
+    logsList: {
+        gap: 20,
+    },
+    logItem: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 20,
+        borderLeftWidth: 3,
+        borderLeftColor: '#ec4899', // pink-500 accent
+    },
+    logHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    logDate: {
         fontSize: 10,
         fontWeight: '700',
-        color: '#1C1C1E',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    }
+        color: '#94A3B8',
+        letterSpacing: 1.5,
+    },
+    logText: {
+        fontSize: 15,
+        lineHeight: 22,
+        color: '#334155',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
 });
