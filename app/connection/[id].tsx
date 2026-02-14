@@ -251,12 +251,103 @@ interface Signal {
 const ProfileContent = ({ connection, onArchive, onDelete }: { connection: any, onArchive: () => void, onDelete: () => void }) => (
     <View style={styles.contentSection}>
         <View style={styles.profileDetailsCard}>
-            <Text style={styles.profileSectionTitle}>STATUS</Text>
-            <Text style={styles.lastActiveLarge}>{connection.lastActive || 'JUST NOW'}</Text>
+            {/* 1. Connection Snapshot */}
+            <View style={styles.snapshotRow}>
+                <View style={styles.snapshotItem}>
+                    <Text style={styles.snapshotLabel}>AVG REPLY</Text>
+                    <Text style={styles.snapshotValue}>2h 14m</Text>
+                </View>
+                <View style={styles.snapshotItem}>
+                    <Text style={styles.snapshotLabel}>CONSISTENCY</Text>
+                    <Text style={styles.snapshotValue}>84%</Text>
+                </View>
+                <View style={styles.snapshotItem}>
+                    <Text style={styles.snapshotLabel}>ENERGY</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.snapshotValue}>STABLE</Text>
+                        <Ionicons name="arrow-forward" size={12} color="#1C1C1E" style={{ marginLeft: 4 }} />
+                    </View>
+                </View>
+                <View style={styles.snapshotItem}>
+                    <Text style={styles.snapshotLabel}>ACTIVE</Text>
+                    <Text style={styles.snapshotValue}>12d</Text>
+                </View>
+            </View>
 
-            <View style={styles.dividerHorizontal} />
+            <View style={styles.dividerLight} />
 
-            <Text style={styles.profileSectionTitle}>BIO</Text>
+            {/* 2. AI Pattern Insight */}
+            <View style={styles.patternInsightBlock}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Ionicons name="analytics" size={14} color="#4B5563" style={{ marginRight: 6 }} />
+                    <Text style={styles.patternTitle}>PATTERN INSIGHT</Text>
+                </View>
+                <Text style={styles.patternText}>
+                    "Communication remains consistent but emotionally neutral. Investment appears moderate, with a slight decrease in enthusiasm over the past 10 days."
+                </Text>
+            </View>
+
+            <View style={styles.dividerLight} />
+
+            {/* 3. Standards Alignment (Expandable) */}
+            <TouchableOpacity style={styles.standardsHeader}>
+                <View>
+                    <Text style={styles.sectionHeaderTitle}>STANDARDS ALIGNMENT</Text>
+                    <Text style={styles.standardsScore}>ALIGNMENT: 72%</Text>
+                </View>
+                <Ionicons name="chevron-down" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+
+            <View style={styles.standardsGrid}>
+                <View style={styles.standardRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                    <Text style={styles.standardLabel}>CONSISTENCY</Text>
+                </View>
+                <View style={styles.standardRow}>
+                    <Ionicons name="warning" size={16} color="#8E8E93" style={{ marginRight: 8 }} />
+                    <Text style={styles.standardLabel}>EFFORT</Text>
+                </View>
+                <View style={styles.standardRow}>
+                    <Ionicons name="remove-circle-outline" size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
+                    <Text style={styles.standardLabel}>AVAILABILITY</Text>
+                </View>
+                <View style={styles.standardRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                    <Text style={styles.standardLabel}>INITIATIVE</Text>
+                </View>
+            </View>
+
+
+            <View style={styles.dividerLight} />
+
+            {/* 4. Behavioral Timeline */}
+            <Text style={styles.sectionHeaderTitle}>BEHAVIORAL TIMELINE</Text>
+
+            {connection.signals && connection.signals.length > 0 ? (
+                <View style={styles.timelineContainer}>
+                    {connection.signals.map((sig: Signal, index: number) => (
+                        <View key={index} style={styles.timelineItem}>
+                            {/* Line & Dot */}
+                            <View style={styles.timelineLeft}>
+                                <View style={[styles.timelineDot, { backgroundColor: sig.type === 'GREEN' ? '#1C1C1E' : sig.type === 'YELLOW' ? '#8E8E93' : '#D1D1D6' }]} />
+                                {index !== connection.signals.length - 1 && <View style={styles.timelineLine} />}
+                            </View>
+                            {/* Content */}
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineDate}>FEB {13 - index}</Text>
+                                <Text style={styles.timelineText}>{sig.text}</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            ) : (
+                <Text style={styles.emptyStateTextItalic}>No behavioral data logged yet.</Text>
+            )}
+
+            <View style={styles.dividerLight} />
+
+            {/* Identity Info (Moved down/separated) */}
+            <Text style={styles.sectionHeaderTitle}>IDENTITY</Text>
             <View style={styles.bioGrid}>
                 <View style={styles.bioItem}>
                     <Text style={styles.bioLabel}>ZODIAC</Text>
@@ -266,26 +357,7 @@ const ProfileContent = ({ connection, onArchive, onDelete }: { connection: any, 
                     <Text style={styles.bioLabel}>TYPE</Text>
                     <Text style={styles.bioValue}>{connection.tag || 'Unknown'}</Text>
                 </View>
-                {/* Add more bio fields here if available in the connection object */}
             </View>
-
-            <View style={styles.dividerHorizontal} />
-
-            <Text style={styles.profileSectionTitle}>SIGNALS & OBSERVATIONS</Text>
-            {connection.signals && connection.signals.length > 0 ? (
-                <View style={styles.signalsList}>
-                    {connection.signals.map((sig: Signal, index: number) => (
-                        <View key={index} style={styles.signalRow}>
-                            <View style={[styles.signalDot, {
-                                backgroundColor: sig.type === 'GREEN' ? '#22C55E' : sig.type === 'YELLOW' ? '#EAB308' : '#EF4444'
-                            }]} />
-                            <Text style={styles.signalText}>{sig.text}</Text>
-                        </View>
-                    ))}
-                </View>
-            ) : (
-                <Text style={styles.emptySignalText}>No signals added yet.</Text>
-            )}
 
             <View style={styles.dividerHorizontal} />
 
@@ -300,8 +372,8 @@ const ProfileContent = ({ connection, onArchive, onDelete }: { connection: any, 
                     <Text style={styles.manageButtonText}>{connection.status === 'archived' ? 'UNARCHIVE' : 'ARCHIVE'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.manageButton} onPress={onDelete}>
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                    <Text style={[styles.manageButtonText, { color: '#EF4444' }]}>DELETE</Text>
+                    <Ionicons name="trash-outline" size={20} color="#1C1C1E" />
+                    <Text style={[styles.manageButtonText, { color: '#1C1C1E' }]}>DELETE</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -371,11 +443,17 @@ export default function ConnectionDetailScreen() {
                     {/* Profile Section */}
                     <View style={styles.profileSection}>
                         <TouchableOpacity
-                            style={styles.avatarContainer}
+                            style={[
+                                styles.avatarContainer,
+                                activeTab === 'PROFILE' && {
+                                    borderColor: '#ec4899', // pink-500
+                                    borderWidth: 4, // Bold ring
+                                }
+                            ]}
                             activeOpacity={0.9}
                             onPress={() => setActiveTab('PROFILE')}
                         >
-                            <Ionicons name={icon as any} size={80} color="#8E8E93" />
+                            <Ionicons name={icon as any} size={80} color={activeTab === 'PROFILE' ? "#ec4899" : "#8E8E93"} />
                             <View style={styles.zodiacBadge}>
                                 <Text style={styles.zodiacText}>{zodiac}</Text>
                             </View>
@@ -704,6 +782,151 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1C1C1E',
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    // Connection Snapshot Styles
+    snapshotRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        rowGap: 16,
+        width: '100%',
+        marginBottom: 8,
+    },
+    snapshotItem: {
+        alignItems: 'flex-start',
+        width: '48%',
+    },
+    snapshotLabel: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: '#8E8E93',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    snapshotValue: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    dividerLight: {
+        height: 1,
+        width: '100%',
+        backgroundColor: '#F2F2F7',
+        marginVertical: 24,
+    },
+    // Pattern Insight Styles
+    patternInsightBlock: {
+        backgroundColor: '#F9FAFB', // Neutral 50
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 4,
+    },
+    patternTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#4B5563', // Neutral 600
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    patternText: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 14,
+        color: '#1C1C1E',
+        lineHeight: 22,
+        fontStyle: 'italic',
+    },
+    // Standards Styles
+    standardsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    sectionHeaderTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#D1D1D6',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    standardsScore: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#EC4899', // pink-500
+        letterSpacing: 0.5,
+    },
+    standardsGrid: {
+        marginTop: 16,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    standardRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '45%',
+        marginBottom: 8,
+    },
+    standardLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#4B5563',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    // Timeline Styles
+    timelineContainer: {
+        paddingLeft: 8,
+        paddingTop: 8,
+    },
+    timelineItem: {
+        flexDirection: 'row',
+        marginBottom: 0,
+    },
+    timelineLeft: {
+        alignItems: 'center',
+        marginRight: 16,
+        width: 16,
+    },
+    timelineDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginBottom: 4,
+        zIndex: 1,
+    },
+    timelineLine: {
+        width: 1,
+        backgroundColor: '#E5E5EA',
+        flex: 1,
+        marginTop: -4,
+        marginBottom: 0,
+    },
+    timelineContent: {
+        paddingBottom: 24,
+        flex: 1,
+    },
+    timelineDate: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    timelineText: {
+        fontSize: 13,
+        color: '#1C1C1E',
+        lineHeight: 18,
+    },
+    emptyStateTextItalic: {
+        fontSize: 13,
+        color: '#8E8E93',
+        fontStyle: 'italic',
+        marginTop: 8,
     },
     // Decoder Styles
     decoderContainer: {

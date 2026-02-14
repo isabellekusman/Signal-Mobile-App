@@ -1,52 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#F2F2F7',
-          paddingTop: 8,
-          height: Platform.OS === 'ios' ? 88 : 60,
+          position: 'absolute',
+          bottom: 25,
+          left: 20,
+          right: 20,
+          elevation: 5,
+          backgroundColor: '#ffffff',
+          borderRadius: 25,
+          height: 60,
+          borderTopWidth: 0,
+          shadowColor: '#ec4899', // Pink shadow
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+          shadowOpacity: 0.15,
+          shadowRadius: 10,
+          alignItems: 'center',
+          justifyContent: 'space-around', // Changed to space-around for centering
+          paddingBottom: 0,
+          paddingHorizontal: 10, // Add padding horizontal
         },
-        tabBarActiveTintColor: '#1C1C1E',
+        tabBarActiveTintColor: '#ec4899', // pink-500
         tabBarInactiveTintColor: '#8E8E93',
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          marginBottom: 4,
-        },
       }}
     >
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="home"
         options={{
           title: 'Connections',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="people-outline" size={28} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          title: 'Self-Alignment',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={28} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-outline" size={28} color={color} />
           ),
         }}
       />
