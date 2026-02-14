@@ -236,15 +236,83 @@ const DynamicContent = () => (
 );
 
 
+
 import { useConnections } from '../../context/ConnectionsContext';
 
+interface Signal {
+    text: string;
+    type: 'GREEN' | 'YELLOW' | 'RED';
+}
+
+
 // ... (keep Components ClarityContent, DecoderContent, etc.)
+
+// Content Component for the "Profile" tab
+const ProfileContent = ({ connection, onArchive, onDelete }: { connection: any, onArchive: () => void, onDelete: () => void }) => (
+    <View style={styles.contentSection}>
+        <View style={styles.profileDetailsCard}>
+            <Text style={styles.profileSectionTitle}>STATUS</Text>
+            <Text style={styles.lastActiveLarge}>{connection.lastActive || 'JUST NOW'}</Text>
+
+            <View style={styles.dividerHorizontal} />
+
+            <Text style={styles.profileSectionTitle}>BIO</Text>
+            <View style={styles.bioGrid}>
+                <View style={styles.bioItem}>
+                    <Text style={styles.bioLabel}>ZODIAC</Text>
+                    <Text style={styles.bioValue}>{connection.zodiac || 'Unknown'}</Text>
+                </View>
+                <View style={styles.bioItem}>
+                    <Text style={styles.bioLabel}>TYPE</Text>
+                    <Text style={styles.bioValue}>{connection.tag || 'Unknown'}</Text>
+                </View>
+                {/* Add more bio fields here if available in the connection object */}
+            </View>
+
+            <View style={styles.dividerHorizontal} />
+
+            <Text style={styles.profileSectionTitle}>SIGNALS & OBSERVATIONS</Text>
+            {connection.signals && connection.signals.length > 0 ? (
+                <View style={styles.signalsList}>
+                    {connection.signals.map((sig: Signal, index: number) => (
+                        <View key={index} style={styles.signalRow}>
+                            <View style={[styles.signalDot, {
+                                backgroundColor: sig.type === 'GREEN' ? '#22C55E' : sig.type === 'YELLOW' ? '#EAB308' : '#EF4444'
+                            }]} />
+                            <Text style={styles.signalText}>{sig.text}</Text>
+                        </View>
+                    ))}
+                </View>
+            ) : (
+                <Text style={styles.emptySignalText}>No signals added yet.</Text>
+            )}
+
+            <View style={styles.dividerHorizontal} />
+
+            <Text style={styles.profileSectionTitle}>MANAGE</Text>
+            <View style={styles.manageRow}>
+                <TouchableOpacity style={styles.manageButton} onPress={onArchive}>
+                    <Ionicons
+                        name={connection.status === 'archived' ? "arrow-up-outline" : "arrow-down-outline"}
+                        size={20}
+                        color="#1C1C1E"
+                    />
+                    <Text style={styles.manageButtonText}>{connection.status === 'archived' ? 'UNARCHIVE' : 'ARCHIVE'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.manageButton} onPress={onDelete}>
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Text style={[styles.manageButtonText, { color: '#EF4444' }]}>DELETE</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    </View>
+);
 
 export default function ConnectionDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { connections } = useConnections();
-    const [activeTab, setActiveTab] = useState<'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('CLARITY');
+    const { connections, updateConnection, deleteConnection } = useConnections();
+    const [activeTab, setActiveTab] = useState<'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('PROFILE');
 
     // Find the connection in context
     const connection = connections.find(c => c.id === params.id);
@@ -254,10 +322,28 @@ export default function ConnectionDetailScreen() {
     const tag = connection?.tag || params.tag || 'SITUATIONSHIP';
     const zodiac = connection?.zodiac || params.zodiac || 'LIBRA';
     const icon = connection?.icon || params.icon || 'leaf-outline';
+    const status = connection?.status || 'active';
 
     const handleEdit = () => {
         if (connection) {
             router.push({ pathname: '/add-connection', params: { id: connection.id } });
+        }
+    };
+
+    const handleArchive = () => {
+        if (connection) {
+            const newStatus = status === 'active' ? 'archived' : 'active';
+            updateConnection(connection.id, { status: newStatus });
+            router.back(); // Go back after archiving? Or stay? Let's stay but icon changes.
+        }
+    };
+
+    const handleDelete = () => {
+        if (connection) {
+            // Basic alert for now, could use the custom modal pattern if moved to global or duplicated
+            // For speed, let's just delete and go back
+            deleteConnection(connection.id);
+            router.replace('/');
         }
     };
 
@@ -284,12 +370,16 @@ export default function ConnectionDetailScreen() {
 
                     {/* Profile Section */}
                     <View style={styles.profileSection}>
-                        <View style={styles.avatarContainer}>
+                        <TouchableOpacity
+                            style={styles.avatarContainer}
+                            activeOpacity={0.9}
+                            onPress={() => setActiveTab('PROFILE')}
+                        >
                             <Ionicons name={icon as any} size={80} color="#8E8E93" />
                             <View style={styles.zodiacBadge}>
                                 <Text style={styles.zodiacText}>{zodiac}</Text>
                             </View>
-                        </View>
+                        </TouchableOpacity>
 
                         <Text style={styles.profileName}>{name}</Text>
 
@@ -314,6 +404,7 @@ export default function ConnectionDetailScreen() {
                     </View>
 
                     {/* Dynamic Content Rendering */}
+                    {activeTab === 'PROFILE' && <ProfileContent connection={connection || {}} onArchive={handleArchive} onDelete={handleDelete} />}
                     {activeTab === 'CLARITY' && <ClarityContent />}
                     {activeTab === 'DECODER' && <DecoderContent />}
                     {activeTab === 'STARS' && <StarsContent name={Array.isArray(name) ? name[0] : name} />}
@@ -392,13 +483,14 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         fontSize: 36, // Reduced size
         color: '#1C1C1E',
-        marginBottom: 16,
+        marginBottom: 8,
     },
     tagBadge: {
         backgroundColor: '#FCE7F3', // pink-100
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 20,
+        marginBottom: 24,
     },
     tagText: {
         fontSize: 11,
@@ -501,6 +593,117 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
+    },
+    profileDetailsCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+        marginBottom: 40,
+    },
+    profileSectionTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#D1D1D6',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: 12,
+    },
+    lastActiveLarge: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 24,
+        color: '#1C1C1E',
+        marginBottom: 24,
+    },
+    dividerHorizontal: {
+        height: 1,
+        width: '100%',
+        backgroundColor: '#F2F2F7',
+        marginVertical: 24,
+    },
+    signalsList: {
+        marginBottom: 0,
+    },
+    signalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    signalDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 10,
+    },
+    signalText: {
+        fontSize: 14,
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        flex: 1,
+    },
+    emptySignalText: {
+        fontSize: 14,
+        color: '#8E8E93',
+        fontStyle: 'italic',
+    },
+    manageRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    manageButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        gap: 8,
+    },
+    manageButtonText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    // Bio Styles
+    bioGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 20,
+        marginBottom: 8,
+    },
+    bioItem: {
+        minWidth: '40%',
+    },
+    bioLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    bioValue: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
     // Decoder Styles
     decoderContainer: {

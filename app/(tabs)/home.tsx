@@ -112,11 +112,11 @@ export default function HomeScreen() {
                                 lastActive={item.lastActive}
                                 icon={item.icon}
                                 isSelected={selectedConnectionId === item.id}
-                                onPress={() => toggleSelection(item.id)}
+                                status={item.status}
+                                onPress={() => handleOpenFile(item)}
                                 onOpenFile={() => handleOpenFile(item)}
                                 onDelete={() => promptDelete(item)}
                                 onDownload={() => handleArchive(item.id, item.status)}
-                                status={item.status}
                             />
                         ))
                     )}
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     cardsList: {
-        gap: 16,
+        flexDirection: 'column',
         marginBottom: 32,
     },
     emptyText: {
