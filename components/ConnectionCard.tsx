@@ -10,6 +10,7 @@ interface ConnectionCardProps {
     zodiac: string;
     lastActive: string;
     icon: string;
+    status: 'active' | 'archived'; // Add status
     isSelected?: boolean;
     onPress: () => void;
     onOpenFile?: () => void;
@@ -26,6 +27,7 @@ export default function ConnectionCard({
     zodiac,
     lastActive,
     icon,
+    status, // Accept status
     isSelected = false,
     onPress,
     onOpenFile,
@@ -99,7 +101,11 @@ export default function ConnectionCard({
                     onPress={onDownload}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="arrow-down-outline" size={20} color="#8E8E93" />
+                    <Ionicons
+                        name={status === 'archived' ? "arrow-up-outline" : "arrow-down-outline"}
+                        size={20}
+                        color="#8E8E93"
+                    />
                 </TouchableOpacity>
             </View>
         </Pressable>

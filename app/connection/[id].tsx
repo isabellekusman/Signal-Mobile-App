@@ -236,13 +236,30 @@ const DynamicContent = () => (
 );
 
 
+import { useConnections } from '../../context/ConnectionsContext';
+
+// ... (keep Components ClarityContent, DecoderContent, etc.)
+
 export default function ConnectionDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const { connections } = useConnections();
     const [activeTab, setActiveTab] = useState<'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('CLARITY');
 
-    // Destructure params with fallbacks
-    const { name = 'sam', tag = 'SITUATIONSHIP', zodiac = 'LIBRA', icon = 'leaf-outline' } = params;
+    // Find the connection in context
+    const connection = connections.find(c => c.id === params.id);
+
+    // Fallback or Loading state could be better, but using params as initial data
+    const name = connection?.name || params.name || 'sam';
+    const tag = connection?.tag || params.tag || 'SITUATIONSHIP';
+    const zodiac = connection?.zodiac || params.zodiac || 'LIBRA';
+    const icon = connection?.icon || params.icon || 'leaf-outline';
+
+    const handleEdit = () => {
+        if (connection) {
+            router.push({ pathname: '/add-connection', params: { id: connection.id } });
+        }
+    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -257,15 +274,15 @@ export default function ConnectionDetailScreen() {
                         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
-                                <Text style={styles.navText}>BACK TO CONNECTIONS</Text>
+                                <Text style={styles.navText}>CONNECTIONS</Text>
                             </View>
                         </TouchableOpacity>
-                        <TouchableOpacity>
-                            <Text style={styles.navText}>EDIT CONNECTION</Text>
+                        <TouchableOpacity onPress={handleEdit}>
+                            <Text style={styles.navText}>EDIT</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {/* Profile Section - Keeping it visible but maybe we can scroll it away or keep it small */}
+                    {/* Profile Section */}
                     <View style={styles.profileSection}>
                         <View style={styles.avatarContainer}>
                             <Ionicons name={icon as any} size={80} color="#8E8E93" />

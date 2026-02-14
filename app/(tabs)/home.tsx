@@ -1,40 +1,20 @@
+
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router'; // Import useRouter
 import React, { useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ConnectionCard from '../../components/ConnectionCard';
-
-// Mock Data
-const CONNECTIONS = [
-    {
-        id: '1',
-        name: 'Samuel',
-        tag: 'SITUATIONSHIP',
-        zodiac: 'LIBRA',
-        lastActive: 'LAST ACTIVE 2D AGO',
-        icon: 'leaf-outline',
-    },
-    {
-        id: '2',
-        name: 'Nicholas',
-        tag: 'TALKING',
-        zodiac: 'CAPRICORN',
-        lastActive: 'LAST ACTIVE 4H AGO',
-        icon: 'flash-outline',
-    },
-    {
-        id: '3',
-        name: 'Thomas',
-        tag: 'DATING',
-        zodiac: 'AQUARIUS',
-        lastActive: 'LAST ACTIVE 1W AGO',
-        icon: 'water-outline',
-    },
-];
+import { Connection, useConnections } from '../../context/ConnectionsContext';
 
 export default function HomeScreen() {
     const router = useRouter(); // Initialize router
+    const { connections, addConnection, deleteConnection, updateConnection } = useConnections();
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+
+    // Delete Confirmation State
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [connectionToDelete, setConnectionToDelete] = useState<Connection | null>(null);
 
     const toggleSelection = (id: string) => {
         if (selectedConnectionId === id) {
@@ -56,6 +36,29 @@ export default function HomeScreen() {
             }
         });
     };
+
+    const handleArchive = (id: string, currentStatus: 'active' | 'archived') => {
+        const newStatus = currentStatus === 'active' ? 'archived' : 'active';
+        updateConnection(id, { status: newStatus });
+        // Optional: Clear selection if archiving/unarchiving selected
+        if (selectedConnectionId === id) setSelectedConnectionId(null);
+    };
+
+    const promptDelete = (connection: Connection) => {
+        setConnectionToDelete(connection);
+        setDeleteModalVisible(true);
+    };
+
+    const confirmDelete = () => {
+        if (connectionToDelete) {
+            deleteConnection(connectionToDelete.id);
+            setDeleteModalVisible(false);
+            setConnectionToDelete(null);
+            if (selectedConnectionId === connectionToDelete.id) setSelectedConnectionId(null);
+        }
+    };
+
+    const displayedConnections = connections.filter(c => c.status === activeTab);
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -90,37 +93,81 @@ export default function HomeScreen() {
 
                 {/* Page Title */}
                 <View style={styles.titleSection}>
-                    <Text style={styles.pageTitle}>Active Connections</Text>
+                    <Text style={styles.pageTitle}>{activeTab === 'active' ? 'Active Connections' : 'Archived Connections'}</Text>
                     <Text style={styles.sectionLabel}>YOUR INDEX</Text>
                 </View>
 
                 {/* Connection Cards */}
                 <View style={styles.cardsList}>
-                    {CONNECTIONS.map((item) => (
-                        <ConnectionCard
-                            key={item.id}
-                            id={item.id}
-                            name={item.name}
-                            tag={item.tag}
-                            zodiac={item.zodiac}
-                            lastActive={item.lastActive}
-                            icon={item.icon}
-                            isSelected={selectedConnectionId === item.id}
-                            onPress={() => toggleSelection(item.id)}
-                            onOpenFile={() => handleOpenFile(item)} // Pass handler
-                            onDelete={() => console.log('Delete', item.name)}
-                            onDownload={() => console.log('Download', item.name)}
-                        />
-                    ))}
+                    {displayedConnections.length === 0 ? (
+                        <Text style={styles.emptyText}>No {activeTab} connections.</Text>
+                    ) : (
+                        displayedConnections.map((item) => (
+                            <ConnectionCard
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                tag={item.tag}
+                                zodiac={item.zodiac}
+                                lastActive={item.lastActive}
+                                icon={item.icon}
+                                isSelected={selectedConnectionId === item.id}
+                                onPress={() => toggleSelection(item.id)}
+                                onOpenFile={() => handleOpenFile(item)}
+                                onDelete={() => promptDelete(item)}
+                                onDownload={() => handleArchive(item.id, item.status)}
+                                status={item.status}
+                            />
+                        ))
+                    )}
                 </View>
 
                 {/* Add Connection Button */}
-                <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+                <TouchableOpacity
+                    style={styles.addButton}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/add-connection')}
+                >
                     <Text style={styles.addButtonText}>ADD CONNECTION</Text>
                 </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Custom Delete Confirmation Modal */}
+            <Modal
+                visible={deleteModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setDeleteModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => setDeleteModalVisible(false)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Ionicons name="close" size={24} color="#1C1C1E" />
+                        </TouchableOpacity>
+
+                        <Text style={styles.modalTitle}>Are we done with them?</Text>
+                        <Text style={styles.modalSubtitle}>
+                            This action cannot be undone. This profile will be permanently deleted from your signal history.
+                        </Text>
+
+                        {connectionToDelete && (
+                            <View style={styles.deleteTargetContainer}>
+                                <Text style={styles.deleteTargetName}>{connectionToDelete.name}</Text>
+                            </View>
+                        )}
+
+                        <TouchableOpacity style={styles.deleteConfirmButton} onPress={confirmDelete}>
+                            <Text style={styles.deleteConfirmText}>DELETE PROFILE</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -198,6 +245,13 @@ const styles = StyleSheet.create({
         gap: 16,
         marginBottom: 32,
     },
+    emptyText: {
+        fontSize: 14,
+        color: '#8E8E93',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 20,
+    },
     addButton: {
         backgroundColor: '#1C1C1E',
         height: 56,
@@ -217,4 +271,74 @@ const styles = StyleSheet.create({
         letterSpacing: 1.2,
         textTransform: 'uppercase',
     },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 32,
+        padding: 32,
+        width: '100%',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 10,
+        position: 'relative',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 24,
+        right: 24,
+        zIndex: 1,
+    },
+    modalTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontSize: 28,
+        color: '#1C1C1E',
+        marginBottom: 16,
+        textAlign: 'center',
+        marginTop: 10,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#8E8E93',
+        textAlign: 'center',
+        marginBottom: 32,
+        lineHeight: 20,
+    },
+    deleteTargetContainer: {
+        backgroundColor: '#F2F2F7',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 12,
+        marginBottom: 32,
+    },
+    deleteTargetName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    deleteConfirmButton: {
+        backgroundColor: '#1C1C1E',
+        width: '100%',
+        paddingVertical: 18,
+        borderRadius: 30,
+        alignItems: 'center',
+    },
+    deleteConfirmText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    }
 });
