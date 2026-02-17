@@ -8,7 +8,13 @@ if (!API_KEY) {
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-export const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+if (API_KEY) {
+    console.log(`Gemini Service Initialized with Key: ${API_KEY.substring(0, 5)}...`);
+} else {
+    console.error("Gemini Service: No API Key found!");
+}
+
+export const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 export async function generateContent(prompt: string) {
     try {
