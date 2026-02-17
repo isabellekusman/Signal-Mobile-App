@@ -8,9 +8,14 @@ import { Connection, useConnections } from '../../context/ConnectionsContext';
 
 export default function HomeScreen() {
     const router = useRouter(); // Initialize router
-    const { connections, addConnection, deleteConnection, updateConnection } = useConnections();
+    const { connections, addConnection, deleteConnection, updateConnection, theme, setTheme } = useConnections();
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+
+    // Sync global theme with tab selection
+    React.useEffect(() => {
+        setTheme(activeTab === 'archived' ? 'dark' : 'light');
+    }, [activeTab]);
 
     // Delete Confirmation State
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -59,19 +64,20 @@ export default function HomeScreen() {
     };
 
     const displayedConnections = connections.filter(c => c.status === activeTab);
+    const isDark = theme === 'dark';
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <SafeAreaView style={[styles.safeArea, isDark && styles.safeAreaDark]}>
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#1C1C1E" : "#FFFFFF"} />
             <ScrollView
                 contentContainerStyle={styles.container}
                 showsVerticalScrollIndicator={false}
                 stickyHeaderIndices={[0]}
             >
                 {/* Header Section: Title Left, Toggle Right */}
-                <View style={styles.headerRow}>
+                <View style={[styles.headerRow, isDark && { backgroundColor: '#1C1C1E' }]}>
                     <View style={styles.titleSection}>
-                        <Text style={styles.pageTitle}>
+                        <Text style={[styles.pageTitle, isDark && styles.textDark]}>
                             {activeTab === 'active' ? 'Active' : 'Archived'} Connections
                         </Text>
                         <Text style={styles.sectionLabel}>YOUR INDEX</Text>
@@ -135,11 +141,11 @@ export default function HomeScreen() {
 
                 {/* Add Connection Button */}
                 <TouchableOpacity
-                    style={styles.addButton}
+                    style={[styles.addButton, isDark && styles.addButtonDark]}
                     activeOpacity={0.8}
                     onPress={() => router.push('/add-connection')}
                 >
-                    <Text style={styles.addButtonText}>ADD CONNECTION</Text>
+                    <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
                 </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
@@ -153,27 +159,27 @@ export default function HomeScreen() {
                 onRequestClose={() => setDeleteModalVisible(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={() => setDeleteModalVisible(false)}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <Ionicons name="close" size={24} color="#1C1C1E" />
+                            <Ionicons name="close" size={24} color={isDark ? "#FFFFFF" : "#1C1C1E"} />
                         </TouchableOpacity>
 
-                        <Text style={styles.modalTitle}>Are we done with them?</Text>
+                        <Text style={[styles.modalTitle, isDark && styles.textDark]}>Are we done with them?</Text>
                         <Text style={styles.modalSubtitle}>
                             This action cannot be undone. This profile will be permanently deleted from your signal history.
                         </Text>
 
                         {connectionToDelete && (
-                            <View style={styles.deleteTargetContainer}>
-                                <Text style={styles.deleteTargetName}>{connectionToDelete.name}</Text>
+                            <View style={[styles.deleteTargetContainer, isDark && styles.deleteTargetContainerDark]}>
+                                <Text style={[styles.deleteTargetName, isDark && styles.textDark]}>{connectionToDelete.name}</Text>
                             </View>
                         )}
 
-                        <TouchableOpacity style={styles.deleteConfirmButton} onPress={confirmDelete}>
+                        <TouchableOpacity style={[styles.deleteConfirmButton, isDark && styles.deleteConfirmButtonDark]} onPress={confirmDelete}>
                             <Text style={styles.deleteConfirmText}>DELETE PROFILE</Text>
                         </TouchableOpacity>
                     </View>
@@ -188,6 +194,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#FFFFFF',
         paddingTop: Platform.OS === 'android' ? 40 : 0,
+    },
+    safeAreaDark: {
+        backgroundColor: '#1C1C1E',
     },
     container: {
         paddingHorizontal: 20,
@@ -370,5 +379,26 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1,
         textTransform: 'uppercase',
+    },
+    textDark: {
+        color: '#FFFFFF',
+    },
+    modalContentDark: {
+        backgroundColor: '#2C2C2E',
+    },
+    deleteTargetContainerDark: {
+        backgroundColor: '#3A3A3C',
+    },
+    deleteConfirmButtonDark: {
+        backgroundColor: '#FFFFFF',
+    },
+    deleteConfirmTextDark: {
+        color: '#1C1C1E',
+    },
+    addButtonDark: {
+        backgroundColor: '#FFFFFF',
+    },
+    addButtonTextDark: {
+        color: '#1C1C1E',
     }
 });

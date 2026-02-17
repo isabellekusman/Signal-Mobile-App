@@ -55,12 +55,15 @@ interface ConnectionsContextType {
     addConnection: (connection: Connection) => void;
     updateConnection: (id: string, updates: Partial<Connection>) => void;
     deleteConnection: (id: string) => void;
+    theme: 'light' | 'dark';
+    setTheme: (theme: 'light' | 'dark') => void;
 }
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
 export function ConnectionsProvider({ children }: { children: ReactNode }) {
     const [connections, setConnections] = useState<Connection[]>(INITIAL_CONNECTIONS);
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
     const addConnection = (connection: Connection) => {
         setConnections((prev) => [connection, ...prev]);
@@ -77,7 +80,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <ConnectionsContext.Provider value={{ connections, addConnection, updateConnection, deleteConnection }}>
+        <ConnectionsContext.Provider value={{ connections, addConnection, updateConnection, deleteConnection, theme, setTheme }}>
             {children}
         </ConnectionsContext.Provider>
     );

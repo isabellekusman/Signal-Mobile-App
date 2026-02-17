@@ -19,6 +19,8 @@ interface ConnectionCardProps {
     compact?: boolean; // New prop for grid view
 }
 
+import { useConnections } from '../context/ConnectionsContext';
+
 const { width } = Dimensions.get('window');
 
 export default function ConnectionCard({
@@ -36,6 +38,9 @@ export default function ConnectionCard({
     onDownload,
     compact = false // Default to false
 }: ConnectionCardProps) {
+    const { theme } = useConnections();
+    const isDark = theme === 'dark';
+
     // Animation value for scale
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -53,23 +58,37 @@ export default function ConnectionCard({
             onPress={onPress}
             style={[
                 styles.card,
+                isDark && styles.cardDark,
                 isSelected && styles.cardSelected,
             ]}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {/* Avatar Left */}
+                {/* Avatar Left / Unarchive Button */}
                 <Animated.View
                     style={[
                         styles.avatarContainer,
+                        isDark && styles.avatarContainerDark,
                         { transform: [{ scale: scaleAnim }] }
                     ]}
                 >
-                    <Ionicons name={icon as any} size={24} color="#ec4899" />
+                    {status === 'archived' ? (
+                        <TouchableOpacity
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                onDownload();
+                            }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Ionicons name="arrow-up" size={24} color="#ec4899" />
+                        </TouchableOpacity>
+                    ) : (
+                        <Ionicons name={icon as any} size={24} color="#ec4899" />
+                    )}
                 </Animated.View>
 
                 {/* Name & Status Center */}
                 <View style={styles.infoContainer}>
-                    <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
+                    <Text style={[styles.nameText, isDark && styles.textDark]} numberOfLines={1}>{name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                         <Text style={styles.statusText}>{lastActive}</Text>
                     </View>
@@ -153,5 +172,16 @@ const styles = StyleSheet.create({
         height: 40,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    cardDark: {
+        backgroundColor: '#2C2C2E',
+        borderColor: '#3A3A3C',
+    },
+    avatarContainerDark: {
+        backgroundColor: '#3A3A3C',
+        borderColor: '#48484A',
+    },
+    textDark: {
+        color: '#FFFFFF',
     }
 });
