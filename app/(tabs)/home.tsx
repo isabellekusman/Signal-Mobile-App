@@ -68,34 +68,45 @@ export default function HomeScreen() {
                 showsVerticalScrollIndicator={false}
                 stickyHeaderIndices={[0]}
             >
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.brandTitle}>Signal</Text>
+                {/* Header Section: Title Left, Toggle Right */}
+                <View style={styles.headerRow}>
+                    <View style={styles.titleSection}>
+                        <Text style={styles.pageTitle}>
+                            {activeTab === 'active' ? 'Active' : 'Archived'} Connections
+                        </Text>
+                        <Text style={styles.sectionLabel}>YOUR INDEX</Text>
+                    </View>
+
+                    <View style={styles.toggleContainer}>
+                        <TouchableOpacity
+                            style={[
+                                styles.toggleButton,
+                                activeTab === 'active' ? styles.toggleButtonActive : styles.toggleButtonInactive
+                            ]}
+                            onPress={() => setActiveTab('active')}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                activeTab === 'active' ? styles.toggleTextActive : styles.toggleTextInactive
+                            ]}>ACTIVE</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.toggleButton,
+                                activeTab === 'archived' ? styles.toggleButtonActive : styles.toggleButtonInactive
+                            ]}
+                            onPress={() => setActiveTab('archived')}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                activeTab === 'archived' ? styles.toggleTextActive : styles.toggleTextInactive
+                            ]}>ARCHIVED</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Toggle Section */}
-                <View style={styles.toggleContainer}>
-                    <TouchableOpacity
-                        style={[styles.toggleButton, activeTab === 'active' && styles.toggleButtonActive]}
-                        onPress={() => setActiveTab('active')}
-                    >
-                        <Text style={[styles.toggleText, activeTab === 'active' && styles.toggleTextActive]}>ACTIVE</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.toggleButton, activeTab === 'archived' && styles.toggleButtonActive]}
-                        onPress={() => setActiveTab('archived')}
-                    >
-                        <Text style={[styles.toggleText, activeTab === 'archived' && styles.toggleTextActive]}>ARCHIVED</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Page Title */}
-                <View style={styles.titleSection}>
-                    <Text style={styles.pageTitle}>{activeTab === 'active' ? 'Active Connections' : 'Archived Connections'}</Text>
-                    <Text style={styles.sectionLabel}>YOUR INDEX</Text>
-                </View>
+                {/* Subtle Divider */}
+                <View style={styles.headerDivider} />
 
                 {/* Connection Cards */}
                 <View style={styles.cardsList}>
@@ -168,7 +179,7 @@ export default function HomeScreen() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -198,48 +209,67 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: '#1C1C1E',
     },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginTop: 20,
+        marginBottom: 16,
+        backgroundColor: '#FFFFFF',
+        zIndex: 10,
+    },
     toggleContainer: {
         flexDirection: 'row',
-        backgroundColor: '#F9FAFB',
-        borderRadius: 20,
-        padding: 4,
-        alignSelf: 'flex-start',
-        marginBottom: 32,
-        borderWidth: 1,
-        borderColor: '#F2F2F7',
+        gap: 8,
+        marginTop: 10, // Align with title baseline
     },
     toggleButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 20,
-        borderRadius: 16,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        minWidth: 70,
+        alignItems: 'center',
     },
     toggleButtonActive: {
-        backgroundColor: '#1C1C1E',
+        backgroundColor: '#000000',
+    },
+    toggleButtonInactive: {
+        backgroundColor: '#F2F2F7',
     },
     toggleText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#8E8E93',
+        fontSize: 10,
+        fontWeight: '700',
         letterSpacing: 0.5,
     },
     toggleTextActive: {
         color: '#FFFFFF',
     },
+    toggleTextInactive: {
+        color: '#8E8E93',
+    },
     titleSection: {
-        marginBottom: 24,
+        flex: 1,
     },
     pageTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
         fontSize: 32,
         color: '#1C1C1E',
-        marginBottom: 8,
+        fontStyle: 'italic',
+        lineHeight: 38,
     },
     sectionLabel: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: '#8E8E93',
-        letterSpacing: 1.5,
+        letterSpacing: 1,
         textTransform: 'uppercase',
+        marginTop: 4,
+    },
+    headerDivider: {
+        height: 1,
+        backgroundColor: '#F2F2F7',
+        width: '100%',
+        marginBottom: 32,
     },
     cardsList: {
         flexDirection: 'column',

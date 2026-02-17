@@ -247,144 +247,13 @@ interface Signal {
 
 // ... (keep Components ClarityContent, DecoderContent, etc.)
 
-// Content Component for the "Profile" tab
-const ProfileContent = ({ connection, onArchive, onDelete }: { connection: any, onArchive: () => void, onDelete: () => void }) => (
-    <View style={styles.contentSection}>
-        <View style={styles.profileDetailsCard}>
-            {/* 1. Connection Snapshot */}
-            <View style={styles.snapshotRow}>
-                <View style={styles.snapshotItem}>
-                    <Text style={styles.snapshotLabel}>AVG REPLY</Text>
-                    <Text style={styles.snapshotValue}>2h 14m</Text>
-                </View>
-                <View style={styles.snapshotItem}>
-                    <Text style={styles.snapshotLabel}>CONSISTENCY</Text>
-                    <Text style={styles.snapshotValue}>84%</Text>
-                </View>
-                <View style={styles.snapshotItem}>
-                    <Text style={styles.snapshotLabel}>ENERGY</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.snapshotValue}>STABLE</Text>
-                        <Ionicons name="arrow-forward" size={12} color="#1C1C1E" style={{ marginLeft: 4 }} />
-                    </View>
-                </View>
-                <View style={styles.snapshotItem}>
-                    <Text style={styles.snapshotLabel}>ACTIVE</Text>
-                    <Text style={styles.snapshotValue}>12d</Text>
-                </View>
-            </View>
 
-            <View style={styles.dividerLight} />
-
-            {/* 2. AI Pattern Insight */}
-            <View style={styles.patternInsightBlock}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <Ionicons name="analytics" size={14} color="#4B5563" style={{ marginRight: 6 }} />
-                    <Text style={styles.patternTitle}>PATTERN INSIGHT</Text>
-                </View>
-                <Text style={styles.patternText}>
-                    "Communication remains consistent but emotionally neutral. Investment appears moderate, with a slight decrease in enthusiasm over the past 10 days."
-                </Text>
-            </View>
-
-            <View style={styles.dividerLight} />
-
-            {/* 3. Standards Alignment (Expandable) */}
-            <TouchableOpacity style={styles.standardsHeader}>
-                <View>
-                    <Text style={styles.sectionHeaderTitle}>STANDARDS ALIGNMENT</Text>
-                    <Text style={styles.standardsScore}>ALIGNMENT: 72%</Text>
-                </View>
-                <Ionicons name="chevron-down" size={20} color="#8E8E93" />
-            </TouchableOpacity>
-
-            <View style={styles.standardsGrid}>
-                <View style={styles.standardRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                    <Text style={styles.standardLabel}>CONSISTENCY</Text>
-                </View>
-                <View style={styles.standardRow}>
-                    <Ionicons name="warning" size={16} color="#8E8E93" style={{ marginRight: 8 }} />
-                    <Text style={styles.standardLabel}>EFFORT</Text>
-                </View>
-                <View style={styles.standardRow}>
-                    <Ionicons name="remove-circle-outline" size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
-                    <Text style={styles.standardLabel}>AVAILABILITY</Text>
-                </View>
-                <View style={styles.standardRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                    <Text style={styles.standardLabel}>INITIATIVE</Text>
-                </View>
-            </View>
-
-
-            <View style={styles.dividerLight} />
-
-            {/* 4. Behavioral Timeline */}
-            <Text style={styles.sectionHeaderTitle}>BEHAVIORAL TIMELINE</Text>
-
-            {connection.signals && connection.signals.length > 0 ? (
-                <View style={styles.timelineContainer}>
-                    {connection.signals.map((sig: Signal, index: number) => (
-                        <View key={index} style={styles.timelineItem}>
-                            {/* Line & Dot */}
-                            <View style={styles.timelineLeft}>
-                                <View style={[styles.timelineDot, { backgroundColor: sig.type === 'GREEN' ? '#1C1C1E' : sig.type === 'YELLOW' ? '#8E8E93' : '#D1D1D6' }]} />
-                                {index !== connection.signals.length - 1 && <View style={styles.timelineLine} />}
-                            </View>
-                            {/* Content */}
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineDate}>FEB {13 - index}</Text>
-                                <Text style={styles.timelineText}>{sig.text}</Text>
-                            </View>
-                        </View>
-                    ))}
-                </View>
-            ) : (
-                <Text style={styles.emptyStateTextItalic}>No behavioral data logged yet.</Text>
-            )}
-
-            <View style={styles.dividerLight} />
-
-            {/* Identity Info (Moved down/separated) */}
-            <Text style={styles.sectionHeaderTitle}>IDENTITY</Text>
-            <View style={styles.bioGrid}>
-                <View style={styles.bioItem}>
-                    <Text style={styles.bioLabel}>ZODIAC</Text>
-                    <Text style={styles.bioValue}>{connection.zodiac || 'Unknown'}</Text>
-                </View>
-                <View style={styles.bioItem}>
-                    <Text style={styles.bioLabel}>TYPE</Text>
-                    <Text style={styles.bioValue}>{connection.tag || 'Unknown'}</Text>
-                </View>
-            </View>
-
-            <View style={styles.dividerHorizontal} />
-
-            <Text style={styles.profileSectionTitle}>MANAGE</Text>
-            <View style={styles.manageRow}>
-                <TouchableOpacity style={styles.manageButton} onPress={onArchive}>
-                    <Ionicons
-                        name={connection.status === 'archived' ? "arrow-up-outline" : "arrow-down-outline"}
-                        size={20}
-                        color="#1C1C1E"
-                    />
-                    <Text style={styles.manageButtonText}>{connection.status === 'archived' ? 'UNARCHIVE' : 'ARCHIVE'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.manageButton} onPress={onDelete}>
-                    <Ionicons name="trash-outline" size={20} color="#1C1C1E" />
-                    <Text style={[styles.manageButtonText, { color: '#1C1C1E' }]}>DELETE</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    </View>
-);
 
 export default function ConnectionDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { connections, updateConnection, deleteConnection } = useConnections();
-    const [activeTab, setActiveTab] = useState<'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('PROFILE');
+    const [activeTab, setActiveTab] = useState<'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('CLARITY');
 
     // Find the connection in context
     const connection = connections.find(c => c.id === params.id);
@@ -402,22 +271,7 @@ export default function ConnectionDetailScreen() {
         }
     };
 
-    const handleArchive = () => {
-        if (connection) {
-            const newStatus = status === 'active' ? 'archived' : 'active';
-            updateConnection(connection.id, { status: newStatus });
-            router.back(); // Go back after archiving? Or stay? Let's stay but icon changes.
-        }
-    };
 
-    const handleDelete = () => {
-        if (connection) {
-            // Basic alert for now, could use the custom modal pattern if moved to global or duplicated
-            // For speed, let's just delete and go back
-            deleteConnection(connection.id);
-            router.replace('/');
-        }
-    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -442,22 +296,16 @@ export default function ConnectionDetailScreen() {
 
                     {/* Profile Section */}
                     <View style={styles.profileSection}>
-                        <TouchableOpacity
+                        <View
                             style={[
-                                styles.avatarContainer,
-                                activeTab === 'PROFILE' && {
-                                    borderColor: '#ec4899', // pink-500
-                                    borderWidth: 4, // Bold ring
-                                }
+                                styles.avatarContainer
                             ]}
-                            activeOpacity={0.9}
-                            onPress={() => setActiveTab('PROFILE')}
                         >
-                            <Ionicons name={icon as any} size={80} color={activeTab === 'PROFILE' ? "#ec4899" : "#8E8E93"} />
+                            <Ionicons name={icon as any} size={80} color="#8E8E93" />
                             <View style={styles.zodiacBadge}>
                                 <Text style={styles.zodiacText}>{zodiac}</Text>
                             </View>
-                        </TouchableOpacity>
+                        </View>
 
                         <Text style={styles.profileName}>{name}</Text>
 
@@ -482,7 +330,7 @@ export default function ConnectionDetailScreen() {
                     </View>
 
                     {/* Dynamic Content Rendering */}
-                    {activeTab === 'PROFILE' && <ProfileContent connection={connection || {}} onArchive={handleArchive} onDelete={handleDelete} />}
+
                     {activeTab === 'CLARITY' && <ClarityContent />}
                     {activeTab === 'DECODER' && <DecoderContent />}
                     {activeTab === 'STARS' && <StarsContent name={Array.isArray(name) ? name[0] : name} />}

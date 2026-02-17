@@ -25,7 +25,7 @@ const PROFILE_ICONS = [
 export default function AddConnectionScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { addConnection, updateConnection, connections } = useConnections();
+    const { addConnection, updateConnection, deleteConnection, connections } = useConnections();
     const isEditing = !!params.id; // Check if editing
 
     // Form State
@@ -121,6 +121,24 @@ export default function AddConnectionScreen() {
             addConnection(newConnection);
         }
         router.back();
+    };
+
+    const handleArchive = () => {
+        if (isEditing && params.id) {
+            const connection = connections.find(c => c.id === params.id);
+            if (connection) {
+                const newStatus = connection.status === 'active' ? 'archived' : 'active';
+                updateConnection(params.id as string, { status: newStatus });
+                router.back();
+            }
+        }
+    };
+
+    const handleDelete = () => {
+        if (isEditing && params.id) {
+            deleteConnection(params.id as string);
+            router.replace('/');
+        }
     };
 
     const openModal = (selectionType: 'TYPE' | 'ZODIAC' | 'COLOR') => {
@@ -275,6 +293,28 @@ export default function AddConnectionScreen() {
                             <Text style={styles.saveButtonText}>{isEditing ? 'SAVE CHANGES' : 'ADD CONNECTION'}</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {isEditing && (
+                        <View style={styles.manageSection}>
+                            <Text style={styles.label}>MANAGE CONNECTION</Text>
+                            <View style={styles.manageRow}>
+                                <TouchableOpacity style={styles.manageButton} onPress={handleArchive}>
+                                    <Ionicons
+                                        name={connections.find(c => c.id === params.id)?.status === 'archived' ? "arrow-up-outline" : "arrow-down-outline"}
+                                        size={18}
+                                        color="#1C1C1E"
+                                    />
+                                    <Text style={styles.manageButtonText}>
+                                        {connections.find(c => c.id === params.id)?.status === 'archived' ? 'UNARCHIVE' : 'ARCHIVE'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.manageButton} onPress={handleDelete}>
+                                    <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                                    <Text style={[styles.manageButtonText, { color: '#FF3B30' }]}>DELETE</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
 
                     <View style={{ height: 20 }} />
                 </ScrollView>
@@ -502,6 +542,36 @@ const styles = StyleSheet.create({
         color: '#1C1C1E',
         fontSize: 12,
         fontWeight: '700',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    manageSection: {
+        marginTop: 40,
+        paddingTop: 40,
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+    },
+    manageRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    manageButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        gap: 8,
+    },
+    manageButtonText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#1C1C1E',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
