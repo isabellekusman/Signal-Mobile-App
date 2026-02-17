@@ -1,8 +1,9 @@
 
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 
@@ -210,10 +211,23 @@ const ClarityContent = ({ name }: { name: string }) => {
 };
 
 // Content Component for the "Decoder" tab
-const DecoderContent = () => {
+// Content Component for the "Decoder" tab
+// Content Component for the "Decoder" tab
+// Content Component for the "Decoder" tab
+const DecoderContent = ({ name }: { name: string }) => {
     const [text, setText] = useState('');
-    const [analysis, setAnalysis] = useState('');
+    const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
+    const [analysis, setAnalysis] = useState<{
+        tone: string;
+        effort: string;
+        powerDynamics: string;
+        subtext: string;
+        motivation: string;
+        risks: string[];
+        replySuggestion: string;
+    } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
     const scanAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -237,15 +251,77 @@ const DecoderContent = () => {
         }
     }, [loading]);
 
+    const pickImage = async () => {
+        try {
+            // Request permissions first
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Sorry, we need camera roll permissions to make this work!');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: false,
+                quality: 0.8,
+                base64: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
+                if (asset.base64) {
+                    setImage({
+                        uri: asset.uri,
+                        base64: asset.base64,
+                        mimeType: asset.mimeType || 'image/jpeg'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error picking image:", error);
+            alert("Could not load image: " + (error as any).message);
+        }
+    };
+
+    const removeImage = () => setImage(null);
+
     const handleScanText = async () => {
-        if (!text.trim()) return;
+        if (!text.trim() && !image) return;
         Keyboard.dismiss();
         setLoading(true);
         try {
-            const result = await aiService.decodeMessage(text);
-            setAnalysis(result);
+            let resultString;
+            if (image) {
+                resultString = await aiService.decodeImageMessage(image.base64, image.mimeType, text, name);
+            } else {
+                resultString = await aiService.decodeMessage(text, name);
+            }
+
+            let jsonString = resultString.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(jsonString);
+
+            setAnalysis({
+                tone: result.tone || "Unclear",
+                effort: result.effort || "Unrated",
+                powerDynamics: result.powerDynamics || "Unclear",
+                subtext: result.subtext || "No subtext detected.",
+                motivation: result.motivation || "Unknown",
+                risks: result.risks || [],
+                replySuggestion: result.replySuggestion || "No specific suggestion."
+            });
+            setIsAnalysisOpen(true);
         } catch (error) {
-            setAnalysis("Could not decode this thread. Ensure you pasted a conversation.");
+            console.error("Decoder parsing error", error);
+            setAnalysis({
+                tone: "Error",
+                effort: "N/A",
+                powerDynamics: "N/A",
+                subtext: "Could not decode this thread.",
+                motivation: "N/A",
+                risks: [],
+                replySuggestion: ""
+            });
+            setIsAnalysisOpen(true);
         } finally {
             setLoading(false);
         }
@@ -256,25 +332,48 @@ const DecoderContent = () => {
         outputRange: [0, verticalScale(220)],
     });
 
+    const closeAnalysis = () => {
+        setIsAnalysisOpen(false);
+        setAnalysis(null);
+        setText('');
+        setImage(null);
+    };
+
     return (
         <View style={styles.decoderContainer}>
             <View style={styles.decoderCard}>
                 <Text style={styles.decoderTitle}>Decoder</Text>
                 <Text style={styles.decoderSubtitle}>
-                    Paste a text or thread to check tone, effort, and what's actually being said.
+                    Paste a text, thread, or upload a screenshot to check tone, effort, and what's actually being said.
                 </Text>
 
                 <View style={{ position: 'relative' }}>
-                    <TextInput
-                        style={styles.decoderInput}
-                        placeholder="Paste text here..."
-                        placeholderTextColor="#A1A1AA"
-                        multiline
-                        textAlignVertical="top"
-                        value={text}
-                        onChangeText={setText}
-                        editable={!loading}
-                    />
+                    <View style={[styles.decoderInputContainer, { flexDirection: 'column' }]}>
+                        {image && (
+                            <View style={{ marginBottom: 10 }}>
+                                <Image source={{ uri: image.uri }} style={{ width: '100%', height: 150, borderRadius: 8, resizeMode: 'cover' }} />
+                                <TouchableOpacity onPress={removeImage} style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 4 }}>
+                                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                            <TextInput
+                                style={[styles.decoderInput, { flex: 1, minHeight: 100, padding: 0, backgroundColor: 'transparent' }]}
+                                placeholder={image ? "Add context about this screenshot..." : "Paste text here..."}
+                                placeholderTextColor="#A1A1AA"
+                                multiline
+                                textAlignVertical="top"
+                                value={text}
+                                onChangeText={setText}
+                                editable={!loading}
+                            />
+                            <TouchableOpacity onPress={pickImage} style={{ padding: 8 }}>
+                                <Ionicons name="image-outline" size={24} color="#1C1C1E" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     {loading && (
                         <Animated.View
                             style={[
@@ -287,27 +386,95 @@ const DecoderContent = () => {
                     )}
                 </View>
 
-                {analysis ? (
-                    <View style={styles.analysisResult}>
-                        <Text style={styles.analysisText}>{analysis}</Text>
-                        <TouchableOpacity onPress={() => setAnalysis('')} style={styles.resetButton}>
-                            <Text style={styles.resetButtonText}>SCAN NEW TEXT</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        style={[styles.scanButton, loading && { opacity: 0.5 }]}
-                        onPress={handleScanText}
-                        disabled={loading}
-                    >
-                        <Text style={styles.scanButtonText}>{loading ? 'SCANNING...' : 'SCAN TEXT'}</Text>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={[styles.scanButton, (loading || (!text.trim() && !image)) && { opacity: 0.5 }]}
+                    onPress={handleScanText}
+                    disabled={loading || (!text.trim() && !image)}
+                >
+                    <Text style={styles.scanButtonText}>{loading ? 'SCANNING...' : 'SCAN SIGNAL'}</Text>
+                </TouchableOpacity>
 
                 <Text style={styles.disclaimerText}>
                     THIS IS AN OBSERVATIONAL READ ON TONE & EFFORT, NOT A FACT.
                 </Text>
             </View>
+
+            {/* Analysis Result Modal */}
+            <Modal
+                visible={isAnalysisOpen}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={closeAnalysis}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
+                            <TouchableOpacity onPress={closeAnalysis}>
+                                <Ionicons name="close-circle" size={32} color="#E5E5EA" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.decoderModalTitle}>Decoding Results</Text>
+                        <Text style={styles.decoderModalSubtitle}>Here is the deep read of your interaction.</Text>
+
+                        {analysis && (
+                            <View style={{ gap: 24 }}>
+                                {/* Row 1: Tone & Effort */}
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={styles.decoderBoxLabel}>TONE</Text>
+                                        <Text style={styles.decoderBoxValue}>{analysis.tone}</Text>
+                                    </View>
+                                    <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={styles.decoderBoxLabel}>EFFORT</Text>
+                                        <Text style={styles.decoderBoxValue}>{analysis.effort}</Text>
+                                    </View>
+                                </View>
+
+                                {/* Power Dynamics */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
+                                    <Text style={[styles.decoderBoxLabel, { color: '#1C1C1E' }]}>POWER DYNAMICS</Text>
+                                    <Text style={styles.decoderBoxBody}>{analysis.powerDynamics}</Text>
+                                </View>
+
+                                {/* The Subtext */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                    <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>WHAT'S ACTUALLY BEING SAID</Text>
+                                    <Text style={styles.decoderBoxBody}>{analysis.subtext}</Text>
+                                </View>
+
+                                {/* The Motivation (The Why) */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                    <Text style={styles.decoderBoxLabel}>THE "WHY"</Text>
+                                    <Text style={styles.decoderBoxBody}>{analysis.motivation}</Text>
+                                </View>
+
+                                {/* Risks / Signals */}
+                                {analysis.risks && analysis.risks.length > 0 && (
+                                    <View style={[styles.decoderBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#D97706' }]}>DETECTED SIGNALS</Text>
+                                        <View style={{ gap: 8, marginTop: 4 }}>
+                                            {analysis.risks.map((risk, index) => (
+                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#D97706' }} />
+                                                    <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Suggested Reply */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: 8 }]}>
+                                    <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
+                                    <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{analysis.replySuggestion}"</Text>
+                                </View>
+                            </View>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </View>
     );
 };
@@ -832,7 +999,7 @@ export default function ConnectionDetailScreen() {
                     {/* Dynamic Content Rendering */}
 
                     {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
-                    {activeTab === 'DECODER' && <DecoderContent />}
+                    {activeTab === 'DECODER' && <DecoderContent name={Array.isArray(name) ? name[0] : name} />}
                     {activeTab === 'STARS' && <StarsContent
                         name={Array.isArray(name) ? name[0] : name}
                         userZodiac="Capricorn" // Defaulting for now, could be in user context
@@ -1607,5 +1774,49 @@ const styles = StyleSheet.create({
         borderRadius: scale(20),
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    decoderModalTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontSize: fs(24),
+        color: '#1C1C1E',
+        marginBottom: verticalScale(8),
+    },
+    decoderModalSubtitle: {
+        fontSize: fs(14),
+        color: '#8E8E93',
+        marginBottom: verticalScale(32),
+    },
+    decoderBox: {
+        padding: scale(16),
+        borderRadius: scale(16),
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    decoderBoxLabel: {
+        fontSize: fs(10),
+        fontWeight: '800',
+        color: '#8E8E93',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: verticalScale(8),
+    },
+    decoderBoxValue: {
+        fontSize: fs(16),
+        fontWeight: '600',
+        color: '#1C1C1E',
+    },
+    decoderBoxBody: {
+        fontSize: fs(15),
+        lineHeight: verticalScale(24),
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    decoderInputContainer: {
+        backgroundColor: '#F9FAFB',
+        borderRadius: scale(16),
+        paddingHorizontal: scale(16),
+        paddingVertical: verticalScale(16),
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
     },
 });

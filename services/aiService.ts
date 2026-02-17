@@ -17,9 +17,23 @@ export const aiService = {
     /**
      * Decode the subtext of a text thread.
      */
-    async decodeMessage(textThread: string) {
-        const fullPrompt = `${Prompts.DECODER_PROMPT}\n\nText Thread:\n${textThread}`;
+    async decodeMessage(textThread: string, name?: string) {
+        const fullPrompt = `${Prompts.DECODER_PROMPT}\n\nConnection Name: ${name || 'Unknown'}\n\nText Thread:\n${textThread}`;
         return await generateContent(fullPrompt);
+    },
+
+    /**
+     * Decode a screenshot of a conversation.
+     */
+    async decodeImageMessage(imageBase64: string, mimeType: string, textThread?: string, name?: string) {
+        const promptText = `${Prompts.DECODER_PROMPT}\n\nConnection Name: ${name || 'Unknown'}\n\nAdditional Context (if any):\n${textThread || ''}\n\n[Attached Image of Conversation]`;
+        const imagePart = {
+            inlineData: {
+                data: imageBase64,
+                mimeType: mimeType
+            }
+        };
+        return await generateContent([promptText, imagePart]);
     },
 
     /**

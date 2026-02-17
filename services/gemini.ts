@@ -16,7 +16,7 @@ if (API_KEY) {
 
 export const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-export async function generateContent(prompt: string) {
+export async function generateContent(prompt: string | Array<string | any>) {
     try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
