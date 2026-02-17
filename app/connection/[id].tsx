@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useConnections } from '../../context/ConnectionsContext';
+import { Connection, DailyLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 
 import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
@@ -753,113 +753,290 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
     );
 };
 
-// Content Component for the "Dynamic" tab
-const DynamicContent = () => {
-    const [stats, setStats] = useState({ safety: 3, clarity: 3, excitement: 3, regulation: 3 });
-    const [reflection, setReflection] = useState('');
-    const [vibeAnalysis, setVibeAnalysis] = useState('');
-    const [loading, setLoading] = useState(false);
+// Helper for Dynamic Slider
+// Helper for Dynamic Slider
+const SimpleSlider = ({ value, onValueChange }: { value: number, onValueChange: (val: number) => void }) => {
+    const [width, setWidth] = useState(0);
 
-    const handleSaveCheckIn = async () => {
-        Keyboard.dismiss();
-        setLoading(true);
-        try {
-            const result = await aiService.analyzeDynamicVibe(stats, reflection);
-            setVibeAnalysis(result);
-        } catch (error) {
-            setVibeAnalysis("Logged, but couldn't get a vibe check right now.");
-        } finally {
-            setLoading(false);
-        }
+    const updateSlider = (e: any) => {
+        if (width === 0) return;
+        const x = e.nativeEvent.locationX;
+        const pct = Math.max(0, Math.min(100, (x / width) * 100));
+        onValueChange(Math.round(pct));
     };
 
-    const updateStat = (key: keyof typeof stats, val: number) => {
-        setStats(prev => ({ ...prev, [key]: val }));
+    return (
+        <View
+            style={{ marginBottom: 24 }}
+            onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <Text style={styles.sliderLabel}>CONFUSING</Text>
+                <Text style={styles.sliderLabel}>CLEAR</Text>
+            </View>
+
+            <View
+                style={{ height: 40, justifyContent: 'center' }}
+                onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderGrant={updateSlider}
+                onResponderMove={updateSlider}
+            >
+                <View style={{ height: 4, backgroundColor: '#F2F2F7', borderRadius: 2, width: '100%' }}>
+                    <View style={{ height: 4, backgroundColor: '#ec4899', borderRadius: 2, width: `${value}%` }} />
+                </View>
+                <View style={{
+                    position: 'absolute',
+                    left: `${value}%`,
+                    marginLeft: -10,
+                    width: 20, height: 20, borderRadius: 10, backgroundColor: 'white',
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
+                    borderWidth: 0.5, borderColor: '#CECECE'
+                }} />
+            </View>
+
+            <Text style={{ textAlign: 'center', marginTop: 4, fontSize: 11, fontWeight: '700', color: '#ec4899' }}>{value}</Text>
+        </View>
+    );
+};
+
+// Content Component for the "Dynamic" tab
+const DynamicContent = ({ connection }: { connection: Connection }) => {
+    const { updateConnection } = useConnections();
+
+    // Form State
+    // Form State
+    const [energy, setEnergy] = useState<'I carried it' | 'It felt balanced' | 'He carried it' | 'Other' | ''>('');
+    const [customEnergyNote, setCustomEnergyNote] = useState('');
+    const [direction, setDirection] = useState<'Closer' | 'The same' | 'Further away' | 'Other' | ''>('');
+    const [customDirectionNote, setCustomDirectionNote] = useState('');
+    const [clarity, setClarity] = useState<number>(50);
+    const [effort, setEffort] = useState<string[]>([]);
+    const [customEffortNote, setCustomEffortNote] = useState('');
+    const [emotionState, setEmotionState] = useState<'Grounded' | 'Warm' | 'Neutral' | 'Uncertain' | 'Preoccupied' | 'Draining' | 'Other' | ''>('');
+    const [customEmotionNote, setCustomEmotionNote] = useState('');
+    const [notable, setNotable] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const hasLogs = connection.dailyLogs && connection.dailyLogs.length > 0;
+
+    const handleSaveLog = async () => {
+        if (!energy || !direction || !emotionState) {
+            alert('Please complete the core signals (Energy, Direction, Emotion) to log.');
+            return;
+        }
+
+        Keyboard.dismiss();
+        setLoading(true);
+
+        const newLog: DailyLog = {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            energyExchange: energy,
+            custom_energy_note: (energy === 'Other' && customEnergyNote) ? customEnergyNote : undefined,
+            direction: direction,
+            custom_direction_note: (direction === 'Other' && customDirectionNote) ? customDirectionNote : undefined,
+            clarity,
+            effortSignals: effort,
+            custom_effort_note: (effort.includes('Other') && customEffortNote) ? customEffortNote : undefined,
+            structured_emotion_state: emotionState,
+            custom_emotion_note: (emotionState === 'Other' && customEmotionNote) ? customEmotionNote : undefined,
+            notable: notable.trim()
+        };
+
+        // Simulate network/analysis delay if desired, or just save
+        setTimeout(() => {
+            const updatedLogs = [newLog, ...(connection.dailyLogs || [])];
+            updateConnection(connection.id, { dailyLogs: updatedLogs });
+
+            // Reset
+            setEnergy('');
+            setCustomEnergyNote('');
+            setDirection('');
+            setCustomDirectionNote('');
+            setClarity(50);
+            setEffort([]);
+            setCustomEffortNote('');
+            setEmotionState('');
+            setCustomEmotionNote('');
+            setNotable('');
+            setLoading(false);
+        }, 600);
+    };
+
+    const toggleEffort = (tag: string) => {
+        if (effort.includes(tag)) {
+            setEffort(prev => prev.filter(t => t !== tag));
+        } else {
+            setEffort(prev => [...prev, tag]);
+        }
     };
 
     return (
         <View style={styles.dynamicContainer}>
             <View style={styles.dynamicCard}>
-                <Text style={styles.dynamicTitle}>What was his vibe today?</Text>
+                <Text style={styles.dynamicTitle}>Log Today's Signal</Text>
 
-                {vibeAnalysis ? (
-                    <View style={styles.insightBox}>
-                        <Text style={styles.sectionHeader}>AI VIBE CHECK</Text>
-                        <Text style={styles.insightText}>{vibeAnalysis}</Text>
-                        <TouchableOpacity onPress={() => setVibeAnalysis('')} style={styles.resetButton}>
-                            <Text style={styles.resetButtonText}>LOG NEW VIBE</Text>
-                        </TouchableOpacity>
+                {/* 1. Energy Exchange */}
+                <View style={styles.logSection}>
+                    <Text style={styles.sectionHeader}>WHO CARRIED THE INTERACTION?</Text>
+                    <View style={styles.radioGroup}>
+                        {['I carried it', 'It felt balanced', 'He carried it', 'Other'].map((opt) => (
+                            <TouchableOpacity
+                                key={opt}
+                                style={[styles.radioOption, energy === opt && styles.radioOptionSelected]}
+                                onPress={() => setEnergy(opt as any)}
+                            >
+                                <Text style={[styles.radioText, energy === opt && styles.radioTextSelected]}>{opt}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
-                ) : (
-                    <>
-                        <Text style={styles.sectionHeader}>WHAT YOU NOTICED</Text>
+                    {energy === 'Other' && (
+                        <Animated.View style={{ marginTop: 8 }}>
+                            <TextInput
+                                style={styles.otherInput}
+                                placeholder="Describe the energy..."
+                                placeholderTextColor="#D1D1D6"
+                                maxLength={120}
+                                value={customEnergyNote}
+                                onChangeText={setCustomEnergyNote}
+                            />
+                        </Animated.View>
+                    )}
+                </View>
 
-                        {/* Metrics Grid */}
-                        <View style={styles.metricsGrid}>
-                            <View style={styles.metricRow}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={styles.metricLabel}>SAFETY</Text>
-                                        <TouchableOpacity onPress={() => updateStat('safety', (stats.safety % 5) + 1)}>
-                                            <Text style={styles.metricScore}>{stats.safety}/5</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <RatingCircles filled={stats.safety} total={5} />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={styles.metricLabel}>CLARITY</Text>
-                                        <TouchableOpacity onPress={() => updateStat('clarity', (stats.clarity % 5) + 1)}>
-                                            <Text style={styles.metricScore}>{stats.clarity}/5</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <RatingCircles filled={stats.clarity} total={5} />
-                                </View>
-                            </View>
+                {/* 2. Direction */}
+                <View style={styles.logSection}>
+                    <Text style={styles.sectionHeader}>AFTER TODAY, THE CONNECTION FEELS...</Text>
+                    <View style={styles.radioGroup}>
+                        {['Closer', 'The same', 'Further away', 'Other'].map((opt) => (
+                            <TouchableOpacity
+                                key={opt}
+                                style={[styles.radioOption, direction === opt && styles.radioOptionSelected]}
+                                onPress={() => setDirection(opt as any)}
+                            >
+                                <Text style={[styles.radioText, direction === opt && styles.radioTextSelected]}>{opt}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    {direction === 'Other' && (
+                        <Animated.View style={{ marginTop: 8 }}>
+                            <TextInput
+                                style={styles.otherInput}
+                                placeholder="Describe the direction..."
+                                placeholderTextColor="#D1D1D6"
+                                maxLength={120}
+                                value={customDirectionNote}
+                                onChangeText={setCustomDirectionNote}
+                            />
+                        </Animated.View>
+                    )}
+                </View>
 
-                            <View style={styles.metricRow}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={styles.metricLabel}>EXCITEMENT</Text>
-                                        <TouchableOpacity onPress={() => updateStat('excitement', (stats.excitement % 5) + 1)}>
-                                            <Text style={styles.metricScore}>{stats.excitement}/5</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <RatingCircles filled={stats.excitement} total={5} />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={styles.metricLabel}>REGULATION</Text>
-                                        <TouchableOpacity onPress={() => updateStat('regulation', (stats.regulation % 5) + 1)}>
-                                            <Text style={styles.metricScore}>{stats.regulation}/5</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <RatingCircles filled={stats.regulation} total={5} />
-                                </View>
-                            </View>
-                        </View>
+                {/* 3. Clarity - Slider */}
+                <View style={styles.logSection}>
+                    <Text style={styles.sectionHeader}>HOW CLEAR DID THINGS FEEL?</Text>
+                    <SimpleSlider value={clarity} onValueChange={setClarity} />
+                </View>
 
-                        <TextInput
-                            style={styles.reflectionInput}
-                            placeholder="What happened? Tap to reflect..."
-                            placeholderTextColor="#D1D1D6"
-                            value={reflection}
-                            onChangeText={setReflection}
-                        />
+                {/* 4. Effort Signals */}
+                <View style={styles.logSection}>
+                    <Text style={styles.sectionHeader}>WHAT ACTUALLY HAPPENED?</Text>
+                    <View style={styles.radioGroup}>
+                        {[
+                            'He initiated', 'I initiated', 'Asked about my life',
+                            'Made a future reference', 'Followed through',
+                            'Delayed response', 'Conversation stayed surface level',
+                            'Warm/engaged', 'Distracted/distant', 'Other'
+                        ].map((tag) => (
+                            <TouchableOpacity
+                                key={tag}
+                                style={[
+                                    styles.radioOption,
+                                    effort.includes(tag) && styles.radioOptionSelected,
+                                    { flexBasis: '48%', marginBottom: 8, paddingHorizontal: 12 }
+                                ]}
+                                onPress={() => toggleEffort(tag)}
+                            >
+                                <Text style={[styles.radioText, effort.includes(tag) && styles.radioTextSelected, { textAlign: 'center' }]}>{tag}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    {effort.includes('Other') && (
+                        <Animated.View style={{ marginTop: 8 }}>
+                            <TextInput
+                                style={styles.otherInput}
+                                placeholder="Describe the effort..."
+                                placeholderTextColor="#D1D1D6"
+                                maxLength={120}
+                                value={customEffortNote}
+                                onChangeText={setCustomEffortNote}
+                            />
+                        </Animated.View>
+                    )}
+                </View>
 
-                        <TouchableOpacity
-                            style={[styles.saveCheckInButton, loading && { opacity: 0.5 }]}
-                            onPress={handleSaveCheckIn}
-                            disabled={loading}
-                        >
-                            <Text style={styles.saveCheckInText}>{loading ? 'ANALYZING...' : 'SAVE & ANALYZE'}</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
+                {/* 5. End-of-Day State (Renamed from Emotional Aftertaste) */}
+                <View style={styles.logSection}>
+                    <Text style={styles.sectionHeader}>BY THE END OF THE DAY, THIS CONNECTION FELT...</Text>
+                    <View style={styles.radioGroup}>
+                        {['Grounded', 'Warm', 'Neutral', 'Uncertain', 'Preoccupied', 'Draining', 'Other'].map((opt) => (
+                            <TouchableOpacity
+                                key={opt}
+                                style={[
+                                    styles.radioOption,
+                                    emotionState === opt && styles.radioOptionSelected,
+                                    { flexBasis: '48%', marginBottom: 8, paddingHorizontal: 12 }
+                                ]}
+                                onPress={() => setEmotionState(opt as any)}
+                            >
+                                <Text style={[styles.radioText, emotionState === opt && styles.radioTextSelected]}>{opt}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Inline Other Input */}
+                    {emotionState === 'Other' && (
+                        <Animated.View style={{ marginTop: 8 }}>
+                            <TextInput
+                                style={styles.otherInput}
+                                placeholder="Describe the feeling..."
+                                placeholderTextColor="#D1D1D6"
+                                maxLength={120}
+                                value={customEmotionNote}
+                                onChangeText={setCustomEmotionNote}
+                            />
+                        </Animated.View>
+                    )}
+                </View>
+
+                {/* Text Field */}
+                <View style={styles.logSection}>
+                    <TextInput
+                        style={styles.reflectionInput}
+                        placeholder="Anything notable? (Optional, max 240)"
+                        placeholderTextColor="#D1D1D6"
+                        maxLength={240}
+                        value={notable}
+                        onChangeText={setNotable}
+                        multiline
+                    />
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.saveCheckInButton, loading && { opacity: 0.5 }]}
+                    onPress={handleSaveLog}
+                    disabled={loading}
+                >
+                    <Text style={styles.saveCheckInText}>{loading ? 'LOGGING...' : 'LOG TODAY’S SIGNAL'}</Text>
+                </TouchableOpacity>
             </View>
 
-            <Text style={styles.pastLogsHeader}>PAST LOGS</Text>
-            <Text style={styles.emptyStateText}>No feelings logged yet. Start tracking your intuition.</Text>
+            <View style={{ alignItems: 'center', marginBottom: 40, paddingHorizontal: 20 }}>
+                <Text style={styles.emptyStateText}>
+                    {hasLogs ? "We’re starting to see movement." : "Clarity comes from patterns. Start logging signals."}
+                </Text>
+            </View>
         </View>
     );
 };
@@ -1132,7 +1309,7 @@ export default function ConnectionDetailScreen() {
                         userZodiac="Capricorn" // Defaulting for now, could be in user context
                         partnerZodiac={zodiac}
                     />}
-                    {activeTab === 'DYNAMIC' && <DynamicContent />}
+                    {activeTab === 'DYNAMIC' && connection && <DynamicContent connection={connection} />}
 
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -1952,5 +2129,57 @@ const styles = StyleSheet.create({
         color: '#1C1C1E',
         marginBottom: verticalScale(12),
         lineHeight: verticalScale(32),
+    },
+    logSection: {
+        marginBottom: verticalScale(32),
+    },
+    radioGroup: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: scale(12),
+        justifyContent: 'space-between',
+    },
+    radioOption: {
+        flexGrow: 1,
+        flexBasis: '30%',
+        paddingVertical: verticalScale(14),
+        paddingHorizontal: scale(4),
+        borderRadius: scale(16),
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    radioOptionSelected: {
+        borderColor: '#FBCFE8', // pink-200
+        backgroundColor: '#FDF2F8', // pink-50
+    },
+    radioText: {
+        fontSize: fs(10),
+        fontWeight: '600',
+        color: '#4B5563',
+        textAlign: 'center',
+    },
+    radioTextSelected: {
+        color: '#DB2777', // pink-600
+        fontWeight: '800',
+    },
+    sliderLabel: {
+        fontSize: fs(9),
+        fontWeight: '800',
+        color: '#9CA3AF',
+        letterSpacing: 1,
+    },
+    otherInput: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E5E5EA',
+        borderRadius: scale(12),
+        paddingHorizontal: scale(16),
+        paddingVertical: verticalScale(10),
+        fontSize: fs(14),
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
     },
 });

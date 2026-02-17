@@ -15,6 +15,7 @@ export interface Connection {
     icon: string;
     status: 'active' | 'archived';
     signals: Signal[];
+    dailyLogs?: DailyLog[];
     onboardingCompleted?: boolean;
     onboardingContext?: {
         howWeMet?: string;
@@ -23,6 +24,21 @@ export interface Connection {
         howLong?: string;
         currentIntent?: string;
     };
+}
+
+export interface DailyLog {
+    id: string;
+    date: string;
+    energyExchange: 'I carried it' | 'It felt balanced' | 'He carried it' | 'Other';
+    custom_energy_note?: string;
+    direction: 'Closer' | 'The same' | 'Further away' | 'Other';
+    custom_direction_note?: string;
+    clarity: number;
+    effortSignals: string[];
+    custom_effort_note?: string;
+    structured_emotion_state: 'Grounded' | 'Warm' | 'Neutral' | 'Uncertain' | 'Preoccupied' | 'Draining' | 'Other';
+    custom_emotion_note?: string;
+    notable?: string;
 }
 
 const INITIAL_CONNECTIONS: Connection[] = [
@@ -35,6 +51,7 @@ const INITIAL_CONNECTIONS: Connection[] = [
         icon: 'leaf-outline',
         status: 'active',
         signals: [],
+        dailyLogs: [],
     },
     {
         id: '2',
@@ -45,6 +62,7 @@ const INITIAL_CONNECTIONS: Connection[] = [
         icon: 'flash-outline',
         status: 'active',
         signals: [],
+        dailyLogs: [],
     },
     {
         id: '3',
@@ -55,6 +73,7 @@ const INITIAL_CONNECTIONS: Connection[] = [
         icon: 'water-outline',
         status: 'active',
         signals: [],
+        dailyLogs: [],
     },
 ];
 
