@@ -219,31 +219,36 @@ const styles = StyleSheet.create({
         color: '#1C1C1E',
     },
     headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
         alignItems: 'flex-start',
         marginTop: 20,
-        marginBottom: 16,
+        marginBottom: 24,
         backgroundColor: '#FFFFFF',
         zIndex: 10,
     },
+    titleSection: {
+        // Naturally stacking
+    },
     toggleContainer: {
         flexDirection: 'row',
-        gap: 8,
-        marginTop: 10, // Align with title baseline
+        backgroundColor: '#F2F2F7',
+        borderRadius: 20,
+        padding: 2,
+        marginTop: 24,
+        alignSelf: 'flex-start', // Tight wrap around text
     },
     toggleButton: {
         paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        minWidth: 70,
+        paddingHorizontal: 20,
+        borderRadius: 18,
         alignItems: 'center',
     },
     toggleButtonActive: {
         backgroundColor: '#000000',
     },
     toggleButtonInactive: {
-        backgroundColor: '#F2F2F7',
+        backgroundColor: 'transparent',
     },
     toggleText: {
         fontSize: 10,
@@ -256,23 +261,20 @@ const styles = StyleSheet.create({
     toggleTextInactive: {
         color: '#8E8E93',
     },
-    titleSection: {
-        flex: 1,
-    },
     pageTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         fontSize: 32,
         color: '#1C1C1E',
-        fontStyle: 'italic',
-        lineHeight: 38,
+        marginBottom: 4,
+        textAlign: 'left',
     },
     sectionLabel: {
         fontSize: 10,
         fontWeight: '700',
         color: '#8E8E93',
-        letterSpacing: 1,
+        letterSpacing: 2,
         textTransform: 'uppercase',
-        marginTop: 4,
+        textAlign: 'left',
     },
     headerDivider: {
         height: 1,

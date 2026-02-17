@@ -2,7 +2,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useConnections } from '../../context/ConnectionsContext';
+import { aiService } from '../../services/aiService';
 
 const { width } = Dimensions.get('window');
 
@@ -16,123 +18,199 @@ const CHIPS = [
 ];
 
 // Content Component for the "Clarity" tab (Default)
-const ClarityContent = () => (
-    <View style={styles.contentSection}>
-        <Text style={styles.contentTitle}>What's on your mind?</Text>
-        <Text style={styles.contentSubtitle}>We'll parse the signal from the noise. Just tell us what happened.</Text>
+const ClarityContent = ({ name }: { name: string }) => {
+    const [input, setInput] = useState('');
+    const [insight, setInsight] = useState('');
+    const [loading, setLoading] = useState(false);
 
-        <View style={styles.inputArea}>
-            <Text style={styles.placeholderText}>He said he'd call, but...</Text>
-        </View>
+    const handleTalkItThrough = async () => {
+        if (!input.trim()) return;
+        setLoading(true);
+        try {
+            const result = await aiService.getClarityInsight(input, `Target: ${name}`);
+            setInsight(result);
+        } catch (error) {
+            setInsight("I couldn't parse that right now. Try again?");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        <View style={styles.chipsContainer}>
-            {CHIPS.map((chip, index) => (
-                <TouchableOpacity key={index} style={styles.chip}>
-                    <Text style={styles.chipText}>{chip}</Text>
-                </TouchableOpacity>
-            ))}
-        </View>
+    return (
+        <View style={styles.contentSection}>
+            <Text style={styles.contentTitle}>What's on your mind?</Text>
+            <Text style={styles.contentSubtitle}>We'll parse the signal from the noise. Just tell us what happened.</Text>
 
-        <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionButtonText}>TALK IT THROUGH</Text>
-        </TouchableOpacity>
-    </View>
-);
+            <View style={styles.inputArea}>
+                <TextInput
+                    style={styles.clarityInput}
+                    placeholder="He said he'd call, but..."
+                    placeholderTextColor="#D1D1D6"
+                    value={input}
+                    onChangeText={setInput}
+                    multiline
+                />
+            </View>
 
-// Content Component for the "Decoder" tab
-const DecoderContent = () => (
-    <View style={styles.decoderContainer}>
-        <View style={styles.decoderCard}>
-            <Text style={styles.decoderTitle}>Decoder</Text>
-            <Text style={styles.decoderSubtitle}>
-                Paste a text or thread to check tone, effort, and what's actually being said.
-            </Text>
+            <View style={styles.chipsContainer}>
+                {CHIPS.map((chip, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={styles.chip}
+                        onPress={() => setInput(prev => prev + (prev ? ' ' : '') + chip)}
+                    >
+                        <Text style={styles.chipText}>{chip}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
 
-            <TextInput
-                style={styles.decoderInput}
-                placeholder="Paste text here..."
-                placeholderTextColor="#A1A1AA"
-                multiline
-                textAlignVertical="top"
-            />
-
-            <TouchableOpacity style={styles.scanButton}>
-                <Text style={styles.scanButtonText}>SCAN TEXT</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.disclaimerText}>
-                THIS IS AN OBSERVATIONAL READ ON TONE & EFFORT, NOT A FACT.
-            </Text>
-        </View>
-    </View>
-);
-
-// Content Component for the "Stars" tab
-const StarsContent = ({ name }: { name: string }) => (
-    <View style={styles.starsContainer}>
-        <View style={styles.starsCard}>
-            {/* Header with Title and Date */}
-            <View style={styles.starsHeader}>
-                <View style={styles.starsTitleBlock}>
-                    <View style={styles.starIconContainer}>
-                        <Ionicons name="star" size={16} color="#7C3AED" />
-                    </View>
-                    <View>
-                        <Text style={styles.starsTitleMain}>Stars</Text>
-                        <Text style={styles.starsTitleSub}>Align</Text>
-                        <Text style={styles.starsForecastLabel}>FORECAST FOR {name.toUpperCase()}</Text>
-                    </View>
-                </View>
-                <View style={styles.starsDateBlock}>
-                    <Text style={styles.starsDateText}>FRI, FEB 13</Text>
-                    <TouchableOpacity style={styles.refreshButton}>
-                        <Ionicons name="refresh" size={12} color="#7C3AED" />
+            {insight ? (
+                <View style={styles.insightBox}>
+                    <Text style={styles.insightText}>{insight}</Text>
+                    <TouchableOpacity onPress={() => setInsight('')} style={styles.resetButton}>
+                        <Text style={styles.resetButtonText}>CLEAR INSIGHT</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+            ) : (
+                <TouchableOpacity
+                    style={[styles.actionButton, loading && { opacity: 0.5 }]}
+                    onPress={handleTalkItThrough}
+                    disabled={loading}
+                >
+                    <Text style={styles.actionButtonText}>{loading ? 'ANALYZING...' : 'TALK IT THROUGH'}</Text>
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+};
 
-            {/* Main Forecast Text */}
-            <Text style={styles.forecastText}>
-                A push-pull dynamic, where your grounded practicality (Capricorn) meets his desire for balance (Libra). The challenge is navigating his need for harmony with your goal-oriented focus.
-            </Text>
-            <Text style={styles.relationshipDynamicLabel}>RELATIONSHIP DYNAMIC</Text>
+// Content Component for the "Decoder" tab
+const DecoderContent = () => {
+    const [text, setText] = useState('');
+    const [analysis, setAnalysis] = useState('');
+    const [loading, setLoading] = useState(false);
 
-            {/* Cards Layout */}
-            <View style={styles.starsGrid}>
-                {/* Left Column: Avoid & Mindset */}
-                <View style={styles.starsLeftColumn}>
-                    <View style={styles.insightCard}>
-                        <Text style={styles.insightLabel}>LIKELY MINDSET</Text>
-                        <Text style={styles.insightText}>
-                            Appreciation for his efforts to keep things 'fair' and a willingness to engage in lighthearted social activities. He needs to feel admired.
-                        </Text>
-                    </View>
-                    <View style={styles.insightCard}>
-                        <Text style={styles.insightLabel}>AVOID</Text>
-                        <Text style={styles.insightText}>
-                            Direct criticism or being made to feel like he's failing to meet your standards. He will withdraw from confrontation.
-                        </Text>
-                    </View>
-                </View>
+    const handleScanText = async () => {
+        if (!text.trim()) return;
+        setLoading(true);
+        try {
+            const result = await aiService.decodeMessage(text);
+            setAnalysis(result);
+        } catch (error) {
+            setAnalysis("Could not decode this thread. Ensure you pasted a conversation.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                {/* Right Column: Strategy (Blue) */}
-                <View style={styles.strategyCard}>
-                    <View style={styles.strategyHeader}>
-                        <Text style={styles.strategyLabel}>STRATEGY</Text>
-                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.decodeCosmosLink}>DECODE THE COSMOS</Text>
-                            <Ionicons name="arrow-forward" size={10} color="#7C3AED" style={{ marginLeft: 2 }} />
+    return (
+        <View style={styles.decoderContainer}>
+            <View style={styles.decoderCard}>
+                <Text style={styles.decoderTitle}>Decoder</Text>
+                <Text style={styles.decoderSubtitle}>
+                    Paste a text or thread to check tone, effort, and what's actually being said.
+                </Text>
+
+                <TextInput
+                    style={styles.decoderInput}
+                    placeholder="Paste text here..."
+                    placeholderTextColor="#A1A1AA"
+                    multiline
+                    textAlignVertical="top"
+                    value={text}
+                    onChangeText={setText}
+                />
+
+                {analysis ? (
+                    <View style={styles.analysisResult}>
+                        <Text style={styles.analysisText}>{analysis}</Text>
+                        <TouchableOpacity onPress={() => setAnalysis('')} style={styles.resetButton}>
+                            <Text style={styles.resetButtonText}>SCAN NEW TEXT</Text>
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.strategyText}>
-                        "Leverage your Capricorn discipline to plan something social and elegant that aligns with his aesthetic. Control the setting, and he'll be more likely to want to keep the peace."
-                    </Text>
-                </View>
+                ) : (
+                    <TouchableOpacity
+                        style={[styles.scanButton, loading && { opacity: 0.5 }]}
+                        onPress={handleScanText}
+                        disabled={loading}
+                    >
+                        <Text style={styles.scanButtonText}>{loading ? 'SCANNING...' : 'SCAN TEXT'}</Text>
+                    </TouchableOpacity>
+                )}
+
+                <Text style={styles.disclaimerText}>
+                    THIS IS AN OBSERVATIONAL READ ON TONE & EFFORT, NOT A FACT.
+                </Text>
             </View>
         </View>
-        <Text style={styles.starsFooterDisclaimer}>* ASTROLOGY DESCRIBES TENDENCIES, NOT EFFORT.</Text>
-    </View>
-);
+    );
+};
+
+// Content Component for the "Stars" tab
+const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZodiac: string, partnerZodiac: string }) => {
+    const [forecast, setForecast] = useState<string>('');
+    const [loading, setLoading] = useState(false);
+
+    const fetchForecast = async () => {
+        setLoading(true);
+        try {
+            const result = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
+            setForecast(result);
+        } catch (error) {
+            setForecast("The cosmos are cloudy right now. Check back later.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <View style={styles.starsContainer}>
+            <View style={styles.starsCard}>
+                {/* Header with Title and Date */}
+                <View style={styles.starsHeader}>
+                    <View style={styles.starsTitleBlock}>
+                        <View style={styles.starIconContainer}>
+                            <Ionicons name="star" size={16} color="#7C3AED" />
+                        </View>
+                        <View>
+                            <Text style={styles.starsTitleMain}>Stars</Text>
+                            <Text style={styles.starsTitleSub}>Align</Text>
+                            <Text style={styles.starsForecastLabel}>FORECAST FOR {name.toUpperCase()}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.starsDateBlock}>
+                        <Text style={styles.starsDateText}>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</Text>
+                        <TouchableOpacity style={styles.refreshButton} onPress={fetchForecast} disabled={loading}>
+                            <Ionicons name="refresh" size={12} color="#7C3AED" style={loading && { opacity: 0.5 }} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Main Forecast Text */}
+                <Text style={styles.forecastText}>
+                    {forecast || `A push-pull dynamic, where your grounded practicality (${userZodiac}) meets his desire for balance (${partnerZodiac}). Tap refresh to decode the current alignment.`}
+                </Text>
+
+                {/* Optional: Add loading indicator or more structured results from AI */}
+
+                <Text style={styles.relationshipDynamicLabel}>RELATIONSHIP DYNAMIC</Text>
+
+                {/* Cards Layout */}
+                <View style={styles.starsGrid}>
+                    <View style={styles.strategyCard}>
+                        <View style={styles.strategyHeader}>
+                            <Text style={styles.strategyLabel}>COSMIC STRATEGY</Text>
+                        </View>
+                        <Text style={styles.strategyText}>
+                            {forecast ? "Use your unique elemental mix to navigate today's energy." : "Tap refresh to get a specific strategy for this connection."}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+            <Text style={styles.starsFooterDisclaimer}>* ASTROLOGY DESCRIBES TENDENCIES, NOT EFFORT.</Text>
+        </View>
+    );
+};
 
 // Helper for Dynamic Circles
 const RatingCircles = ({ filled = 3, total = 5 }: { filled?: number, total?: number }) => (
@@ -153,99 +231,177 @@ const RatingCircles = ({ filled = 3, total = 5 }: { filled?: number, total?: num
     </View>
 );
 
-// Content Component for the "Dynamic" tab
-const DynamicContent = () => (
-    <View style={styles.dynamicContainer}>
-        <View style={styles.dynamicCard}>
-            <Text style={styles.dynamicTitle}>What was his vibe today?</Text>
+// Objective Check-In Component
+const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, signals: any[] }) => {
+    const [result, setResult] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
 
-            {/* Slider Section */}
-            <View style={styles.sliderSection}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text style={styles.sliderLabel}>OVERALL VIBE</Text>
-                    <Text style={styles.sliderValue}>50%</Text>
-                </View>
-                {/* Visual Slider */}
-                <View style={{ height: 4, backgroundColor: '#F4F4F5', borderRadius: 2, position: 'relative', marginVertical: 10 }}>
-                    <View style={{ position: 'absolute', left: '50%', width: 16, height: 16, borderRadius: 8, backgroundColor: '#3B82F6', top: -6, transform: [{ translateX: -8 }] }} />
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={styles.sliderRangeLabel}>OFF</Text>
-                    <Text style={styles.sliderRangeLabel}>ALIGNED</Text>
-                </View>
-            </View>
+    const handleCheckIn = async () => {
+        setLoading(true);
+        setModalVisible(true);
+        try {
+            const checkInResult = await aiService.getObjectiveCheckIn(signals);
+            setResult(checkInResult);
+        } catch (error) {
+            setResult("Couldn't get an objective read right now.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-            <Text style={styles.sectionHeader}>WHAT YOU NOTICED</Text>
-
-            {/* Metrics Grid */}
-            <View style={styles.metricsGrid}>
-                {/* Row 1 */}
-                <View style={styles.metricRow}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <Text style={styles.metricLabel}>SAFETY</Text>
-                            <Text style={styles.metricScore}>3/5</Text>
-                        </View>
-                        <RatingCircles filled={3} total={5} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <Text style={styles.metricLabel}>CLARITY</Text>
-                            <Text style={styles.metricScore}>3/5</Text>
-                        </View>
-                        <RatingCircles filled={3} total={5} />
-                    </View>
-                </View>
-
-                {/* Row 2 */}
-                <View style={styles.metricRow}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <Text style={styles.metricLabel}>EXCITEMENT</Text>
-                            <Text style={styles.metricScore}>3/5</Text>
-                        </View>
-                        <RatingCircles filled={3} total={5} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <Text style={styles.metricLabel}>REGULATION</Text>
-                            <Text style={styles.metricScore}>3/5</Text>
-                        </View>
-                        <RatingCircles filled={3} total={5} />
-                    </View>
-                </View>
-            </View>
-
-            {/* Reflection Input */}
-            <TextInput
-                style={styles.reflectionInput}
-                placeholder="What happened? Tap to reflect..."
-                placeholderTextColor="#D1D1D6"
-            />
-
-            {/* Save Button */}
-            <TouchableOpacity style={styles.saveCheckInButton}>
-                <Text style={styles.saveCheckInText}>SAVE CHECK-IN</Text>
+    return (
+        <View style={{ marginTop: 12 }}>
+            <TouchableOpacity style={styles.objectiveCheckInButton} onPress={handleCheckIn}>
+                <Ionicons name="shield-checkmark-outline" size={14} color="#8E8E93" />
+                <Text style={styles.objectiveCheckInText}>OBJECTIVE CHECK-IN</Text>
             </TouchableOpacity>
 
+            <Modal
+                visible={modalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => setModalVisible(false)}
+                        >
+                            <Ionicons name="close" size={24} color="#1C1C1E" />
+                        </TouchableOpacity>
+
+                        <Text style={styles.modalTitle}>Objective Read</Text>
+                        <ScrollView style={{ maxHeight: 400 }}>
+                            {loading ? (
+                                <Text style={styles.modalSubtitle}>Calculating grounded truth...</Text>
+                            ) : (
+                                <Text style={styles.analysisText}>{result}</Text>
+                            )}
+                        </ScrollView>
+
+                        {!loading && (
+                            <TouchableOpacity style={styles.resetButton} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.resetButtonText}>CLOSE</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
+    );
+};
 
-        <Text style={styles.pastLogsHeader}>PAST LOGS</Text>
-        <Text style={styles.emptyStateText}>No feelings logged yet. Start tracking your intuition.</Text>
-    </View>
-);
+// Content Component for the "Dynamic" tab
+const DynamicContent = () => {
+    const [stats, setStats] = useState({ safety: 3, clarity: 3, excitement: 3, regulation: 3 });
+    const [reflection, setReflection] = useState('');
+    const [vibeAnalysis, setVibeAnalysis] = useState('');
+    const [loading, setLoading] = useState(false);
 
+    const handleSaveCheckIn = async () => {
+        setLoading(true);
+        try {
+            const result = await aiService.analyzeDynamicVibe(stats, reflection);
+            setVibeAnalysis(result);
+        } catch (error) {
+            setVibeAnalysis("Logged, but couldn't get a vibe check right now.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    const updateStat = (key: keyof typeof stats, val: number) => {
+        setStats(prev => ({ ...prev, [key]: val }));
+    };
 
-import { useConnections } from '../../context/ConnectionsContext';
+    return (
+        <View style={styles.dynamicContainer}>
+            <View style={styles.dynamicCard}>
+                <Text style={styles.dynamicTitle}>What was his vibe today?</Text>
 
-interface Signal {
-    text: string;
-    type: 'GREEN' | 'YELLOW' | 'RED';
-}
+                {vibeAnalysis ? (
+                    <View style={styles.insightBox}>
+                        <Text style={styles.sectionHeader}>AI VIBE CHECK</Text>
+                        <Text style={styles.insightText}>{vibeAnalysis}</Text>
+                        <TouchableOpacity onPress={() => setVibeAnalysis('')} style={styles.resetButton}>
+                            <Text style={styles.resetButtonText}>LOG NEW VIBE</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <>
+                        <Text style={styles.sectionHeader}>WHAT YOU NOTICED</Text>
 
+                        {/* Metrics Grid */}
+                        <View style={styles.metricsGrid}>
+                            <View style={styles.metricRow}>
+                                <View style={{ flex: 1, marginRight: 8 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={styles.metricLabel}>SAFETY</Text>
+                                        <TouchableOpacity onPress={() => updateStat('safety', (stats.safety % 5) + 1)}>
+                                            <Text style={styles.metricScore}>{stats.safety}/5</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <RatingCircles filled={stats.safety} total={5} />
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 8 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={styles.metricLabel}>CLARITY</Text>
+                                        <TouchableOpacity onPress={() => updateStat('clarity', (stats.clarity % 5) + 1)}>
+                                            <Text style={styles.metricScore}>{stats.clarity}/5</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <RatingCircles filled={stats.clarity} total={5} />
+                                </View>
+                            </View>
 
-// ... (keep Components ClarityContent, DecoderContent, etc.)
+                            <View style={styles.metricRow}>
+                                <View style={{ flex: 1, marginRight: 8 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={styles.metricLabel}>EXCITEMENT</Text>
+                                        <TouchableOpacity onPress={() => updateStat('excitement', (stats.excitement % 5) + 1)}>
+                                            <Text style={styles.metricScore}>{stats.excitement}/5</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <RatingCircles filled={stats.excitement} total={5} />
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 8 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={styles.metricLabel}>REGULATION</Text>
+                                        <TouchableOpacity onPress={() => updateStat('regulation', (stats.regulation % 5) + 1)}>
+                                            <Text style={styles.metricScore}>{stats.regulation}/5</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <RatingCircles filled={stats.regulation} total={5} />
+                                </View>
+                            </View>
+                        </View>
+
+                        <TextInput
+                            style={styles.reflectionInput}
+                            placeholder="What happened? Tap to reflect..."
+                            placeholderTextColor="#D1D1D6"
+                            value={reflection}
+                            onChangeText={setReflection}
+                        />
+
+                        <TouchableOpacity
+                            style={[styles.saveCheckInButton, loading && { opacity: 0.5 }]}
+                            onPress={handleSaveCheckIn}
+                            disabled={loading}
+                        >
+                            <Text style={styles.saveCheckInText}>{loading ? 'ANALYZING...' : 'SAVE & ANALYZE'}</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+            </View>
+
+            <Text style={styles.pastLogsHeader}>PAST LOGS</Text>
+            <Text style={styles.emptyStateText}>No feelings logged yet. Start tracking your intuition.</Text>
+        </View>
+    );
+};
 
 
 
@@ -259,9 +415,9 @@ export default function ConnectionDetailScreen() {
     const connection = connections.find(c => c.id === params.id);
 
     // Fallback or Loading state could be better, but using params as initial data
-    const name = connection?.name || params.name || 'sam';
-    const tag = connection?.tag || params.tag || 'SITUATIONSHIP';
-    const zodiac = connection?.zodiac || params.zodiac || 'LIBRA';
+    const name = String(connection?.name || params.name || 'sam');
+    const tag = String(connection?.tag || params.tag || 'SITUATIONSHIP');
+    const zodiac = String(connection?.zodiac || params.zodiac || 'LIBRA');
     const icon = connection?.icon || params.icon || 'leaf-outline';
     const status = connection?.status || 'active';
 
@@ -312,28 +468,41 @@ export default function ConnectionDetailScreen() {
                         <View style={styles.tagBadge}>
                             <Text style={styles.tagText}>{tag}</Text>
                         </View>
+
+                        {/* Objective Check-In Feature */}
+                        <ObjectiveCheckIn connectionId={params.id as string} signals={connection?.signals || []} />
                     </View>
 
-                    {/* Tabs */}
-                    <View style={styles.tabsContainer}>
-                        {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
-                            <TouchableOpacity
-                                key={tab}
-                                style={activeTab === tab ? styles.activeTab : styles.inactiveTab}
-                                onPress={() => setActiveTab(tab as any)}
-                            >
-                                <Text style={activeTab === tab ? styles.activeTabText : styles.inactiveTabText}>
-                                    {tab}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+                    {/* Tabs (The "Toolbar") */}
+                    <View style={styles.tabsWrapper}>
+                        <View style={styles.tabsContainer}>
+                            {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
+                                <TouchableOpacity
+                                    key={tab}
+                                    style={styles.tabButton}
+                                    onPress={() => setActiveTab(tab as any)}
+                                >
+                                    <Text style={[
+                                        styles.tabText,
+                                        activeTab === tab ? styles.activeTabText : styles.inactiveTabText
+                                    ]}>
+                                        {tab}
+                                    </Text>
+                                    {activeTab === tab && <View style={styles.activeIndicator} />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                     </View>
 
                     {/* Dynamic Content Rendering */}
 
-                    {activeTab === 'CLARITY' && <ClarityContent />}
+                    {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
                     {activeTab === 'DECODER' && <DecoderContent />}
-                    {activeTab === 'STARS' && <StarsContent name={Array.isArray(name) ? name[0] : name} />}
+                    {activeTab === 'STARS' && <StarsContent
+                        name={Array.isArray(name) ? name[0] : name}
+                        userZodiac="Capricorn" // Defaulting for now, could be in user context
+                        partnerZodiac={zodiac}
+                    />}
                     {activeTab === 'DYNAMIC' && <DynamicContent />}
 
                 </ScrollView>
@@ -381,33 +550,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         position: 'relative',
     },
-    zodiacBadge: {
-        position: 'absolute',
-        bottom: 10,
-        right: 10,
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 16,
-        // Shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#F2F2F7',
-    },
-    zodiacText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#ec4899', // pink-500
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-    },
     profileName: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 36, // Reduced size
+        fontSize: 36,
         color: '#1C1C1E',
         marginBottom: 8,
     },
@@ -425,33 +570,68 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
+    zodiacBadge: {
+        position: 'absolute',
+        bottom: 10,
+        right: 10,
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    zodiacText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#ec4899', // pink-500
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    tabsWrapper: {
+        paddingHorizontal: 24,
+        marginBottom: 32,
+    },
     tabsContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 32,
-        marginBottom: 40,
-        paddingHorizontal: 20,
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F2F2F7',
     },
-    activeTab: {
-        paddingVertical: 8,
-        borderBottomWidth: 0,
+    tabButton: {
+        paddingVertical: 12,
+        alignItems: 'center',
+        position: 'relative',
+    },
+    activeIndicator: {
+        position: 'absolute',
+        bottom: -1,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: '#ec4899',
     },
     activeTabText: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '800',
         color: '#1C1C1E',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
-    inactiveTab: {
-        paddingVertical: 8,
-    },
     inactiveTabText: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: '#C7C7CC',
         letterSpacing: 1,
         textTransform: 'uppercase',
+    },
+    tabText: {
+        fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     },
     contentSection: {
         paddingHorizontal: 24,
@@ -477,11 +657,12 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
     },
-    placeholderText: {
+    clarityInput: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 28,
-        color: '#E5E5EA',
+        fontSize: 24,
+        color: '#1C1C1E',
         textAlign: 'center',
+        width: '100%',
     },
     chipsContainer: {
         flexDirection: 'row',
@@ -504,6 +685,32 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
+    insightBox: {
+        backgroundColor: '#F9FAFB',
+        padding: 24,
+        borderRadius: 24,
+        marginTop: 24,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    insightText: {
+        fontSize: 15,
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        lineHeight: 24,
+        marginBottom: 16,
+    },
+    resetButton: {
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    resetButtonText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#ec4899',
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+    },
     actionButton: {
         backgroundColor: '#000000',
         paddingVertical: 18,
@@ -520,263 +727,6 @@ const styles = StyleSheet.create({
         letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
-    profileDetailsCard: {
-        width: '100%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#F2F2F7',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-        marginBottom: 40,
-    },
-    profileSectionTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#D1D1D6',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        marginBottom: 12,
-    },
-    lastActiveLarge: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 24,
-        color: '#1C1C1E',
-        marginBottom: 24,
-    },
-    dividerHorizontal: {
-        height: 1,
-        width: '100%',
-        backgroundColor: '#F2F2F7',
-        marginVertical: 24,
-    },
-    signalsList: {
-        marginBottom: 0,
-    },
-    signalRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-        backgroundColor: '#F9FAFB',
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#F2F2F7',
-    },
-    signalDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginRight: 10,
-    },
-    signalText: {
-        fontSize: 14,
-        color: '#1C1C1E',
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        flex: 1,
-    },
-    emptySignalText: {
-        fontSize: 14,
-        color: '#8E8E93',
-        fontStyle: 'italic',
-    },
-    manageRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    manageButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 14,
-        backgroundColor: '#F9FAFB',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#F2F2F7',
-        gap: 8,
-    },
-    manageButtonText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#1C1C1E',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
-    // Bio Styles
-    bioGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 20,
-        marginBottom: 8,
-    },
-    bioItem: {
-        minWidth: '40%',
-    },
-    bioLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#8E8E93',
-        letterSpacing: 0.5,
-        marginBottom: 4,
-        textTransform: 'uppercase',
-    },
-    bioValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#1C1C1E',
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    },
-    // Connection Snapshot Styles
-    snapshotRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        rowGap: 16,
-        width: '100%',
-        marginBottom: 8,
-    },
-    snapshotItem: {
-        alignItems: 'flex-start',
-        width: '48%',
-    },
-    snapshotLabel: {
-        fontSize: 9,
-        fontWeight: '800',
-        color: '#8E8E93',
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    snapshotValue: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#1C1C1E',
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    },
-    dividerLight: {
-        height: 1,
-        width: '100%',
-        backgroundColor: '#F2F2F7',
-        marginVertical: 24,
-    },
-    // Pattern Insight Styles
-    patternInsightBlock: {
-        backgroundColor: '#F9FAFB', // Neutral 50
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 4,
-    },
-    patternTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#4B5563', // Neutral 600
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
-    patternText: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 14,
-        color: '#1C1C1E',
-        lineHeight: 22,
-        fontStyle: 'italic',
-    },
-    // Standards Styles
-    standardsHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 4,
-    },
-    sectionHeaderTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#D1D1D6',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    standardsScore: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#EC4899', // pink-500
-        letterSpacing: 0.5,
-    },
-    standardsGrid: {
-        marginTop: 16,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    standardRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        width: '45%',
-        marginBottom: 8,
-    },
-    standardLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#4B5563',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-    },
-    // Timeline Styles
-    timelineContainer: {
-        paddingLeft: 8,
-        paddingTop: 8,
-    },
-    timelineItem: {
-        flexDirection: 'row',
-        marginBottom: 0,
-    },
-    timelineLeft: {
-        alignItems: 'center',
-        marginRight: 16,
-        width: 16,
-    },
-    timelineDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginBottom: 4,
-        zIndex: 1,
-    },
-    timelineLine: {
-        width: 1,
-        backgroundColor: '#E5E5EA',
-        flex: 1,
-        marginTop: -4,
-        marginBottom: 0,
-    },
-    timelineContent: {
-        paddingBottom: 24,
-        flex: 1,
-    },
-    timelineDate: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#8E8E93',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    timelineText: {
-        fontSize: 13,
-        color: '#1C1C1E',
-        lineHeight: 18,
-    },
-    emptyStateTextItalic: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontStyle: 'italic',
-        marginTop: 8,
-    },
-    // Decoder Styles
     decoderContainer: {
         paddingHorizontal: 20,
     },
@@ -786,148 +736,131 @@ const styles = StyleSheet.create({
         padding: 24,
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
     },
     decoderTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 32,
+        fontSize: 24,
         color: '#1C1C1E',
         marginBottom: 12,
     },
     decoderSubtitle: {
         fontSize: 14,
-        lineHeight: 20,
         color: '#8E8E93',
         marginBottom: 24,
+        lineHeight: 20,
     },
     decoderInput: {
         backgroundColor: '#F9FAFB',
         borderRadius: 16,
         padding: 20,
-        height: 180,
         fontSize: 16,
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         color: '#1C1C1E',
+        height: 160,
         marginBottom: 24,
+        textAlignVertical: 'top',
+    },
+    analysisResult: {
+        backgroundColor: '#F9FAFB',
+        padding: 24,
+        borderRadius: 24,
+        marginTop: 24,
+    },
+    analysisText: {
+        fontSize: 15,
+        color: '#1C1C1E',
+        lineHeight: 24,
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        marginBottom: 16,
     },
     scanButton: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#FCE7F3', // Light pink border
-        paddingVertical: 18,
-        borderRadius: 16,
+        backgroundColor: '#000000',
+        paddingVertical: 16,
+        borderRadius: 30,
         alignItems: 'center',
         marginBottom: 20,
-        shadowColor: '#ec4899',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 1,
     },
     scanButtonText: {
-        color: '#1C1C1E',
-        fontSize: 12,
-        fontWeight: '700',
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '800',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
     disclaimerText: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#D1D1D6', // Very light gray text
+        color: '#D1D1D6',
         textAlign: 'center',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
-    // Stars Styles
     starsContainer: {
         paddingHorizontal: 20,
     },
     starsCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 20,
+        padding: 24,
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     starsHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     starsTitleBlock: {
         flexDirection: 'row',
+        gap: 12,
     },
     starIconContainer: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#EBE7FE', // lavender-100
+        backgroundColor: '#F5F3FF',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
     },
     starsTitleMain: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 24,
+        fontSize: 18,
+        fontWeight: '700',
         color: '#1C1C1E',
     },
     starsTitleSub: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 24,
-        color: '#1C1C1E',
-        lineHeight: 24,
-        marginBottom: 4,
+        fontSize: 18,
+        color: '#7C3AED',
     },
     starsForecastLabel: {
         fontSize: 9,
-        fontWeight: '600',
-        color: '#1C1C1E',
+        fontWeight: '800',
+        color: '#8E8E93',
         letterSpacing: 1,
-        textTransform: 'uppercase',
+        marginTop: 4,
     },
     starsDateBlock: {
         alignItems: 'flex-end',
     },
     starsDateText: {
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: '700',
         color: '#8E8E93',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        marginBottom: 8,
     },
     refreshButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#EBE7FE',
-        justifyContent: 'center',
-        alignItems: 'center',
+        marginTop: 8,
     },
     forecastText: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 20, // Large distinct font per screenshot
+        fontSize: 18,
         color: '#1C1C1E',
         lineHeight: 28,
         marginBottom: 16,
-        textAlign: 'left', // Keep left aligned for readable paragraph
     },
     relationshipDynamicLabel: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#7C3AED', // Purple
+        color: '#7C3AED',
         letterSpacing: 1,
         textTransform: 'uppercase',
         textAlign: 'right',
@@ -937,30 +870,8 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         gap: 16,
     },
-    starsLeftColumn: {
-        flexDirection: 'column',
-        gap: 16,
-    },
-    insightCard: {
-        backgroundColor: '#F9FAFB', // Light gray bg
-        padding: 16,
-        borderRadius: 16,
-    },
-    insightLabel: {
-        fontSize: 9,
-        fontWeight: '800',
-        color: '#8E8E93',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-    },
-    insightText: {
-        fontSize: 14,
-        color: '#1C1C1E',
-        lineHeight: 20,
-    },
     strategyCard: {
-        backgroundColor: '#EEF2FF', // Very light blue/purple bg (indigo-50 approx)
+        backgroundColor: '#EEF2FF',
         padding: 20,
         borderRadius: 16,
     },
@@ -972,17 +883,9 @@ const styles = StyleSheet.create({
     strategyLabel: {
         fontSize: 9,
         fontWeight: '800',
-        color: '#818CF8', // Indigo-400
+        color: '#818CF8',
         letterSpacing: 1,
         textTransform: 'uppercase',
-    },
-    decodeCosmosLink: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#7C3AED', // Purple
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-        marginRight: 2,
     },
     strategyText: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
@@ -999,7 +902,6 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         marginTop: 8,
     },
-    // Dynamic Styles
     dynamicContainer: {
         paddingHorizontal: 20,
     },
@@ -1009,11 +911,6 @@ const styles = StyleSheet.create({
         padding: 24,
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
         marginBottom: 40,
     },
     dynamicTitle: {
@@ -1021,28 +918,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: '#1C1C1E',
         marginBottom: 24,
-    },
-    sliderSection: {
-        marginBottom: 32,
-    },
-    sliderLabel: {
-        fontSize: 9,
-        fontWeight: '800',
-        color: '#1C1C1E',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
-    sliderValue: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#1C1C1E',
-    },
-    sliderRangeLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#8E8E93',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
     },
     sectionHeader: {
         fontSize: 9,
@@ -1070,7 +945,7 @@ const styles = StyleSheet.create({
     metricScore: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#D1D1D6',
+        color: '#ec4899',
         letterSpacing: 0.5,
     },
     reflectionInput: {
@@ -1085,7 +960,7 @@ const styles = StyleSheet.create({
     saveCheckInButton: {
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#FCE7F3', // Light pink border
+        borderColor: '#FCE7F3',
         paddingVertical: 18,
         borderRadius: 16,
         alignItems: 'center',
@@ -1117,6 +992,52 @@ const styles = StyleSheet.create({
         color: '#D1D1D6',
         textAlign: 'center',
         marginBottom: 20,
+    },
+    objectiveCheckInButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F2F2F7',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        gap: 8,
+    },
+    objectiveCheckInText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 32,
+        padding: 32,
+        width: '100%',
+        position: 'relative',
+    },
+    modalTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontSize: 28,
+        color: '#1C1C1E',
+        marginBottom: 16,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#8E8E93',
+        marginBottom: 20,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 24,
+        right: 24,
+        zIndex: 1,
     }
-
 });

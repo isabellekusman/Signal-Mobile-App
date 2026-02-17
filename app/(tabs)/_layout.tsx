@@ -6,31 +6,24 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        },
         tabBarStyle: {
-          position: 'absolute',
-          bottom: 25,
-          left: 20,
-          right: 20,
-          elevation: 5,
           backgroundColor: '#ffffff',
-          borderRadius: 25,
-          height: 60,
-          borderTopWidth: 0,
-          shadowColor: '#ec4899', // Pink shadow
-          shadowOffset: {
-            width: 0,
-            height: 4,
-          },
-          shadowOpacity: 0.15,
-          shadowRadius: 10,
-          alignItems: 'center',
-          justifyContent: 'space-around', // Changed to space-around for centering
-          paddingBottom: 0,
-          paddingHorizontal: 10, // Add padding horizontal
+          height: 85,
+          borderTopWidth: 1,
+          borderTopColor: '#F2F2F7',
+          paddingBottom: 25,
+          paddingTop: 10,
         },
         tabBarActiveTintColor: '#ec4899', // pink-500
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarInactiveTintColor: '#C7C7CC',
       }}
     >
       <Tabs.Screen
