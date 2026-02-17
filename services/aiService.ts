@@ -40,7 +40,7 @@ export const aiService = {
      * Get a relationship forecast based on zodiac signs.
      */
     async getStarsAlign(name: string, userZodiac: string, partnerZodiac: string) {
-        const fullPrompt = `${Prompts.STARS_PROMPT}\n\nUser Zodiac: ${userZodiac}\nPartner (${name}) Zodiac: ${partnerZodiac}`;
+        const fullPrompt = `${Prompts.STARS_ALIGN_PROMPT}\n\nToday's Date: ${new Date().toDateString()}\nUser Zodiac: ${userZodiac}\nPartner (${name}) Zodiac: ${partnerZodiac}`;
         return await generateContent(fullPrompt);
     },
 

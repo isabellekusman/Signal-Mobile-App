@@ -1,5 +1,6 @@
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -480,21 +481,68 @@ const DecoderContent = ({ name }: { name: string }) => {
 };
 
 // Content Component for the "Stars" tab
+// Content Component for the "Stars" tab
+// Content Component for the "Stars" tab
 const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZodiac: string, partnerZodiac: string }) => {
-    const [forecast, setForecast] = useState<string>('');
+    const [forecast, setForecast] = useState<{
+        connectionTheme?: string;
+        dailyForecast: string;
+        planetaryTransits?: string;
+        cosmicStrategy: string;
+        detailedAnalysis?: {
+            userBubble: string;
+            partnerBubble: string;
+            pushPullDynamics: string;
+            cosmicStrategyDepth: string;
+        }
+    } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isDetailedAnalysisOpen, setIsDetailedAnalysisOpen] = useState(false);
 
     const fetchForecast = async () => {
+        const today = new Date().toISOString().split('T')[0];
+        const storageKey = `stars_${name.replace(/\s/g, '')}_${today}`;
+
         setLoading(true);
         try {
-            const result = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
+            // Check cache first
+            const cached = await AsyncStorage.getItem(storageKey);
+            if (cached) {
+                setForecast(JSON.parse(cached));
+                setLoading(false);
+                return;
+            }
+
+            // Fetch new if not cached
+            const resultString = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
+            let jsonString = resultString.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(jsonString);
+
             setForecast(result);
+            await AsyncStorage.setItem(storageKey, JSON.stringify(result));
+
         } catch (error) {
-            setForecast("The cosmos are cloudy right now. Check back later.");
+            console.error(error);
+            // Fallback
+            setForecast({
+                connectionTheme: "Cloudy Skies",
+                dailyForecast: "The cosmos are cloudy right now. Check back later.",
+                cosmicStrategy: "Focus on your own center.",
+                detailedAnalysis: {
+                    userBubble: "Uncertainty.",
+                    partnerBubble: "Uncertainty.",
+                    pushPullDynamics: "Signals are mixed.",
+                    cosmicStrategyDepth: "Wait for the clouds to clear."
+                }
+            });
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchForecast();
+    }, []);
 
     return (
         <View style={styles.starsContainer}>
@@ -502,45 +550,124 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                 {/* Header with Title and Date */}
                 <View style={styles.starsHeader}>
                     <View style={styles.starsTitleBlock}>
-                        <View style={styles.starIconContainer}>
-                            <Ionicons name="star" size={16} color="#7C3AED" />
+                        <View style={[styles.starIconContainer, { backgroundColor: '#FDF2F8' }]}>
+                            <Ionicons name="star" size={16} color="#ec4899" />
                         </View>
                         <View>
                             <Text style={styles.starsTitleMain}>Stars</Text>
-                            <Text style={styles.starsTitleSub}>Align</Text>
+                            <Text style={[styles.starsTitleSub, { color: '#ec4899' }]}>Align</Text>
                             <Text style={styles.starsForecastLabel}>FORECAST FOR {name.toUpperCase()}</Text>
                         </View>
                     </View>
                     <View style={styles.starsDateBlock}>
                         <Text style={styles.starsDateText}>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</Text>
-                        <TouchableOpacity style={styles.refreshButton} onPress={fetchForecast} disabled={loading}>
-                            <Ionicons name="refresh" size={12} color="#7C3AED" style={loading && { opacity: 0.5 }} />
-                        </TouchableOpacity>
+                        {/* Auto-refreshing daily, hiding manual refresh for cleaner look */}
                     </View>
                 </View>
+
+                {/* Connection Theme Headline */}
+                <Text style={styles.connectionThemeText}>
+                    {forecast?.connectionTheme || "Aligning the Cosmos..."}
+                </Text>
 
                 {/* Main Forecast Text */}
                 <Text style={styles.forecastText}>
-                    {forecast || `A push-pull dynamic, where your grounded practicality (${userZodiac}) meets his desire for balance (${partnerZodiac}). Tap refresh to decode the current alignment.`}
+                    {forecast?.dailyForecast || (loading ? "Aligning your cosmic energies..." : `See how the ${userZodiac} and ${partnerZodiac} energies collide today.`)}
                 </Text>
 
-                {/* Optional: Add loading indicator or more structured results from AI */}
-
-                <Text style={styles.relationshipDynamicLabel}>RELATIONSHIP DYNAMIC</Text>
-
-                {/* Cards Layout */}
-                <View style={styles.starsGrid}>
-                    <View style={styles.strategyCard}>
+                {/* Cosmic Strategy (Short) */}
+                <View style={[styles.starsGrid, { marginTop: 20 }]}>
+                    <View style={[styles.strategyCard, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7', borderWidth: 1 }]}>
                         <View style={styles.strategyHeader}>
-                            <Text style={styles.strategyLabel}>COSMIC STRATEGY</Text>
+                            <Text style={[styles.strategyLabel, { color: '#ec4899' }]}>COSMIC STRATEGY</Text>
                         </View>
-                        <Text style={styles.strategyText}>
-                            {forecast ? "Use your unique elemental mix to navigate today's energy." : "Tap refresh to get a specific strategy for this connection."}
+                        <Text style={[styles.strategyText, { color: '#1C1C1E' }]}>
+                            {forecast?.cosmicStrategy || "..."}
                         </Text>
                     </View>
                 </View>
+
+                {/* Decode The Cosmos Button */}
+                <TouchableOpacity
+                    style={[styles.scanButton, { marginTop: 24, backgroundColor: '#ec4899' }]}
+                    onPress={() => {
+                        if (!forecast) {
+                            fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
+                        } else {
+                            setIsDetailedAnalysisOpen(true);
+                        }
+                    }}
+                    disabled={loading}
+                >
+                    <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : 'DECODE THE COSMOS'}</Text>
+                </TouchableOpacity>
             </View>
+
             <Text style={styles.starsFooterDisclaimer}>* ASTROLOGY DESCRIBES TENDENCIES, NOT EFFORT.</Text>
+
+            {/* Detailed Analysis Modal */}
+            <Modal
+                visible={isDetailedAnalysisOpen}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setIsDetailedAnalysisOpen(false)}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
+                            <TouchableOpacity onPress={() => setIsDetailedAnalysisOpen(false)}>
+                                <Ionicons name="close-circle" size={32} color="#E5E5EA" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.decoderModalTitle, { color: '#1C1C1E' }]}>Cosmic Decoding</Text>
+                        <Text style={styles.decoderModalSubtitle}>The push and pull of today's energy.</Text>
+
+                        {forecast?.detailedAnalysis && (
+                            <View style={{ gap: 24 }}>
+                                {/* Current Transits */}
+                                {forecast.planetaryTransits && (
+                                    <View style={[styles.decoderBox, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                            <Ionicons name="planet" size={16} color="#0EA5E9" />
+                                            <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#0EA5E9' }]}>CURRENT PLANETARY TRANSITS</Text>
+                                        </View>
+                                        <Text style={styles.decoderBoxBody}>{forecast.planetaryTransits}</Text>
+                                    </View>
+                                )}
+
+                                {/* User & Partner Bubbles */}
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>YOU ({userZodiac})</Text>
+                                        <Text style={styles.decoderBoxBody}>{forecast.detailedAnalysis.userBubble}</Text>
+                                    </View>
+                                    <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>THEM ({partnerZodiac})</Text>
+                                        <Text style={styles.decoderBoxBody}>{forecast.detailedAnalysis.partnerBubble}</Text>
+                                    </View>
+                                </View>
+
+                                {/* Push / Pull Dynamics */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                        <Ionicons name="swap-horizontal" size={16} color="#1C1C1E" />
+                                        <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#1C1C1E' }]}>PUSH / PULL DYNAMICS</Text>
+                                    </View>
+                                    <Text style={styles.decoderBoxBody}>{forecast.detailedAnalysis.pushPullDynamics}</Text>
+                                </View>
+
+                                {/* Deep Strategy */}
+                                <View style={[styles.decoderBox, { backgroundColor: '#FDF2F8', borderColor: '#FBCFE8' }]}>
+                                    <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>COSMIC STRATEGY: IN DEPTH</Text>
+                                    <Text style={[styles.decoderBoxBody, { fontSize: 16, lineHeight: 26 }]}>{forecast.detailedAnalysis.cosmicStrategyDepth}</Text>
+                                </View>
+                            </View>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </View>
     );
 };
@@ -1818,5 +1945,12 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(16),
         borderWidth: 1,
         borderColor: '#F2F2F7',
+    },
+    connectionThemeText: {
+        fontSize: fs(24),
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        color: '#1C1C1E',
+        marginBottom: verticalScale(12),
+        lineHeight: verticalScale(32),
     },
 });
