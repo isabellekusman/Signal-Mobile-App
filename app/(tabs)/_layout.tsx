@@ -51,6 +51,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="signal"
+        options={{
+          title: 'Signal',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="radio-outline" size={28} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Profile',
