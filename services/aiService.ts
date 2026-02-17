@@ -5,8 +5,12 @@ export const aiService = {
     /**
      * Parse the signal from the noise based on user input.
      */
-    async getClarityInsight(userInput: string, connectionContext?: string) {
-        const fullPrompt = `${Prompts.CLARITY_PROMPT}\n\nConnection Context: ${connectionContext || 'General'}\nUser Observation: ${userInput}`;
+    async getClarityInsight(userInput: string, connectionContext?: string, history?: string) {
+        let fullPrompt = `${Prompts.CLARITY_PROMPT}\n\nConnection Context: ${connectionContext || 'General'}`;
+        if (history) {
+            fullPrompt += `\n\nRecent Conversation History:\n${history}`;
+        }
+        fullPrompt += `\n\nCurrent Observation/Message: ${userInput}`;
         return await generateContent(fullPrompt);
     },
 

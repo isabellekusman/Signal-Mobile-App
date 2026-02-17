@@ -18,22 +18,53 @@ const CHIPS = [
 ];
 
 // Content Component for the "Clarity" tab (Default)
+// Content Component for the "Clarity" tab (Default)
+// Content Component for the "Clarity" tab (Default)
 const ClarityContent = ({ name }: { name: string }) => {
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
     const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
-    const [insight, setInsight] = useState('');
+    const [messages, setMessages] = useState<Array<{ id: string, text: string, sender: 'user' | 'ai' }>>([]);
     const [loading, setLoading] = useState(false);
+    const [initialInput, setInitialInput] = useState('');
 
-    const handleTalkItThrough = async () => {
+    const startChat = () => {
+        if (initialInput.trim()) {
+            const firstMessage = { id: Date.now().toString(), text: initialInput, sender: 'user' as const };
+            setMessages([firstMessage]);
+            setIsChatOpen(true);
+            setLoading(true);
+            setInitialInput(''); // Clear initial input but keep it for processing
+
+            // Trigger AI response for the first message
+            processAIResponse(firstMessage.text, [firstMessage]);
+        } else {
+            setIsChatOpen(true);
+        }
+    };
+
+    const handleSend = () => {
         if (!input.trim()) return;
-        Keyboard.dismiss();
+
+        const userMessage = { id: Date.now().toString(), text: input, sender: 'user' as const };
+        const newHistory = [...messages, userMessage];
+        setMessages(newHistory);
+        setInput('');
         setLoading(true);
+
+        processAIResponse(userMessage.text, newHistory);
+    };
+
+    const processAIResponse = async (userText: string, currentHistory: any[]) => {
         try {
             const themeContext = selectedThemes.length > 0 ? ` [Themes: ${selectedThemes.join(', ')}]` : '';
-            const result = await aiService.getClarityInsight(input, `Target: ${name}${themeContext}`);
-            setInsight(result);
+            const historyText = currentHistory.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n');
+
+            const result = await aiService.getClarityInsight(userText, `Target: ${name}${themeContext}`, historyText);
+
+            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: result, sender: 'ai' }]);
         } catch (error) {
-            setInsight("I couldn't parse that right now. Try again?");
+            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "I couldn't parse that right now. Try again?", sender: 'ai' }]);
         } finally {
             setLoading(false);
         }
@@ -45,23 +76,17 @@ const ClarityContent = ({ name }: { name: string }) => {
         );
     };
 
+    const handleSave = () => {
+        // TODO: Implement actual save logic (e.g., to database or context)
+        setIsChatOpen(false);
+    };
+
     return (
         <View style={styles.contentSection}>
             <Text style={styles.contentTitle}>What's on your mind?</Text>
             <Text style={styles.contentSubtitle}>We'll parse the signal from the noise. Just tell us what happened.</Text>
 
-            <View style={[styles.inputArea, input.length > 0 && styles.inputAreaActive]}>
-                <TextInput
-                    style={styles.clarityInput}
-                    placeholder="He said he'd call, but..."
-                    placeholderTextColor="#D1D1D6"
-                    value={input}
-                    onChangeText={setInput}
-                    multiline
-                    selectionColor="#000000"
-                />
-            </View>
-
+            {/* Theme Chips */}
             <View style={styles.chipsContainer}>
                 {CHIPS.map((chip, index) => {
                     const isSelected = selectedThemes.includes(chip);
@@ -85,22 +110,101 @@ const ClarityContent = ({ name }: { name: string }) => {
                 })}
             </View>
 
-            {insight ? (
-                <View style={styles.insightBox}>
-                    <Text style={styles.insightText}>{insight}</Text>
-                    <TouchableOpacity onPress={() => setInsight('')} style={styles.resetButton}>
-                        <Text style={styles.resetButtonText}>CLEAR INSIGHT</Text>
-                    </TouchableOpacity>
-                </View>
-            ) : (
-                <TouchableOpacity
-                    style={[styles.actionButton, loading && { opacity: 0.5 }]}
-                    onPress={handleTalkItThrough}
-                    disabled={loading}
-                >
-                    <Text style={styles.actionButtonText}>{loading ? 'ANALYZING...' : 'TALK IT THROUGH'}</Text>
-                </TouchableOpacity>
-            )}
+            {/* Initial Input Area */}
+            <View style={[styles.inputArea, initialInput.length > 0 && styles.inputAreaActive]}>
+                <TextInput
+                    style={styles.clarityInput}
+                    placeholder="He said he'd call, but..."
+                    placeholderTextColor="#D1D1D6"
+                    value={initialInput}
+                    onChangeText={setInitialInput}
+                    multiline
+                    selectionColor="#000000"
+                />
+            </View>
+
+            <TouchableOpacity
+                style={[styles.actionButton, (!initialInput.trim()) && { opacity: 0.5 }]}
+                onPress={startChat}
+                disabled={!initialInput.trim()}
+            >
+                <Text style={styles.actionButtonText}>START CHAT</Text>
+            </TouchableOpacity>
+
+            {/* Chat Modal */}
+            <Modal
+                visible={isChatOpen}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setIsChatOpen(false)}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={{ flex: 1 }}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                    >
+                        {/* Chat Header */}
+                        <View style={styles.chatHeader}>
+                            <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatHeaderLeft}>
+                                <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
+                            </TouchableOpacity>
+                            <Text style={styles.chatHeaderTitle}>{name}</Text>
+                            <TouchableOpacity onPress={handleSave}>
+                                <Text style={styles.chatHeaderSave}>SAVE</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Chat Messages */}
+                        <ScrollView
+                            style={styles.chatContainer}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            {messages.map((msg) => (
+                                <View
+                                    key={msg.id}
+                                    style={[
+                                        styles.messageBubble,
+                                        msg.sender === 'user' ? styles.userBubble : styles.aiBubble
+                                    ]}
+                                >
+                                    <Text style={[
+                                        styles.messageText,
+                                        msg.sender === 'user' ? styles.userMessageText : styles.aiMessageText
+                                    ]}>
+                                        {msg.text}
+                                    </Text>
+                                </View>
+                            ))}
+                            {loading && (
+                                <View style={[styles.messageBubble, styles.aiBubble]}>
+                                    <Text style={[styles.messageText, styles.aiMessageText]}>Analyzing...</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+
+                        {/* Chat Input */}
+                        <View style={styles.chatInputContainer}>
+                            <TextInput
+                                style={styles.chatInput}
+                                placeholder="Details..."
+                                placeholderTextColor="#A1A1AA"
+                                value={input}
+                                onChangeText={setInput}
+                                multiline
+                            />
+                            <TouchableOpacity
+                                onPress={handleSend}
+                                disabled={!input.trim() || loading}
+                                style={[styles.chatSendButton, (!input.trim() && !loading) && { opacity: 0.5 }]}
+                            >
+                                <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+                </SafeAreaView>
+            </Modal>
         </View>
     );
 };
@@ -546,10 +650,16 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
                 contentContainerStyle={{ flexGrow: 1 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
             >
                 <View style={styles.onboardingContainer}>
                     <View style={styles.onboardingHeader}>
-                        <Text style={styles.onboardingProgress}>QUESTION {step + 1} OF {questions.length}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={styles.onboardingProgress}>QUESTION {step + 1} OF {questions.length}</Text>
+                            <TouchableOpacity onPress={() => onComplete({ skipped: true })}>
+                                <Text style={styles.skipButtonText}>SKIP</Text>
+                            </TouchableOpacity>
+                        </View>
                         <View style={styles.progressBar}>
                             <View style={[styles.progressIndicator, { width: `${((step + 1) / questions.length) * 100}%` }]} />
                         </View>
@@ -648,94 +758,91 @@ export default function ConnectionDetailScreen() {
 
     if (connection && !connection.onboardingCompleted) {
         return (
-            <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }} accessible={false}>
-                <SafeAreaView style={styles.safeArea}>
-                    <OnboardingQuiz
-                        id={connection.id}
-                        name={name}
-                        onComplete={handleOnboardingComplete}
-                    />
-                </SafeAreaView>
-            </Pressable>
+            <SafeAreaView style={styles.safeArea}>
+                <OnboardingQuiz
+                    id={connection.id}
+                    name={name}
+                    onComplete={handleOnboardingComplete}
+                />
+            </SafeAreaView>
         );
     }
 
 
 
     return (
-        <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }} accessible={false}>
-            <SafeAreaView style={styles.safeArea}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    style={{ flex: 1 }}
+        <SafeAreaView style={styles.safeArea}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                 >
-                    <ScrollView
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="always"
-                    >
-                        {/* Navigation Header */}
-                        <View style={styles.navHeader}>
-                            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
-                                    <Text style={styles.navText}>CONNECTIONS</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={handleEdit}>
-                                <Text style={styles.navText}>EDIT</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Profile Section */}
-                        <View style={styles.profileSection}>
-                            <View style={styles.avatarContainer}>
-                                <Ionicons name={icon as any} size={40} color="#8E8E93" />
+                    {/* Navigation Header */}
+                    <View style={styles.navHeader}>
+                        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
+                                <Text style={styles.navText}>CONNECTIONS</Text>
                             </View>
-                            <View style={styles.profileInfo}>
-                                <Text style={styles.profileName}>{name}</Text>
-                                <View style={styles.tagBadge}>
-                                    <Text style={styles.tagText}>{tag}</Text>
-                                </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleEdit}>
+                            <Text style={styles.navText}>EDIT</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Profile Section */}
+                    <View style={styles.profileSection}>
+                        <View style={styles.avatarContainer}>
+                            <Ionicons name={icon as any} size={40} color="#8E8E93" />
+                        </View>
+                        <View style={styles.profileInfo}>
+                            <Text style={styles.profileName}>{name}</Text>
+                            <View style={styles.tagBadge}>
+                                <Text style={styles.tagText}>{tag}</Text>
                             </View>
                         </View>
+                    </View>
 
-                        {/* Tabs (The "Toolbar") */}
-                        <View style={styles.tabsWrapper}>
-                            <View style={styles.tabsContainer}>
-                                {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
-                                    <TouchableOpacity
-                                        key={tab}
-                                        style={styles.tabButton}
-                                        onPress={() => setActiveTab(tab as any)}
-                                    >
-                                        <Text style={[
-                                            styles.tabText,
-                                            activeTab === tab ? styles.activeTabText : styles.inactiveTabText
-                                        ]}>
-                                            {tab}
-                                        </Text>
-                                        {activeTab === tab && <View style={styles.activeIndicator} />}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
+                    {/* Tabs (The "Toolbar") */}
+                    <View style={styles.tabsWrapper}>
+                        <View style={styles.tabsContainer}>
+                            {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
+                                <TouchableOpacity
+                                    key={tab}
+                                    style={styles.tabButton}
+                                    onPress={() => setActiveTab(tab as any)}
+                                >
+                                    <Text style={[
+                                        styles.tabText,
+                                        activeTab === tab ? styles.activeTabText : styles.inactiveTabText
+                                    ]}>
+                                        {tab}
+                                    </Text>
+                                    {activeTab === tab && <View style={styles.activeIndicator} />}
+                                </TouchableOpacity>
+                            ))}
                         </View>
+                    </View>
 
-                        {/* Dynamic Content Rendering */}
+                    {/* Dynamic Content Rendering */}
 
-                        {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
-                        {activeTab === 'DECODER' && <DecoderContent />}
-                        {activeTab === 'STARS' && <StarsContent
-                            name={Array.isArray(name) ? name[0] : name}
-                            userZodiac="Capricorn" // Defaulting for now, could be in user context
-                            partnerZodiac={zodiac}
-                        />}
-                        {activeTab === 'DYNAMIC' && <DynamicContent />}
+                    {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
+                    {activeTab === 'DECODER' && <DecoderContent />}
+                    {activeTab === 'STARS' && <StarsContent
+                        name={Array.isArray(name) ? name[0] : name}
+                        userZodiac="Capricorn" // Defaulting for now, could be in user context
+                        partnerZodiac={zodiac}
+                    />}
+                    {activeTab === 'DYNAMIC' && <DynamicContent />}
 
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
-        </Pressable>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
@@ -1407,5 +1514,98 @@ const styles = StyleSheet.create({
     optionTextSelected: {
         color: '#ec4899', // pink-500
         fontWeight: '700',
+    },
+    messageBubble: {
+        padding: scale(16),
+        borderRadius: scale(20),
+        marginBottom: verticalScale(12),
+        maxWidth: '85%',
+    },
+    userBubble: {
+        backgroundColor: '#FCE7F3', // pink-100
+        alignSelf: 'flex-end',
+        borderBottomRightRadius: scale(4),
+    },
+    aiBubble: {
+        backgroundColor: '#F9FAFB',
+        alignSelf: 'flex-start',
+        borderBottomLeftRadius: scale(4),
+    },
+    messageText: {
+        fontSize: fs(15),
+        lineHeight: verticalScale(22),
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    userMessageText: {
+        color: '#1C1C1E',
+    },
+    aiMessageText: {
+        color: '#4B5563',
+    },
+    skipButtonText: {
+        fontSize: fs(10),
+        fontWeight: '700',
+        color: '#A1A1AA', // Gray-400
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: verticalScale(12),
+    },
+    chatHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: scale(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#F2F2F7',
+    },
+    chatHeaderLeft: {
+        padding: 4,
+    },
+    chatHeaderTitle: {
+        fontSize: fs(16),
+        fontWeight: '700',
+        color: '#A1A1AA', // Gray for name as requested
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    chatHeaderSave: {
+        fontSize: fs(12),
+        fontWeight: '700',
+        color: '#1C1C1E',
+        letterSpacing: 1,
+    },
+    chatContainer: {
+        flex: 1,
+        paddingHorizontal: scale(20),
+        paddingTop: verticalScale(20),
+    },
+    chatInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: scale(20),
+        paddingVertical: verticalScale(12),
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+        backgroundColor: '#FFFFFF',
+    },
+    chatInput: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+        borderRadius: scale(24),
+        paddingHorizontal: scale(20),
+        paddingVertical: verticalScale(12),
+        fontSize: fs(16),
+        color: '#1C1C1E',
+        marginRight: scale(12),
+        maxHeight: verticalScale(100),
+    },
+    chatSendButton: {
+        backgroundColor: '#000000',
+        width: scale(40),
+        height: scale(40),
+        borderRadius: scale(20),
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
