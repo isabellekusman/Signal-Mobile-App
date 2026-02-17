@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ConnectionCard from '../../components/ConnectionCard';
 import { Connection, useConnections } from '../../context/ConnectionsContext';
+import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
 
 export default function HomeScreen() {
     const router = useRouter(); // Initialize router
@@ -140,13 +141,15 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Add Connection Button */}
-                <TouchableOpacity
-                    style={[styles.addButton, isDark && styles.addButtonDark]}
-                    activeOpacity={0.8}
-                    onPress={() => router.push('/add-connection')}
-                >
-                    <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
-                </TouchableOpacity>
+                {activeTab === 'active' && (
+                    <TouchableOpacity
+                        style={[styles.addButton, isDark && styles.addButtonDark]}
+                        activeOpacity={0.8}
+                        onPress={() => router.push('/add-connection')}
+                    >
+                        <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
+                    </TouchableOpacity>
+                )}
 
                 <View style={{ height: 40 }} />
             </ScrollView>
@@ -206,10 +209,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: verticalScale(24),
         marginTop: 0,
-        paddingTop: 10,
-        paddingBottom: 10,
+        paddingTop: verticalScale(10),
+        paddingBottom: verticalScale(10),
         backgroundColor: '#FFFFFF',
         zIndex: 10,
     },
@@ -222,8 +225,8 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'flex-start',
         alignItems: 'flex-start',
-        marginTop: 20,
-        marginBottom: 24,
+        marginTop: verticalScale(20),
+        marginBottom: verticalScale(24),
         backgroundColor: '#FFFFFF',
         zIndex: 10,
     },
@@ -233,9 +236,9 @@ const styles = StyleSheet.create({
     toggleContainer: {
         flexDirection: 'row',
         backgroundColor: '#F2F2F7',
-        borderRadius: 20,
-        padding: 2,
-        marginTop: 24,
+        borderRadius: scale(20),
+        padding: scale(2),
+        marginTop: verticalScale(24),
         alignSelf: 'flex-start', // Tight wrap around text
     },
     toggleButton: {
@@ -263,13 +266,13 @@ const styles = StyleSheet.create({
     },
     pageTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 32,
+        fontSize: fs(32),
         color: '#1C1C1E',
-        marginBottom: 4,
+        marginBottom: verticalScale(4),
         textAlign: 'left',
     },
     sectionLabel: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 2,

@@ -15,6 +15,14 @@ export interface Connection {
     icon: string;
     status: 'active' | 'archived';
     signals: Signal[];
+    onboardingCompleted?: boolean;
+    onboardingContext?: {
+        howWeMet?: string;
+        firstImpression?: string;
+        initialVibe?: string;
+        howLong?: string;
+        currentIntent?: string;
+    };
 }
 
 const INITIAL_CONNECTIONS: Connection[] = [

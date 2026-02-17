@@ -1,7 +1,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { fontSize as fs, scale, verticalScale } from '../utils/responsive';
 
 interface ConnectionCardProps {
     id: string;
@@ -21,7 +22,6 @@ interface ConnectionCardProps {
 
 import { useConnections } from '../context/ConnectionsContext';
 
-const { width } = Dimensions.get('window');
 
 export default function ConnectionCard({
     id,
@@ -110,31 +110,29 @@ export default function ConnectionCard({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: scale(20),
+        padding: scale(16),
+        marginBottom: verticalScale(12),
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        // Subtle Border instead of heavy shadow
         borderWidth: 1,
         borderColor: '#F2F2F7',
         width: '100%',
     },
     cardSelected: {
-        // Removed selection visual since user found it confusing/unwanted
         borderColor: '#E5E5EA',
     },
     avatarContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: scale(48),
+        height: scale(48),
+        borderRadius: scale(24),
         borderWidth: 1,
-        borderColor: '#F2F2F7', // Neutral border
+        borderColor: '#F2F2F7',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
-        backgroundColor: '#F9FAFB', // Neutral background
+        marginRight: scale(16),
+        backgroundColor: '#F9FAFB',
     },
     infoContainer: {
         flex: 1,
@@ -142,12 +140,12 @@ const styles = StyleSheet.create({
     },
     nameText: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 18,
+        fontSize: fs(18),
         color: '#1C1C1E',
-        marginBottom: 2,
+        marginBottom: verticalScale(2),
     },
     statusText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 0.5,

@@ -1,12 +1,12 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 
-const { width } = Dimensions.get('window');
+import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
 
 // Mock chips for the Clarity tab
 const CHIPS = [
@@ -20,14 +20,17 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 const ClarityContent = ({ name }: { name: string }) => {
     const [input, setInput] = useState('');
+    const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
     const [insight, setInsight] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleTalkItThrough = async () => {
         if (!input.trim()) return;
+        Keyboard.dismiss();
         setLoading(true);
         try {
-            const result = await aiService.getClarityInsight(input, `Target: ${name}`);
+            const themeContext = selectedThemes.length > 0 ? ` [Themes: ${selectedThemes.join(', ')}]` : '';
+            const result = await aiService.getClarityInsight(input, `Target: ${name}${themeContext}`);
             setInsight(result);
         } catch (error) {
             setInsight("I couldn't parse that right now. Try again?");
@@ -36,12 +39,18 @@ const ClarityContent = ({ name }: { name: string }) => {
         }
     };
 
+    const toggleTheme = (theme: string) => {
+        setSelectedThemes(prev =>
+            prev.includes(theme) ? prev.filter(t => t !== theme) : [...prev, theme]
+        );
+    };
+
     return (
         <View style={styles.contentSection}>
             <Text style={styles.contentTitle}>What's on your mind?</Text>
             <Text style={styles.contentSubtitle}>We'll parse the signal from the noise. Just tell us what happened.</Text>
 
-            <View style={styles.inputArea}>
+            <View style={[styles.inputArea, input.length > 0 && styles.inputAreaActive]}>
                 <TextInput
                     style={styles.clarityInput}
                     placeholder="He said he'd call, but..."
@@ -49,19 +58,31 @@ const ClarityContent = ({ name }: { name: string }) => {
                     value={input}
                     onChangeText={setInput}
                     multiline
+                    selectionColor="#000000"
                 />
             </View>
 
             <View style={styles.chipsContainer}>
-                {CHIPS.map((chip, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={styles.chip}
-                        onPress={() => setInput(prev => prev + (prev ? ' ' : '') + chip)}
-                    >
-                        <Text style={styles.chipText}>{chip}</Text>
-                    </TouchableOpacity>
-                ))}
+                {CHIPS.map((chip, index) => {
+                    const isSelected = selectedThemes.includes(chip);
+                    return (
+                        <Pressable
+                            key={index}
+                            style={[
+                                styles.chip,
+                                isSelected && styles.chipSelected
+                            ]}
+                            onPress={() => toggleTheme(chip)}
+                        >
+                            <Text style={[
+                                styles.chipText,
+                                isSelected && styles.chipTextSelected
+                            ]}>
+                                {chip}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
             </View>
 
             {insight ? (
@@ -89,9 +110,32 @@ const DecoderContent = () => {
     const [text, setText] = useState('');
     const [analysis, setAnalysis] = useState('');
     const [loading, setLoading] = useState(false);
+    const scanAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (loading) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(scanAnim, {
+                        toValue: 1,
+                        duration: 1500,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(scanAnim, {
+                        toValue: 0,
+                        duration: 0,
+                        useNativeDriver: true,
+                    })
+                ])
+            ).start();
+        } else {
+            scanAnim.setValue(0);
+        }
+    }, [loading]);
 
     const handleScanText = async () => {
         if (!text.trim()) return;
+        Keyboard.dismiss();
         setLoading(true);
         try {
             const result = await aiService.decodeMessage(text);
@@ -103,6 +147,11 @@ const DecoderContent = () => {
         }
     };
 
+    const translateY = scanAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, verticalScale(220)],
+    });
+
     return (
         <View style={styles.decoderContainer}>
             <View style={styles.decoderCard}>
@@ -111,15 +160,28 @@ const DecoderContent = () => {
                     Paste a text or thread to check tone, effort, and what's actually being said.
                 </Text>
 
-                <TextInput
-                    style={styles.decoderInput}
-                    placeholder="Paste text here..."
-                    placeholderTextColor="#A1A1AA"
-                    multiline
-                    textAlignVertical="top"
-                    value={text}
-                    onChangeText={setText}
-                />
+                <View style={{ position: 'relative' }}>
+                    <TextInput
+                        style={styles.decoderInput}
+                        placeholder="Paste text here..."
+                        placeholderTextColor="#A1A1AA"
+                        multiline
+                        textAlignVertical="top"
+                        value={text}
+                        onChangeText={setText}
+                        editable={!loading}
+                    />
+                    {loading && (
+                        <Animated.View
+                            style={[
+                                styles.scannerBar,
+                                {
+                                    transform: [{ translateY }]
+                                }
+                            ]}
+                        />
+                    )}
+                </View>
 
                 {analysis ? (
                     <View style={styles.analysisResult}>
@@ -301,6 +363,7 @@ const DynamicContent = () => {
     const [loading, setLoading] = useState(false);
 
     const handleSaveCheckIn = async () => {
+        Keyboard.dismiss();
         setLoading(true);
         try {
             const result = await aiService.analyzeDynamicVibe(stats, reflection);
@@ -402,6 +465,153 @@ const DynamicContent = () => {
         </View>
     );
 };
+const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, onComplete: (data: any) => void }) => {
+    const [step, setStep] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [answers, setAnswers] = useState({
+        howWeMet: '',
+        firstImpression: '',
+        initialVibe: '',
+        howLong: '',
+        currentIntent: ''
+    });
+
+    const questions = [
+        {
+            id: 'howWeMet',
+            title: `How did you meet ${name}?`,
+            subtitle: "The setting, the spark, the story.",
+            type: 'text' as const,
+            placeholder: "We met at a coffee shop in East Village...",
+        },
+        {
+            id: 'howLong',
+            title: "How long has this been going on?",
+            subtitle: "Be honest about the timeline.",
+            type: 'choice' as const,
+            options: ["Just met", "A few weeks", "1-3 months", "6+ months", "It's been years"]
+        },
+        {
+            id: 'firstImpression',
+            title: "What was your first impression?",
+            subtitle: "Be honest. What was the very first thing you thought?",
+            type: 'text' as const,
+            placeholder: "He was taller than I expected and very calm...",
+        },
+        {
+            id: 'currentIntent',
+            title: "What's your current intent?",
+            subtitle: "Where are you standing right now?",
+            type: 'choice' as const,
+            options: ["Just curious", "Seeing where it goes", "Looking for serious", "It's complicated"]
+        },
+        {
+            id: 'initialVibe',
+            title: "What was the initial vibe?",
+            subtitle: "Describe the energy in the room.",
+            type: 'text' as const,
+            placeholder: "Comfortable but slightly mysterious...",
+        }
+    ];
+
+    const currentQuestion = questions[step];
+
+    const handleNext = () => {
+        if (!(answers as any)[currentQuestion.id].trim()) return;
+
+        Keyboard.dismiss();
+
+        if (step < questions.length - 1) {
+            setStep(step + 1);
+        } else {
+            setIsSubmitting(true);
+            // Small delay to show "processing" state to user
+            setTimeout(() => {
+                onComplete(answers);
+            }, 600);
+        }
+    };
+
+    const handleSelection = (val: string) => {
+        setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }));
+    };
+
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+        >
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                <View style={styles.onboardingContainer}>
+                    <View style={styles.onboardingHeader}>
+                        <Text style={styles.onboardingProgress}>QUESTION {step + 1} OF {questions.length}</Text>
+                        <View style={styles.progressBar}>
+                            <View style={[styles.progressIndicator, { width: `${((step + 1) / questions.length) * 100}%` }]} />
+                        </View>
+                    </View>
+
+                    <View style={styles.onboardingContent}>
+                        <Text style={styles.onboardingTitle}>{currentQuestion.title}</Text>
+                        <Text style={styles.onboardingSubtitle}>{currentQuestion.subtitle}</Text>
+
+                        {currentQuestion.type === 'text' ? (
+                            <TextInput
+                                style={styles.onboardingInput}
+                                placeholder={currentQuestion.placeholder}
+                                placeholderTextColor="#D1D1D6"
+                                value={(answers as any)[currentQuestion.id]}
+                                onChangeText={(val) => setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }))}
+                                multiline
+                                autoFocus
+                                blurOnSubmit={true}
+                                returnKeyType="done"
+                                onSubmitEditing={handleNext}
+                                selectionColor="#ec4899"
+                            />
+                        ) : (
+                            <View style={styles.optionsGrid}>
+                                {currentQuestion.options?.map((option) => (
+                                    <TouchableOpacity
+                                        key={option}
+                                        style={[
+                                            styles.optionButton,
+                                            (answers as any)[currentQuestion.id] === option && styles.optionButtonSelected
+                                        ]}
+                                        onPress={() => handleSelection(option)}
+                                    >
+                                        <Text style={[
+                                            styles.optionText,
+                                            (answers as any)[currentQuestion.id] === option && styles.optionTextSelected
+                                        ]}>
+                                            {option}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={{ marginTop: verticalScale(40), marginBottom: verticalScale(40) }}>
+                        <TouchableOpacity
+                            style={[styles.onboardingNextButton, (!(answers as any)[currentQuestion.id].trim() || isSubmitting) && { opacity: 0.5 }]}
+                            onPress={handleNext}
+                            disabled={!(answers as any)[currentQuestion.id].trim() || isSubmitting}
+                        >
+                            <Text style={styles.onboardingNextButtonText}>
+                                {isSubmitting ? 'PROCESSING...' : (step < questions.length - 1 ? 'CONTINUE' : 'FINISH PROFILE')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+    );
+};
 
 
 
@@ -427,87 +637,105 @@ export default function ConnectionDetailScreen() {
         }
     };
 
+    const handleOnboardingComplete = (data: any) => {
+        if (connection) {
+            updateConnection(connection.id, {
+                onboardingCompleted: true,
+                onboardingContext: data
+            });
+        }
+    };
+
+    if (connection && !connection.onboardingCompleted) {
+        return (
+            <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }} accessible={false}>
+                <SafeAreaView style={styles.safeArea}>
+                    <OnboardingQuiz
+                        id={connection.id}
+                        name={name}
+                        onComplete={handleOnboardingComplete}
+                    />
+                </SafeAreaView>
+            </Pressable>
+        );
+    }
+
 
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
-            >
-                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }} accessible={false}>
+            <SafeAreaView style={styles.safeArea}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="always"
+                    >
+                        {/* Navigation Header */}
+                        <View style={styles.navHeader}>
+                            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
+                                    <Text style={styles.navText}>CONNECTIONS</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleEdit}>
+                                <Text style={styles.navText}>EDIT</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    {/* Navigation Header */}
-                    <View style={styles.navHeader}>
-                        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
-                                <Text style={styles.navText}>CONNECTIONS</Text>
+                        {/* Profile Section */}
+                        <View style={styles.profileSection}>
+                            <View style={styles.avatarContainer}>
+                                <Ionicons name={icon as any} size={40} color="#8E8E93" />
                             </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleEdit}>
-                            <Text style={styles.navText}>EDIT</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Profile Section */}
-                    <View style={styles.profileSection}>
-                        <View
-                            style={[
-                                styles.avatarContainer
-                            ]}
-                        >
-                            <Ionicons name={icon as any} size={80} color="#8E8E93" />
-                            <View style={styles.zodiacBadge}>
-                                <Text style={styles.zodiacText}>{zodiac}</Text>
+                            <View style={styles.profileInfo}>
+                                <Text style={styles.profileName}>{name}</Text>
+                                <View style={styles.tagBadge}>
+                                    <Text style={styles.tagText}>{tag}</Text>
+                                </View>
                             </View>
                         </View>
 
-                        <Text style={styles.profileName}>{name}</Text>
-
-                        <View style={styles.tagBadge}>
-                            <Text style={styles.tagText}>{tag}</Text>
+                        {/* Tabs (The "Toolbar") */}
+                        <View style={styles.tabsWrapper}>
+                            <View style={styles.tabsContainer}>
+                                {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
+                                    <TouchableOpacity
+                                        key={tab}
+                                        style={styles.tabButton}
+                                        onPress={() => setActiveTab(tab as any)}
+                                    >
+                                        <Text style={[
+                                            styles.tabText,
+                                            activeTab === tab ? styles.activeTabText : styles.inactiveTabText
+                                        ]}>
+                                            {tab}
+                                        </Text>
+                                        {activeTab === tab && <View style={styles.activeIndicator} />}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         </View>
 
-                        {/* Objective Check-In Feature */}
-                        <ObjectiveCheckIn connectionId={params.id as string} signals={connection?.signals || []} />
-                    </View>
+                        {/* Dynamic Content Rendering */}
 
-                    {/* Tabs (The "Toolbar") */}
-                    <View style={styles.tabsWrapper}>
-                        <View style={styles.tabsContainer}>
-                            {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
-                                <TouchableOpacity
-                                    key={tab}
-                                    style={styles.tabButton}
-                                    onPress={() => setActiveTab(tab as any)}
-                                >
-                                    <Text style={[
-                                        styles.tabText,
-                                        activeTab === tab ? styles.activeTabText : styles.inactiveTabText
-                                    ]}>
-                                        {tab}
-                                    </Text>
-                                    {activeTab === tab && <View style={styles.activeIndicator} />}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
+                        {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
+                        {activeTab === 'DECODER' && <DecoderContent />}
+                        {activeTab === 'STARS' && <StarsContent
+                            name={Array.isArray(name) ? name[0] : name}
+                            userZodiac="Capricorn" // Defaulting for now, could be in user context
+                            partnerZodiac={zodiac}
+                        />}
+                        {activeTab === 'DYNAMIC' && <DynamicContent />}
 
-                    {/* Dynamic Content Rendering */}
-
-                    {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
-                    {activeTab === 'DECODER' && <DecoderContent />}
-                    {activeTab === 'STARS' && <StarsContent
-                        name={Array.isArray(name) ? name[0] : name}
-                        userZodiac="Capricorn" // Defaulting for now, could be in user context
-                        partnerZodiac={zodiac}
-                    />}
-                    {activeTab === 'DYNAMIC' && <DynamicContent />}
-
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </Pressable>
     );
 }
 
@@ -518,53 +746,62 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'android' ? 40 : 0,
     },
     container: {
-        paddingBottom: 40,
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: verticalScale(40),
     },
     navHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingVertical: 20,
-        marginBottom: 20,
+        paddingHorizontal: scale(24),
+        paddingTop: verticalScale(24),
+        paddingBottom: verticalScale(8),
+        marginBottom: verticalScale(16),
     },
     navText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
     },
     profileSection: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 40,
+        paddingHorizontal: scale(24),
+        marginTop: verticalScale(8),
+        marginBottom: verticalScale(16),
+    },
+    profileInfo: {
+        marginLeft: scale(16),
     },
     avatarContainer: {
-        width: 160,
-        height: 160,
-        borderRadius: 80,
+        width: scale(60),
+        height: scale(60),
+        borderRadius: scale(30),
         borderWidth: 1.5,
         borderColor: '#FCE7F3', // pink-100
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
         backgroundColor: '#FFFFFF',
-        position: 'relative',
     },
     profileName: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 36,
+        fontSize: fs(20),
         color: '#1C1C1E',
-        marginBottom: 8,
+        marginBottom: verticalScale(2),
     },
     tagBadge: {
         backgroundColor: '#FCE7F3', // pink-100
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        marginBottom: 24,
+        paddingVertical: verticalScale(2),
+        paddingHorizontal: scale(8),
+        borderRadius: scale(12),
+        alignSelf: 'flex-start',
     },
     tagText: {
-        fontSize: 11,
+        fontSize: fs(9),
         fontWeight: '700',
         color: '#ec4899', // pink-500
         letterSpacing: 1,
@@ -594,8 +831,8 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     tabsWrapper: {
-        paddingHorizontal: 24,
-        marginBottom: 32,
+        paddingHorizontal: scale(24),
+        marginBottom: verticalScale(24),
     },
     tabsContainer: {
         flexDirection: 'row',
@@ -634,32 +871,42 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     },
     contentSection: {
-        paddingHorizontal: 24,
+        flex: 1,
+        paddingHorizontal: scale(24),
         alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: verticalScale(32),
+        paddingBottom: verticalScale(20),
     },
     contentTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 36,
+        fontSize: fs(28),
         color: '#1C1C1E',
-        marginBottom: 16,
+        marginBottom: verticalScale(8),
         textAlign: 'center',
     },
     contentSubtitle: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#8E8E93',
         textAlign: 'center',
-        marginBottom: 48,
-        lineHeight: 20,
-        maxWidth: 280,
+        marginBottom: verticalScale(24),
+        lineHeight: verticalScale(20),
+        maxWidth: scale(280),
     },
     inputArea: {
-        marginBottom: 40,
+        marginBottom: verticalScale(24),
         width: '100%',
         alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5EA', // Default gray
+        paddingBottom: verticalScale(12),
+    },
+    inputAreaActive: {
+        borderBottomColor: '#ec4899', // pink-500 when typing
     },
     clarityInput: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 24,
+        fontSize: fs(24),
         color: '#1C1C1E',
         textAlign: 'center',
         width: '100%',
@@ -668,44 +915,53 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        gap: 12,
-        marginBottom: 50,
-        paddingHorizontal: 10,
+        gap: scale(12),
+        marginBottom: verticalScale(60),
+        paddingHorizontal: scale(10),
     },
     chip: {
         backgroundColor: '#F9FAFB',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 24,
+        paddingVertical: verticalScale(10),
+        paddingHorizontal: scale(18),
+        borderRadius: scale(24),
+        borderWidth: 1.5,
+        borderColor: 'transparent',
+    },
+    chipSelected: {
+        backgroundColor: '#FCE7F3', // pink-100 highlight
+        borderColor: '#FCE7F3',
     },
     chipText: {
-        fontSize: 11,
+        fontSize: fs(10),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
+    chipTextSelected: {
+        color: '#ec4899', // pink-500
+    },
     insightBox: {
         backgroundColor: '#F9FAFB',
-        padding: 24,
-        borderRadius: 24,
-        marginTop: 24,
+        padding: scale(24),
+        borderRadius: scale(24),
+        marginTop: verticalScale(24),
         borderWidth: 1,
         borderColor: '#F2F2F7',
     },
     insightText: {
-        fontSize: 15,
+        fontSize: fs(15),
         color: '#1C1C1E',
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        lineHeight: 24,
-        marginBottom: 16,
+        lineHeight: verticalScale(24),
+        marginBottom: verticalScale(16),
     },
     resetButton: {
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: verticalScale(10),
     },
     resetButtonText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '800',
         color: '#ec4899',
         letterSpacing: 1.5,
@@ -713,75 +969,91 @@ const styles = StyleSheet.create({
     },
     actionButton: {
         backgroundColor: '#000000',
-        paddingVertical: 18,
-        paddingHorizontal: 40,
-        borderRadius: 30,
+        paddingVertical: verticalScale(18),
+        paddingHorizontal: scale(40),
+        borderRadius: scale(30),
         width: 'auto',
-        minWidth: 200,
+        minWidth: scale(200),
         alignItems: 'center',
     },
     actionButtonText: {
         color: '#FFFFFF',
-        fontSize: 12,
+        fontSize: fs(12),
         fontWeight: '700',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
     decoderContainer: {
-        paddingHorizontal: 20,
+        flex: 1,
+        paddingHorizontal: scale(20),
+        justifyContent: 'center',
+        paddingVertical: verticalScale(20),
     },
     decoderCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
+        borderRadius: scale(24),
+        padding: scale(24),
         borderWidth: 1,
         borderColor: '#F2F2F7',
     },
     decoderTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 24,
+        fontSize: fs(24),
         color: '#1C1C1E',
-        marginBottom: 12,
+        marginBottom: verticalScale(12),
     },
     decoderSubtitle: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#8E8E93',
-        marginBottom: 24,
-        lineHeight: 20,
+        marginBottom: verticalScale(24),
+        lineHeight: verticalScale(20),
     },
     decoderInput: {
         backgroundColor: '#F9FAFB',
-        borderRadius: 16,
-        padding: 20,
-        fontSize: 16,
+        borderRadius: scale(16),
+        padding: scale(20),
+        fontSize: fs(16),
         color: '#1C1C1E',
-        height: 160,
-        marginBottom: 24,
+        height: verticalScale(220),
+        marginBottom: verticalScale(24),
         textAlignVertical: 'top',
+    },
+    scannerBar: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: '#ec4899',
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+        elevation: 5,
     },
     analysisResult: {
         backgroundColor: '#F9FAFB',
-        padding: 24,
-        borderRadius: 24,
-        marginTop: 24,
+        padding: scale(24),
+        borderRadius: scale(24),
+        marginTop: verticalScale(24),
     },
     analysisText: {
-        fontSize: 15,
+        fontSize: fs(15),
         color: '#1C1C1E',
-        lineHeight: 24,
+        lineHeight: verticalScale(24),
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     scanButton: {
         backgroundColor: '#000000',
-        paddingVertical: 16,
-        borderRadius: 30,
+        paddingVertical: verticalScale(16),
+        borderRadius: scale(30),
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     scanButtonText: {
         color: '#FFFFFF',
-        fontSize: 11,
+        fontSize: fs(11),
         fontWeight: '800',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
@@ -795,15 +1067,19 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     starsContainer: {
-        paddingHorizontal: 20,
+        flex: 1,
+        paddingHorizontal: scale(20),
+        justifyContent: 'center',
+        paddingVertical: verticalScale(20),
     },
     starsCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
+        borderRadius: scale(24),
+        padding: scale(24),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginBottom: 12,
+        marginBottom: verticalScale(12),
+        minHeight: verticalScale(400),
     },
     starsHeader: {
         flexDirection: 'row',
@@ -903,15 +1179,19 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     dynamicContainer: {
-        paddingHorizontal: 20,
+        flex: 1,
+        paddingHorizontal: scale(20),
+        justifyContent: 'center',
+        paddingVertical: verticalScale(20),
     },
     dynamicCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
+        borderRadius: scale(24),
+        padding: scale(24),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginBottom: 40,
+        marginBottom: verticalScale(40),
+        minHeight: verticalScale(400),
     },
     dynamicTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
@@ -1039,5 +1319,93 @@ const styles = StyleSheet.create({
         top: 24,
         right: 24,
         zIndex: 1,
-    }
+    },
+    onboardingContainer: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: scale(24),
+        paddingTop: verticalScale(40),
+    },
+    onboardingHeader: {
+        marginBottom: verticalScale(40),
+    },
+    onboardingProgress: {
+        fontSize: fs(10),
+        fontWeight: '800',
+        color: '#8E8E93',
+        letterSpacing: 2,
+        marginBottom: verticalScale(12),
+        textAlign: 'center',
+    },
+    progressBar: {
+        height: 2,
+        backgroundColor: '#F2F2F7',
+        width: '100%',
+        borderRadius: 1,
+    },
+    progressIndicator: {
+        height: 2,
+        backgroundColor: '#ec4899',
+        borderRadius: 1,
+    },
+    onboardingContent: {
+        flex: 1,
+    },
+    onboardingTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: fs(32),
+        color: '#1C1C1E',
+        marginBottom: verticalScale(12),
+        lineHeight: verticalScale(40),
+    },
+    onboardingSubtitle: {
+        fontSize: fs(14),
+        color: '#8E8E93',
+        marginBottom: verticalScale(40),
+        lineHeight: verticalScale(22),
+    },
+    onboardingInput: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+        fontSize: fs(24),
+        color: '#1C1C1E',
+        minHeight: verticalScale(150),
+        textAlignVertical: 'top',
+    },
+    onboardingNextButton: {
+        backgroundColor: '#000000',
+        paddingVertical: verticalScale(20),
+        borderRadius: scale(32),
+        alignItems: 'center',
+    },
+    onboardingNextButtonText: {
+        color: '#FFFFFF',
+        fontSize: fs(12),
+        fontWeight: '700',
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+    },
+    optionsGrid: {
+        marginTop: verticalScale(20),
+        gap: verticalScale(12),
+    },
+    optionButton: {
+        backgroundColor: '#F9FAFB',
+        paddingVertical: verticalScale(18),
+        paddingHorizontal: scale(20),
+        borderRadius: scale(16),
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    optionButtonSelected: {
+        backgroundColor: '#FCE7F3', // pink-100
+        borderColor: '#ec4899', // pink-500
+    },
+    optionText: {
+        fontSize: fs(14),
+        color: '#1C1C1E',
+        fontWeight: '500',
+    },
+    optionTextSelected: {
+        color: '#ec4899', // pink-500
+        fontWeight: '700',
+    },
 });
