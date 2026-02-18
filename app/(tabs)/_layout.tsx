@@ -1,29 +1,18 @@
+
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Platform, StyleSheet } from 'react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBarActiveTintColor: '#ec4899',
+        tabBarInactiveTintColor: '#C7C7CC',
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          letterSpacing: 0.5,
-          textTransform: 'uppercase',
-          marginBottom: 4,
-        },
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          height: 85,
-          borderTopWidth: 1,
-          borderTopColor: '#F2F2F7',
-          paddingBottom: 25,
-          paddingTop: 10,
-        },
-        tabBarActiveTintColor: '#ec4899', // pink-500
-        tabBarInactiveTintColor: '#C7C7CC',
       }}
     >
       <Tabs.Screen
@@ -35,39 +24,79 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Connections',
+          title: 'Home',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="people-outline" size={28} color={color} />
+            <Ionicons name="home-outline" size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
+        name="connections"
+        options={{
+          title: 'Connections',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="people-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="reflect"
+        options={{
+          title: 'Reflect',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="me"
+        options={{
+          title: 'Me',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      {/* Hide old screens that are no longer tabs */}
+      <Tabs.Screen
         name="chat"
         options={{
-          title: 'Self-Alignment',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="chatbubble-ellipses-outline" size={28} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="signal"
         options={{
-          title: 'Signal',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="radio-outline" size={28} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-outline" size={28} color={color} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+    height: Platform.OS === 'ios' ? 88 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    paddingTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+});

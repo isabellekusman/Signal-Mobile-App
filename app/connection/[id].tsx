@@ -486,12 +486,12 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
 
                                 {/* Risks / Signals */}
                                 {analysis.risks && analysis.risks.length > 0 && (
-                                    <View style={[styles.decoderBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                                        <Text style={[styles.decoderBoxLabel, { color: '#D97706' }]}>DETECTED SIGNALS</Text>
+                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
                                         <View style={{ gap: 8, marginTop: 4 }}>
                                             {analysis.risks.map((risk, index) => (
                                                 <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#D97706' }} />
+                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
                                                     <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
                                                 </View>
                                             ))}
@@ -669,10 +669,10 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                             <View style={{ gap: 24 }}>
                                 {/* Current Transits */}
                                 {forecast.planetaryTransits && (
-                                    <View style={[styles.decoderBox, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                            <Ionicons name="planet" size={16} color="#0EA5E9" />
-                                            <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#0EA5E9' }]}>CURRENT PLANETARY TRANSITS</Text>
+                                            <Ionicons name="planet" size={16} color="#ec4899" />
+                                            <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#ec4899' }]}>CURRENT PLANETARY TRANSITS</Text>
                                         </View>
                                         <Text style={styles.decoderBoxBody}>{forecast.planetaryTransits}</Text>
                                     </View>
@@ -1314,7 +1314,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
         switch (source) {
             case 'clarity': return '#ec4899';
             case 'decoder': return '#1C1C1E';
-            case 'stars': return '#a855f7';
+            case 'stars': return '#ec4899';
             default: return '#8E8E93';
         }
     };
@@ -1344,7 +1344,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                         <Text style={profileStyles.infoBadgeText}>{connection.tag}</Text>
                     </View>
                     <View style={profileStyles.infoBadge}>
-                        <Ionicons name="star-outline" size={14} color="#a855f7" />
+                        <Ionicons name="star-outline" size={14} color="#ec4899" />
                         <Text style={profileStyles.infoBadgeText}>{connection.zodiac}</Text>
                     </View>
                 </View>
@@ -1397,8 +1397,8 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                             </View>
                         ) : null}
                         {advice.watchFor ? (
-                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                                <Text style={[profileStyles.adviceLabel, { color: '#D97706' }]}>WATCH FOR</Text>
+                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                <Text style={[profileStyles.adviceLabel, { color: '#8E8E93' }]}>WATCH FOR</Text>
                                 <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
                             </View>
                         ) : null}
@@ -1460,14 +1460,14 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                                     <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
                                         <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
                                     </View>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F0F9FF' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#3B82F6' }]}>{log.direction}</Text>
-                                    </View>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F5F3FF' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#8B5CF6' }]}>{log.structured_emotion_state}</Text>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#1C1C1E' }]}>{log.direction}</Text>
                                     </View>
                                     <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#6B7280' }]}>Clarity: {log.clarity}%</Text>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>{log.structured_emotion_state}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>Clarity: {log.clarity}%</Text>
                                     </View>
                                 </View>
                                 {log.notable ? (
@@ -1493,7 +1493,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                                 <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => selectedLog && deleteLog(selectedLog.id)}>
-                                <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DELETE</Text>
+                                <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DELETE</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -1687,10 +1687,25 @@ export default function ConnectionDetailScreen() {
     const params = useLocalSearchParams();
     const { connections, updateConnection, deleteConnection } = useConnections();
 
-    // Determine initial tab from route params
-    const initialTab = String(params.tab || 'PROFILE') as 'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC';
-    const showProfile = initialTab === 'PROFILE';
-    const [activeTab, setActiveTab] = useState<'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>(initialTab);
+    // Determine initial section from route params
+    type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'DECIDE';
+    type UnderstandTool = 'DECODER' | 'STARS' | 'DYNAMIC' | null;
+
+    const mapParamToSection = (tab: string): { section: HubSection; tool: UnderstandTool } => {
+        switch (tab) {
+            case 'CLARITY': return { section: 'DECIDE', tool: null };
+            case 'DECODER': return { section: 'UNDERSTAND', tool: 'DECODER' };
+            case 'STARS': return { section: 'UNDERSTAND', tool: 'STARS' };
+            case 'DYNAMIC': return { section: 'UNDERSTAND', tool: 'DYNAMIC' };
+            case 'UNDERSTAND': return { section: 'UNDERSTAND', tool: null };
+            case 'DECIDE': return { section: 'DECIDE', tool: null };
+            default: return { section: 'OVERVIEW', tool: null };
+        }
+    };
+
+    const initialMapping = mapParamToSection(String(params.tab || 'OVERVIEW'));
+    const [activeSection, setActiveSection] = useState<HubSection>(initialMapping.section);
+    const [activeTool, setActiveTool] = useState<UnderstandTool>(initialMapping.tool);
 
     // Find the connection in context
     const connection = connections.find(c => c.id === params.id);
@@ -1730,7 +1745,31 @@ export default function ConnectionDetailScreen() {
         );
     }
 
+    const SECTIONS: HubSection[] = ['OVERVIEW', 'UNDERSTAND', 'DECIDE'];
 
+    const UNDERSTAND_TOOLS = [
+        { id: 'DECODER' as const, label: 'Decoder', icon: 'scan-outline' as const, description: 'Read between the lines' },
+        { id: 'STARS' as const, label: 'Stars', icon: 'sparkles-outline' as const, description: 'Cosmic compatibility' },
+        { id: 'DYNAMIC' as const, label: 'Dynamic', icon: 'pulse-outline' as const, description: 'Daily energy log' },
+    ];
+
+    const handleSectionChange = (section: HubSection) => {
+        setActiveSection(section);
+        if (section !== 'UNDERSTAND') {
+            setActiveTool(null);
+        }
+    };
+
+    const handleToolSelect = (tool: UnderstandTool) => {
+        setActiveTool(tool);
+    };
+
+    const handleBackFromTool = () => {
+        setActiveTool(null);
+    };
+
+    // If a specific tool is active in UNDERSTAND, show the tool directly
+    const showingTool = activeSection === 'UNDERSTAND' && activeTool !== null;
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -1746,71 +1785,205 @@ export default function ConnectionDetailScreen() {
                 >
                     {/* Navigation Header */}
                     <View style={styles.navHeader}>
-                        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                if (showingTool) {
+                                    handleBackFromTool();
+                                } else {
+                                    router.back();
+                                }
+                            }}
+                            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                        >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Ionicons name="arrow-back" size={12} color="#8E8E93" style={{ marginRight: 4 }} />
-                                <Text style={styles.navText}>CONNECTIONS</Text>
+                                <Text style={styles.navText}>
+                                    {showingTool ? 'BACK' : 'CONNECTIONS'}
+                                </Text>
                             </View>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleEdit}>
-                            <Text style={styles.navText}>EDIT</Text>
-                        </TouchableOpacity>
+                        {!showingTool && (
+                            <TouchableOpacity onPress={handleEdit}>
+                                <Text style={styles.navText}>EDIT</Text>
+                            </TouchableOpacity>
+                        )}
+                        {showingTool && (
+                            <Text style={styles.toolHeaderTitle}>{activeTool}</Text>
+                        )}
                     </View>
 
-                    {/* Profile Section */}
+                    {/* Profile Header — always visible */}
                     <View style={styles.profileSection}>
                         <View style={styles.avatarContainer}>
                             <Ionicons name={icon as any} size={40} color="#8E8E93" />
                         </View>
                         <View style={styles.profileInfo}>
                             <Text style={styles.profileName}>{name}</Text>
-                            <View style={styles.tagBadge}>
-                                <Text style={styles.tagText}>{tag}</Text>
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <View style={styles.tagBadge}>
+                                    <Text style={styles.tagText}>{tag}</Text>
+                                </View>
+                                <View style={[styles.tagBadge, { backgroundColor: '#F9FAFB' }]}>
+                                    <Text style={[styles.tagText, { color: '#8E8E93' }]}>{zodiac}</Text>
+                                </View>
                             </View>
                         </View>
                     </View>
 
-                    {/* Tabs — only shown when coming from Signal (not profile view) */}
-                    {!showProfile && (
-                        <View style={styles.tabsWrapper}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
-                                <View style={styles.tabsContainer}>
-                                    {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
-                                        <TouchableOpacity
-                                            key={tab}
-                                            style={styles.tabButton}
-                                            onPress={() => setActiveTab(tab as any)}
-                                        >
-                                            <Text style={[
-                                                styles.tabText,
-                                                activeTab === tab ? styles.activeTabText : styles.inactiveTabText
-                                            ]}>
-                                                {tab}
-                                            </Text>
-                                            {activeTab === tab && <View style={styles.activeIndicator} />}
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </ScrollView>
+                    {/* Segmented Control — OVERVIEW / UNDERSTAND / DECIDE */}
+                    {!showingTool && (
+                        <View style={hubStyles.segmentedContainer}>
+                            <View style={hubStyles.segmentedControl}>
+                                {SECTIONS.map((section) => (
+                                    <TouchableOpacity
+                                        key={section}
+                                        style={[
+                                            hubStyles.segmentButton,
+                                            activeSection === section && hubStyles.segmentButtonActive,
+                                        ]}
+                                        onPress={() => handleSectionChange(section)}
+                                    >
+                                        <Text style={[
+                                            hubStyles.segmentText,
+                                            activeSection === section && hubStyles.segmentTextActive,
+                                        ]}>
+                                            {section}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         </View>
                     )}
 
-                    {/* Content Rendering */}
-                    {showProfile && connection && <ProfileContent connection={connection} />}
-                    {!showProfile && activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />}
-                    {!showProfile && activeTab === 'DECODER' && <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />}
-                    {!showProfile && activeTab === 'STARS' && <StarsContent
-                        name={Array.isArray(name) ? name[0] : name}
-                        userZodiac="Capricorn"
-                        partnerZodiac={zodiac}
-                    />}
-                    {!showProfile && activeTab === 'DYNAMIC' && connection && <DynamicContent connection={connection} />}
+                    {/* Section Content */}
+                    {activeSection === 'OVERVIEW' && (
+                        <>
+                            {connection && <ProfileContent connection={connection} />}
+                        </>
+                    )}
+
+                    {activeSection === 'UNDERSTAND' && !activeTool && (
+                        <View style={hubStyles.toolGrid}>
+                            {UNDERSTAND_TOOLS.map((tool) => (
+                                <TouchableOpacity
+                                    key={tool.id}
+                                    style={hubStyles.toolCard}
+                                    activeOpacity={0.7}
+                                    onPress={() => handleToolSelect(tool.id)}
+                                >
+                                    <View style={hubStyles.toolIconWrap}>
+                                        <Ionicons name={tool.icon} size={24} color="#ec4899" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={hubStyles.toolName}>{tool.label}</Text>
+                                        <Text style={hubStyles.toolDesc}>{tool.description}</Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={18} color="#D1D1D6" />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
+                    {activeSection === 'UNDERSTAND' && activeTool === 'DECODER' && (
+                        <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />
+                    )}
+
+                    {activeSection === 'UNDERSTAND' && activeTool === 'STARS' && (
+                        <StarsContent
+                            name={Array.isArray(name) ? name[0] : name}
+                            userZodiac="Capricorn"
+                            partnerZodiac={zodiac}
+                        />
+                    )}
+
+                    {activeSection === 'UNDERSTAND' && activeTool === 'DYNAMIC' && connection && (
+                        <DynamicContent connection={connection} />
+                    )}
+
+                    {activeSection === 'DECIDE' && (
+                        <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />
+                    )}
 
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
+
+const hubStyles = StyleSheet.create({
+    segmentedContainer: {
+        paddingHorizontal: scale(24),
+        marginBottom: verticalScale(20),
+    },
+    segmentedControl: {
+        flexDirection: 'row',
+        backgroundColor: '#F2F2F7',
+        borderRadius: scale(14),
+        padding: scale(3),
+    },
+    segmentButton: {
+        flex: 1,
+        paddingVertical: verticalScale(10),
+        borderRadius: scale(12),
+        alignItems: 'center',
+    },
+    segmentButtonActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    segmentText: {
+        fontSize: fs(10),
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    segmentTextActive: {
+        color: '#1C1C1E',
+        fontWeight: '800',
+    },
+    toolGrid: {
+        paddingHorizontal: scale(24),
+        gap: verticalScale(12),
+    },
+    toolCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: scale(18),
+        padding: scale(18),
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        gap: scale(14),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 1,
+    },
+    toolIconWrap: {
+        width: scale(48),
+        height: scale(48),
+        borderRadius: scale(16),
+        backgroundColor: '#FDF2F8',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    toolName: {
+        fontSize: fs(16),
+        fontWeight: '700',
+        color: '#1C1C1E',
+        marginBottom: verticalScale(2),
+    },
+    toolDesc: {
+        fontSize: fs(12),
+        color: '#8E8E93',
+    },
+});
 
 const styles = StyleSheet.create({
     safeArea: {
@@ -1828,10 +2001,18 @@ const styles = StyleSheet.create({
     navHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: scale(24),
         paddingTop: verticalScale(24),
         paddingBottom: verticalScale(8),
         marginBottom: verticalScale(16),
+    },
+    toolHeaderTitle: {
+        fontSize: fs(12),
+        fontWeight: '700',
+        color: '#1C1C1E',
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
     },
     navText: {
         fontSize: fs(10),
@@ -2169,7 +2350,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#F5F3FF',
+        backgroundColor: '#FDF2F8',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -2181,7 +2362,7 @@ const styles = StyleSheet.create({
     starsTitleSub: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
         fontSize: 18,
-        color: '#7C3AED',
+        color: '#ec4899',
     },
     starsForecastLabel: {
         fontSize: 9,
@@ -2211,7 +2392,7 @@ const styles = StyleSheet.create({
     relationshipDynamicLabel: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#7C3AED',
+        color: '#ec4899',
         letterSpacing: 1,
         textTransform: 'uppercase',
         textAlign: 'right',
@@ -2222,7 +2403,7 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     strategyCard: {
-        backgroundColor: '#EEF2FF',
+        backgroundColor: '#FDF2F8',
         padding: 20,
         borderRadius: 16,
     },
@@ -2234,7 +2415,7 @@ const styles = StyleSheet.create({
     strategyLabel: {
         fontSize: 9,
         fontWeight: '800',
-        color: '#818CF8',
+        color: '#ec4899',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },

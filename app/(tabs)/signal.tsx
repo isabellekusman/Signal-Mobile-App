@@ -1,163 +1,183 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Dimensions, Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Connection, useConnections } from '../../context/ConnectionsContext';
 
 const { width } = Dimensions.get('window');
-const BUBBLE_SIZE = 110;
 
-const FloatingBubble = ({ connection, index }: { connection: Connection; index: number }) => {
+const FEATURES = [
+    { id: 'CLARITY', label: 'Clarity', icon: 'chatbubble-ellipses-outline' as const, description: 'AI-guided check-in', color: '#ec4899' },
+    { id: 'DECODER', label: 'Decoder', icon: 'scan-outline' as const, description: 'Read between the lines', color: '#1C1C1E' },
+    { id: 'STARS', label: 'Stars', icon: 'sparkles-outline' as const, description: 'Cosmic compatibility', color: '#ec4899' },
+    { id: 'DYNAMIC', label: 'Dynamic', icon: 'pulse-outline' as const, description: 'Daily energy log', color: '#1C1C1E' },
+];
+
+export default function SignalScreen() {
     const router = useRouter();
-    const translateX = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0)).current;
+    const { connections } = useConnections();
+    const activeConnections = connections.filter(c => c.status === 'active');
+    const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
 
-    useEffect(() => {
-        // Entrance: Pop in
-        Animated.spring(scaleAnim, {
-            toValue: 1,
-            friction: 6,
-            tension: 40,
-            useNativeDriver: true,
-            delay: index * 150,
-        }).start();
+    const isUrl = (str?: string) => str && (str.startsWith('http') || str.startsWith('file'));
 
-        // 1. Vertical Floating (Breathing)
-        const verticalDuration = 4000 + (index % 3) * 1000; // 4s, 5s, or 6s
-        const verticalRange = 15;
-
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(translateY, {
-                    toValue: -verticalRange,
-                    duration: verticalDuration,
-                    easing: Easing.inOut(Easing.sin), // Smoother sine wave
-                    useNativeDriver: true,
-                }),
-                Animated.timing(translateY, {
-                    toValue: verticalRange,
-                    duration: verticalDuration,
-                    easing: Easing.inOut(Easing.sin),
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-
-        // 2. Horizontal Swaying (Drifting) - Independent loop for organic feel
-        const horizontalDuration = 5500 + (index % 2) * 1500; // Different timing than vertical
-        const horizontalRange = 10;
-
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(translateX, {
-                    toValue: horizontalRange,
-                    duration: horizontalDuration,
-                    easing: Easing.inOut(Easing.quad),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(translateX, {
-                    toValue: -horizontalRange,
-                    duration: horizontalDuration,
-                    easing: Easing.inOut(Easing.quad),
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-    }, []);
-
-    // Unified theme color
-    const glowColor = '#ec4899'; // pink-500
-
-    // Determine layout position based on index (Zig-zag)
-    const isLeft = index % 2 === 0;
-    const randomOffsetX = (index * 37) % 60; // Deterministic pseudo-random offset
-
-    const containerStyle = {
-        alignSelf: isLeft ? 'flex-start' as const : 'flex-end' as const,
-        marginLeft: isLeft ? 20 + randomOffsetX : 0,
-        marginRight: !isLeft ? 20 + randomOffsetX : 0,
-        marginTop: index === 0 ? 0 : -30, // Slight overlap/tightness
-    };
-
-    const handlePress = () => {
+    const handleFeaturePress = (featureId: string) => {
+        if (!selectedConnection) return;
         router.push({
             pathname: '/connection/[id]',
-            params: { id: connection.id, tab: 'CLARITY' }
+            params: { id: selectedConnection.id, tab: featureId }
         });
     };
 
-    // Helper to determine if icon is URL or icon name
-    const isUrl = (str?: string) => str && (str.startsWith('http') || str.startsWith('file'));
-
     return (
-        <Animated.View
-            style={[
-                styles.bubbleWrapper,
-                containerStyle,
-                {
-                    transform: [
-                        { translateY },
-                        { translateX },
-                        { scale: scaleAnim }
-                    ]
-                }
-            ]}
-        >
-            <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
-                <View style={[styles.bubble, { shadowColor: glowColor }]}>
-                    <View style={[styles.innerBubble, { borderColor: glowColor, overflow: 'hidden' }]}>
-                        {isUrl(connection.icon) ? (
-                            <Image
-                                source={{ uri: connection.icon }}
-                                style={styles.bubbleImage}
-                                resizeMode="cover"
-                            />
-                        ) : connection.icon ? (
-                            <View style={[styles.placeholderIcon, { backgroundColor: '#FFFFFF' }]}>
-                                <Ionicons name={connection.icon as any} size={50} color={glowColor} />
-                            </View>
-                        ) : (
-                            <View style={[styles.placeholderIcon, { backgroundColor: '#FCE7F3' }]}>
-                                <Text style={[styles.initials, { color: glowColor }]}>
-                                    {connection.name.substring(0, 2).toUpperCase()}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-                <Text style={styles.bubbleName} numberOfLines={1}>{connection.name}</Text>
-            </TouchableOpacity>
-        </Animated.View>
-    );
-};
-
-export default function SignalScreen() {
-    const { connections } = useConnections();
-    const activeConnections = connections.filter(c => c.status === 'active');
-
-    return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>SIGNAL</Text>
-                <Text style={styles.subtitle}>Active Frequencies</Text>
-            </View>
-
+        <SafeAreaView style={styles.container}>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.scatterContainer}>
-                    {activeConnections.map((connection, index) => (
-                        <FloatingBubble
-                            key={connection.id}
-                            connection={connection}
-                            index={index}
-                        />
-                    ))}
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.title}>Signal</Text>
+                    <Text style={styles.subtitle}>YOUR TOOLKIT</Text>
+                </View>
+
+                {/* Step 1: Connection Selector */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>CONNECTION</Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.connectionRow}
+                    >
+                        {activeConnections.map((connection) => {
+                            const isSelected = selectedConnection?.id === connection.id;
+                            return (
+                                <TouchableOpacity
+                                    key={connection.id}
+                                    style={[
+                                        styles.connectionChip,
+                                        isSelected && styles.connectionChipSelected,
+                                    ]}
+                                    onPress={() => setSelectedConnection(connection)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[
+                                        styles.chipAvatar,
+                                        isSelected && styles.chipAvatarSelected,
+                                    ]}>
+                                        {isUrl(connection.icon) ? (
+                                            <Image
+                                                source={{ uri: connection.icon }}
+                                                style={styles.chipAvatarImage}
+                                                resizeMode="cover"
+                                            />
+                                        ) : connection.icon ? (
+                                            <Ionicons
+                                                name={connection.icon as any}
+                                                size={20}
+                                                color={isSelected ? '#ec4899' : '#8E8E93'}
+                                            />
+                                        ) : (
+                                            <Text style={[
+                                                styles.chipInitials,
+                                                isSelected && { color: '#ec4899' },
+                                            ]}>
+                                                {connection.name.substring(0, 1).toUpperCase()}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <Text style={[
+                                        styles.chipName,
+                                        isSelected && styles.chipNameSelected,
+                                    ]}>
+                                        {connection.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+
+                {/* Selected Connection Preview */}
+                {selectedConnection && (
+                    <View style={styles.selectedPreview}>
+                        <View style={styles.selectedInfo}>
+                            <View style={styles.selectedAvatarLarge}>
+                                {isUrl(selectedConnection.icon) ? (
+                                    <Image
+                                        source={{ uri: selectedConnection.icon }}
+                                        style={{ width: '100%', height: '100%', borderRadius: 28 }}
+                                        resizeMode="cover"
+                                    />
+                                ) : selectedConnection.icon ? (
+                                    <Ionicons name={selectedConnection.icon as any} size={28} color="#ec4899" />
+                                ) : (
+                                    <Text style={styles.selectedInitials}>
+                                        {selectedConnection.name.substring(0, 2).toUpperCase()}
+                                    </Text>
+                                )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.selectedName}>{selectedConnection.name}</Text>
+                                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                                    <View style={styles.metaBadge}>
+                                        <Text style={styles.metaBadgeText}>{selectedConnection.tag}</Text>
+                                    </View>
+                                    <View style={[styles.metaBadge, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[styles.metaBadgeText, { color: '#8E8E93' }]}>{selectedConnection.zodiac}</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
+                {/* Step 2: Feature Grid */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>TOOLS</Text>
+                    {!selectedConnection && (
+                        <View style={styles.emptyHint}>
+                            <Ionicons name="arrow-up-outline" size={16} color="#D1D1D6" />
+                            <Text style={styles.emptyHintText}>Select a connection first</Text>
+                        </View>
+                    )}
+                    <View style={styles.featureGrid}>
+                        {FEATURES.map((feature) => (
+                            <TouchableOpacity
+                                key={feature.id}
+                                style={[
+                                    styles.featureCard,
+                                    !selectedConnection && styles.featureCardDisabled,
+                                ]}
+                                onPress={() => handleFeaturePress(feature.id)}
+                                activeOpacity={selectedConnection ? 0.7 : 1}
+                                disabled={!selectedConnection}
+                            >
+                                <View style={styles.featureIconWrap}>
+                                    <Ionicons
+                                        name={feature.icon}
+                                        size={22}
+                                        color={selectedConnection ? '#ec4899' : '#D1D1D6'}
+                                    />
+                                </View>
+                                <Text style={[
+                                    styles.featureLabel,
+                                    !selectedConnection && { color: '#D1D1D6' },
+                                ]}>
+                                    {feature.label}
+                                </Text>
+                                <Text style={[
+                                    styles.featureDesc,
+                                    !selectedConnection && { color: '#E5E5EA' },
+                                ]}>
+                                    {feature.description}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -165,83 +185,186 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingTop: 70,
-    },
-    header: {
-        paddingHorizontal: 24,
-        marginBottom: 20,
-        zIndex: 10,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: '800',
-        letterSpacing: 1,
-        color: '#1C1C1E',
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#8E8E93',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-        marginTop: 4,
     },
     scrollContent: {
         paddingBottom: 100,
-        paddingTop: 20,
     },
-    scatterContainer: {
-        flex: 1,
-        width: '100%',
-        minHeight: 500,
+    header: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        marginBottom: 28,
     },
-    bubbleWrapper: {
-        marginBottom: 60, // Significantly increased spacing
+    title: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 32,
+        color: '#1C1C1E',
+        marginBottom: 4,
     },
-    bubble: {
-        width: BUBBLE_SIZE,
-        height: BUBBLE_SIZE,
-        borderRadius: BUBBLE_SIZE / 2,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
+    subtitle: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+    },
+    section: {
+        marginBottom: 28,
+    },
+    sectionLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1.5,
+        paddingHorizontal: 24,
+        marginBottom: 14,
+    },
+    // Connection chips
+    connectionRow: {
+        paddingHorizontal: 24,
+        gap: 10,
+    },
+    connectionChip: {
         alignItems: 'center',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3, // Softer shadow
-        shadowRadius: 20,   // Larger glow radius
-        elevation: 15,
+        gap: 6,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 16,
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        minWidth: 80,
     },
-    innerBubble: {
-        width: BUBBLE_SIZE - 6,
-        height: BUBBLE_SIZE - 6,
-        borderRadius: (BUBBLE_SIZE - 6) / 2,
-        borderWidth: 1.5,
+    connectionChipSelected: {
+        backgroundColor: '#FDF2F8',
+        borderColor: '#ec4899',
+    },
+    chipAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#F2F2F7',
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
-        backgroundColor: '#FAFAFA',
     },
-    bubbleImage: {
+    chipAvatarSelected: {
+        backgroundColor: '#FCE7F3',
+    },
+    chipAvatarImage: {
         width: '100%',
         height: '100%',
-        borderRadius: (BUBBLE_SIZE - 6) / 2,
+        borderRadius: 22,
     },
-    placeholderIcon: {
-        width: '100%',
-        height: '100%',
+    chipInitials: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#8E8E93',
+    },
+    chipName: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    chipNameSelected: {
+        color: '#ec4899',
+    },
+    // Selected preview
+    selectedPreview: {
+        marginHorizontal: 24,
+        marginBottom: 28,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    selectedInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    selectedAvatarLarge: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FDF2F8',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
     },
-    initials: {
-        fontSize: 28,
+    selectedInitials: {
+        fontSize: 20,
         fontWeight: '700',
+        color: '#ec4899',
     },
-    bubbleName: {
-        marginTop: 16,
-        fontSize: 12,
+    selectedName: {
+        fontSize: 18,
         fontWeight: '700',
-        color: '#4B5563',
-        textAlign: 'center',
-        letterSpacing: 1,
+        color: '#1C1C1E',
+    },
+    metaBadge: {
+        backgroundColor: '#FDF2F8',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+    metaBadgeText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#ec4899',
+        letterSpacing: 0.5,
         textTransform: 'uppercase',
-        opacity: 0.8,
+    },
+    // Feature grid
+    featureGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: 24,
+        gap: 12,
+    },
+    featureCard: {
+        width: (width - 60) / 2,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    featureCardDisabled: {
+        opacity: 0.5,
+    },
+    featureIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: '#F9FAFB',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    featureLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        marginBottom: 3,
+    },
+    featureDesc: {
+        fontSize: 11,
+        color: '#8E8E93',
+        lineHeight: 15,
+    },
+    emptyHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 24,
+        marginBottom: 14,
+    },
+    emptyHintText: {
+        fontSize: 12,
+        color: '#D1D1D6',
+        fontWeight: '500',
     },
 });

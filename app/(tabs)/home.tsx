@@ -1,195 +1,248 @@
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // Import useRouter
-import React, { useState } from 'react';
-import { Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import ConnectionCard from '../../components/ConnectionCard';
-import { Connection, useConnections } from '../../context/ConnectionsContext';
-import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useConnections } from '../../context/ConnectionsContext';
+import { fontSize as fs, verticalScale } from '../../utils/responsive';
 
 export default function HomeScreen() {
-    const router = useRouter(); // Initialize router
-    const { connections, addConnection, deleteConnection, updateConnection, theme, setTheme } = useConnections();
-    const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
-    const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+    const router = useRouter();
+    const { connections, theme } = useConnections();
+    const activeConnections = connections.filter(c => c.status === 'active');
 
-    // Sync global theme with tab selection
-    React.useEffect(() => {
-        setTheme(activeTab === 'archived' ? 'dark' : 'light');
-    }, [activeTab]);
+    // Find the most recently active connection (by lastActive or by dailyLogs)
+    const getMostRecentConnection = () => {
+        if (activeConnections.length === 0) return null;
 
-    // Delete Confirmation State
-    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-    const [connectionToDelete, setConnectionToDelete] = useState<Connection | null>(null);
+        // Prioritize connections with recent daily logs
+        const withLogs = activeConnections
+            .filter(c => c.dailyLogs && c.dailyLogs.length > 0)
+            .sort((a, b) => {
+                const aDate = new Date(a.dailyLogs![a.dailyLogs!.length - 1]?.date || 0).getTime();
+                const bDate = new Date(b.dailyLogs![b.dailyLogs!.length - 1]?.date || 0).getTime();
+                return bDate - aDate;
+            });
 
-    const toggleSelection = (id: string) => {
-        if (selectedConnectionId === id) {
-            setSelectedConnectionId(null);
-        } else {
-            setSelectedConnectionId(id);
-        }
+        if (withLogs.length > 0) return withLogs[0];
+
+        // Fallback: connections with saved logs
+        const withSavedLogs = activeConnections
+            .filter(c => c.savedLogs && c.savedLogs.length > 0)
+            .sort((a, b) => {
+                const aDate = new Date(a.savedLogs![0]?.date || 0).getTime();
+                const bDate = new Date(b.savedLogs![0]?.date || 0).getTime();
+                return bDate - aDate;
+            });
+
+        if (withSavedLogs.length > 0) return withSavedLogs[0];
+
+        // Fallback: first active connection
+        return activeConnections[0];
     };
 
-    const handleOpenFile = (item: any) => {
+    const recentConnection = getMostRecentConnection();
+
+    // Get latest vibe from Dynamic logs
+    const getLatestVibe = () => {
+        if (!recentConnection?.dailyLogs || recentConnection.dailyLogs.length === 0) return null;
+        const latest = recentConnection.dailyLogs[0];
+        return {
+            energy: latest.energyExchange,
+            direction: latest.direction,
+            emotion: latest.structured_emotion_state,
+            clarity: latest.clarity,
+            date: latest.date,
+        };
+    };
+
+    // Get latest analysis insight
+    const getLatestInsight = () => {
+        if (!recentConnection?.savedLogs || recentConnection.savedLogs.length === 0) return null;
+        return recentConnection.savedLogs[0];
+    };
+
+    const latestVibe = getLatestVibe();
+    const latestInsight = getLatestInsight();
+
+    const isUrl = (str?: string) => str && (str.startsWith('http') || str.startsWith('file'));
+
+    const navigateToHub = (connectionId: string) => {
         router.push({
             pathname: '/connection/[id]',
-            params: {
-                id: item.id,
-                name: item.name,
-                tag: item.tag,
-                zodiac: item.zodiac,
-                icon: item.icon,
-                tab: 'PROFILE'
-            }
+            params: { id: connectionId, tab: 'OVERVIEW' }
         });
     };
 
-    const handleArchive = (id: string, currentStatus: 'active' | 'archived') => {
-        const newStatus = currentStatus === 'active' ? 'archived' : 'active';
-        updateConnection(id, { status: newStatus });
-        // Optional: Clear selection if archiving/unarchiving selected
-        if (selectedConnectionId === id) setSelectedConnectionId(null);
+    const formatDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     };
 
-    const promptDelete = (connection: Connection) => {
-        setConnectionToDelete(connection);
-        setDeleteModalVisible(true);
-    };
-
-    const confirmDelete = () => {
-        if (connectionToDelete) {
-            deleteConnection(connectionToDelete.id);
-            setDeleteModalVisible(false);
-            setConnectionToDelete(null);
-            if (selectedConnectionId === connectionToDelete.id) setSelectedConnectionId(null);
+    const getSourceColor = (source: string) => {
+        switch (source) {
+            case 'clarity': return '#ec4899';
+            case 'decoder': return '#1C1C1E';
+            case 'stars': return '#ec4899';
+            default: return '#8E8E93';
         }
     };
 
-    const displayedConnections = connections.filter(c => c.status === activeTab);
-    const isDark = theme === 'dark';
+    const getSourceIcon = (source: string): any => {
+        switch (source) {
+            case 'clarity': return 'chatbubble-ellipses-outline';
+            case 'decoder': return 'scan-outline';
+            case 'stars': return 'sparkles-outline';
+            default: return 'document-outline';
+        }
+    };
+
+    // Empty state — no connections
+    if (activeConnections.length === 0) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+                <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconWrap}>
+                        <Ionicons name="heart-outline" size={40} color="#ec4899" />
+                    </View>
+                    <Text style={styles.emptyTitle}>Start Your Story</Text>
+                    <Text style={styles.emptySubtitle}>
+                        Add your first connection to begin tracking signals, patterns, and insights.
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.ctaButton}
+                        onPress={() => router.push('/add-connection')}
+                    >
+                        <Text style={styles.ctaButtonText}>ADD CONNECTION</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
-        <SafeAreaView style={[styles.safeArea, isDark && styles.safeAreaDark]}>
-            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#1C1C1E" : "#FFFFFF"} />
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             <ScrollView
                 contentContainerStyle={styles.container}
                 showsVerticalScrollIndicator={false}
-                stickyHeaderIndices={[0]}
             >
-                {/* Header Section: Title Left, Toggle Right */}
-                <View style={[styles.headerRow, isDark && { backgroundColor: '#1C1C1E' }]}>
-                    <View style={styles.titleSection}>
-                        <Text style={[styles.pageTitle, isDark && styles.textDark]}>
-                            {activeTab === 'active' ? 'Active' : 'Archived'} Connections
-                        </Text>
-                        <Text style={styles.sectionLabel}>YOUR INDEX</Text>
-                    </View>
-
-                    <View style={styles.toggleContainer}>
-                        <TouchableOpacity
-                            style={[
-                                styles.toggleButton,
-                                activeTab === 'active' ? styles.toggleButtonActive : styles.toggleButtonInactive
-                            ]}
-                            onPress={() => setActiveTab('active')}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                activeTab === 'active' ? styles.toggleTextActive : styles.toggleTextInactive
-                            ]}>ACTIVE</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[
-                                styles.toggleButton,
-                                activeTab === 'archived' ? styles.toggleButtonActive : styles.toggleButtonInactive
-                            ]}
-                            onPress={() => setActiveTab('archived')}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                activeTab === 'archived' ? styles.toggleTextActive : styles.toggleTextInactive
-                            ]}>ARCHIVED</Text>
-                        </TouchableOpacity>
-                    </View>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.pageTitle}>Home</Text>
+                    <Text style={styles.sectionLabel}>CONTINUE WHERE YOU LEFT OFF</Text>
                 </View>
 
-                {/* Subtle Divider */}
                 <View style={styles.headerDivider} />
 
-                {/* Connection Cards */}
-                <View style={styles.cardsList}>
-                    {displayedConnections.length === 0 ? (
-                        <Text style={styles.emptyText}>No {activeTab} connections.</Text>
-                    ) : (
-                        displayedConnections.map((item) => (
-                            <ConnectionCard
-                                key={item.id}
-                                id={item.id}
-                                name={item.name}
-                                tag={item.tag}
-                                zodiac={item.zodiac}
-                                lastActive={item.lastActive}
-                                icon={item.icon}
-                                isSelected={selectedConnectionId === item.id}
-                                status={item.status}
-                                onPress={() => handleOpenFile(item)}
-                                onOpenFile={() => handleOpenFile(item)}
-                                onDelete={() => promptDelete(item)}
-                                onDownload={() => handleArchive(item.id, item.status)}
-                            />
-                        ))
-                    )}
-                </View>
+                {recentConnection && (
+                    <>
+                        {/* Most Recently Active Connection */}
+                        <TouchableOpacity
+                            style={styles.connectionCard}
+                            activeOpacity={0.7}
+                            onPress={() => navigateToHub(recentConnection.id)}
+                        >
+                            <View style={styles.connectionCardInner}>
+                                <View style={styles.connectionAvatar}>
+                                    {isUrl(recentConnection.icon) ? (
+                                        <Image
+                                            source={{ uri: recentConnection.icon }}
+                                            style={{ width: '100%', height: '100%', borderRadius: 28 }}
+                                            resizeMode="cover"
+                                        />
+                                    ) : recentConnection.icon ? (
+                                        <Ionicons name={recentConnection.icon as any} size={28} color="#ec4899" />
+                                    ) : (
+                                        <Text style={styles.connectionInitials}>
+                                            {recentConnection.name.substring(0, 2).toUpperCase()}
+                                        </Text>
+                                    )}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.connectionName}>{recentConnection.name}</Text>
+                                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                                        <View style={styles.metaBadge}>
+                                            <Text style={styles.metaBadgeText}>{recentConnection.tag}</Text>
+                                        </View>
+                                        <View style={[styles.metaBadge, { backgroundColor: '#F9FAFB' }]}>
+                                            <Text style={[styles.metaBadgeText, { color: '#8E8E93' }]}>{recentConnection.zodiac}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#D1D1D6" />
+                            </View>
+                        </TouchableOpacity>
 
-                {/* Add Connection Button */}
-                {activeTab === 'active' && (
-                    <TouchableOpacity
-                        style={[styles.addButton, isDark && styles.addButtonDark]}
-                        activeOpacity={0.8}
-                        onPress={() => router.push('/add-connection')}
-                    >
-                        <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
-                    </TouchableOpacity>
+                        {/* Latest Vibe (Dynamic) */}
+                        {latestVibe && (
+                            <View style={styles.insightCard}>
+                                <View style={styles.insightHeader}>
+                                    <View style={[styles.insightIconWrap, { backgroundColor: '#FDF2F8' }]}>
+                                        <Ionicons name="pulse-outline" size={16} color="#ec4899" />
+                                    </View>
+                                    <Text style={styles.insightLabel}>LATEST VIBE</Text>
+                                    <Text style={styles.insightDate}>{formatDate(latestVibe.date)}</Text>
+                                </View>
+                                <View style={styles.vibeTags}>
+                                    <View style={[styles.vibeTag, { backgroundColor: '#FDF2F8' }]}>
+                                        <Text style={[styles.vibeTagText, { color: '#ec4899' }]}>{latestVibe.energy}</Text>
+                                    </View>
+                                    <View style={[styles.vibeTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[styles.vibeTagText, { color: '#1C1C1E' }]}>{latestVibe.direction}</Text>
+                                    </View>
+                                    <View style={[styles.vibeTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[styles.vibeTagText, { color: '#8E8E93' }]}>{latestVibe.emotion}</Text>
+                                    </View>
+                                    <View style={[styles.vibeTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[styles.vibeTagText, { color: '#8E8E93' }]}>Clarity: {latestVibe.clarity}%</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Latest Analysis Insight */}
+                        {latestInsight && (
+                            <View style={styles.insightCard}>
+                                <View style={styles.insightHeader}>
+                                    <View style={[styles.insightIconWrap, { backgroundColor: getSourceColor(latestInsight.source) + '15' }]}>
+                                        <Ionicons name={getSourceIcon(latestInsight.source)} size={16} color={getSourceColor(latestInsight.source)} />
+                                    </View>
+                                    <Text style={styles.insightLabel}>LATEST INSIGHT</Text>
+                                    <Text style={styles.insightDate}>{formatDate(latestInsight.date)}</Text>
+                                </View>
+                                <Text style={styles.insightTitle}>{latestInsight.title}</Text>
+                                <Text style={styles.insightSummary} numberOfLines={3}>{latestInsight.summary}</Text>
+                            </View>
+                        )}
+
+                        {/* Quick Continue Button */}
+                        <TouchableOpacity
+                            style={styles.continueButton}
+                            activeOpacity={0.8}
+                            onPress={() => navigateToHub(recentConnection.id)}
+                        >
+                            <Text style={styles.continueButtonText}>CONTINUE WITH {recentConnection.name.toUpperCase()}</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        {/* No data yet prompt */}
+                        {!latestVibe && !latestInsight && (
+                            <View style={styles.noDataCard}>
+                                <Ionicons name="analytics-outline" size={28} color="#D1D1D6" />
+                                <Text style={styles.noDataTitle}>No signals logged yet</Text>
+                                <Text style={styles.noDataSubtitle}>
+                                    Start using Clarity, Decoder, or Dynamic to see insights here.
+                                </Text>
+                            </View>
+                        )}
+                    </>
                 )}
 
                 <View style={{ height: 40 }} />
             </ScrollView>
-
-            {/* Custom Delete Confirmation Modal */}
-            <Modal
-                visible={deleteModalVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setDeleteModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => setDeleteModalVisible(false)}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Ionicons name="close" size={24} color={isDark ? "#FFFFFF" : "#1C1C1E"} />
-                        </TouchableOpacity>
-
-                        <Text style={[styles.modalTitle, isDark && styles.textDark]}>Are we done with them?</Text>
-                        <Text style={styles.modalSubtitle}>
-                            This action cannot be undone. This profile will be permanently deleted from your signal history.
-                        </Text>
-
-                        {connectionToDelete && (
-                            <View style={[styles.deleteTargetContainer, isDark && styles.deleteTargetContainerDark]}>
-                                <Text style={[styles.deleteTargetName, isDark && styles.textDark]}>{connectionToDelete.name}</Text>
-                            </View>
-                        )}
-
-                        <TouchableOpacity style={[styles.deleteConfirmButton, isDark && styles.deleteConfirmButtonDark]} onPress={confirmDelete}>
-                            <Text style={styles.deleteConfirmText}>DELETE PROFILE</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
 
@@ -199,71 +252,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         paddingTop: Platform.OS === 'android' ? 40 : 0,
     },
-    safeAreaDark: {
-        backgroundColor: '#1C1C1E',
-    },
     container: {
         paddingHorizontal: 20,
         paddingBottom: 20,
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: verticalScale(24),
-        marginTop: 0,
-        paddingTop: verticalScale(10),
-        paddingBottom: verticalScale(10),
-        backgroundColor: '#FFFFFF',
-        zIndex: 10,
-    },
-    brandTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 24,
-        color: '#1C1C1E',
-    },
-    headerRow: {
-        flexDirection: 'column',
-        justifyContent: 'flex-start',
-        alignItems: 'flex-start',
         marginTop: verticalScale(20),
         marginBottom: verticalScale(24),
-        backgroundColor: '#FFFFFF',
-        zIndex: 10,
-    },
-    titleSection: {
-        // Naturally stacking
-    },
-    toggleContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#F2F2F7',
-        borderRadius: scale(20),
-        padding: scale(2),
-        marginTop: verticalScale(24),
-        alignSelf: 'flex-start', // Tight wrap around text
-    },
-    toggleButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 20,
-        borderRadius: 18,
-        alignItems: 'center',
-    },
-    toggleButtonActive: {
-        backgroundColor: '#000000',
-    },
-    toggleButtonInactive: {
-        backgroundColor: 'transparent',
-    },
-    toggleText: {
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-    toggleTextActive: {
-        color: '#FFFFFF',
-    },
-    toggleTextInactive: {
-        color: '#8E8E93',
     },
     pageTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
@@ -284,127 +279,220 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#F2F2F7',
         width: '100%',
-        marginBottom: 32,
+        marginBottom: 24,
     },
-    cardsList: {
-        flexDirection: 'column',
-        marginBottom: 32,
+
+    // Connection Card
+    connectionCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    emptyText: {
-        fontSize: 14,
+    connectionCardInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    connectionAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FDF2F8',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    connectionInitials: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#ec4899',
+    },
+    connectionName: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    metaBadge: {
+        backgroundColor: '#FDF2F8',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+    metaBadgeText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#ec4899',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+
+    // Insight Cards
+    insightCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 14,
+    },
+    insightHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 12,
+    },
+    insightIconWrap: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    insightLabel: {
+        fontSize: 10,
+        fontWeight: '800',
         color: '#8E8E93',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        marginTop: 20,
+        letterSpacing: 1.5,
+        flex: 1,
     },
-    addButton: {
+    insightDate: {
+        fontSize: 10,
+        color: '#C7C7CC',
+        fontWeight: '600',
+    },
+    insightTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        marginBottom: 4,
+    },
+    insightSummary: {
+        fontSize: 13,
+        color: '#8E8E93',
+        lineHeight: 19,
+    },
+
+    // Vibe Tags
+    vibeTags: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    vibeTag: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    vibeTagText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+
+    // Continue Button
+    continueButton: {
         backgroundColor: '#1C1C1E',
         height: 56,
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 6,
     },
-    addButtonText: {
+    continueButtonText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+    },
+
+    // No data
+    noDataCard: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginTop: 8,
+    },
+    noDataTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#8E8E93',
+        marginTop: 12,
+    },
+    noDataSubtitle: {
+        fontSize: 12,
+        color: '#B0B0B0',
+        textAlign: 'center',
+        marginTop: 4,
+        paddingHorizontal: 40,
+    },
+
+    // Empty State (no connections at all)
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+    },
+    emptyIconWrap: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#FDF2F8',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    emptyTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 28,
+        color: '#1C1C1E',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    emptySubtitle: {
+        fontSize: 14,
+        color: '#8E8E93',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 32,
+    },
+    ctaButton: {
+        backgroundColor: '#1C1C1E',
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    ctaButtonText: {
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
     },
-    // Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        padding: 32,
-        width: '100%',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 10,
-        position: 'relative',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 24,
-        right: 24,
-        zIndex: 1,
-    },
-    modalTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 28,
-        color: '#1C1C1E',
-        marginBottom: 16,
-        textAlign: 'center',
-        marginTop: 10,
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: '#8E8E93',
-        textAlign: 'center',
-        marginBottom: 32,
-        lineHeight: 20,
-    },
-    deleteTargetContainer: {
-        backgroundColor: '#F2F2F7',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 12,
-        marginBottom: 32,
-    },
-    deleteTargetName: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#1C1C1E',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    deleteConfirmButton: {
-        backgroundColor: '#1C1C1E',
-        width: '100%',
-        paddingVertical: 18,
-        borderRadius: 30,
-        alignItems: 'center',
-    },
-    deleteConfirmText: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '700',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
-    textDark: {
-        color: '#FFFFFF',
-    },
-    modalContentDark: {
-        backgroundColor: '#2C2C2E',
-    },
-    deleteTargetContainerDark: {
-        backgroundColor: '#3A3A3C',
-    },
-    deleteConfirmButtonDark: {
-        backgroundColor: '#FFFFFF',
-    },
-    deleteConfirmTextDark: {
-        color: '#1C1C1E',
-    },
-    addButtonDark: {
-        backgroundColor: '#FFFFFF',
-    },
-    addButtonTextDark: {
-        color: '#1C1C1E',
-    }
 });
