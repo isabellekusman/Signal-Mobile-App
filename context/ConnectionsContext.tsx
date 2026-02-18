@@ -6,6 +6,15 @@ export interface Signal {
     text: string;
 }
 
+export interface SavedLog {
+    id: string;
+    date: string;
+    source: 'clarity' | 'decoder' | 'stars';
+    title: string;
+    summary: string;
+    fullContent: string;
+}
+
 export interface Connection {
     id: string;
     name: string;
@@ -16,6 +25,7 @@ export interface Connection {
     status: 'active' | 'archived';
     signals: Signal[];
     dailyLogs?: DailyLog[];
+    savedLogs?: SavedLog[];
     onboardingCompleted?: boolean;
     onboardingContext?: {
         howWeMet?: string;

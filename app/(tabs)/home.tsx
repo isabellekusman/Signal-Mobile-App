@@ -38,7 +38,8 @@ export default function HomeScreen() {
                 name: item.name,
                 tag: item.tag,
                 zodiac: item.zodiac,
-                icon: item.icon
+                icon: item.icon,
+                tab: 'PROFILE'
             }
         });
     };

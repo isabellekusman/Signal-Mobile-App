@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Connection, DailyLog, useConnections } from '../../context/ConnectionsContext';
+import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 
 import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
@@ -22,7 +22,8 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
-const ClarityContent = ({ name }: { name: string }) => {
+const ClarityContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
+    const { updateConnection, connections } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
     const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
@@ -79,7 +80,21 @@ const ClarityContent = ({ name }: { name: string }) => {
     };
 
     const handleSave = () => {
-        // TODO: Implement actual save logic (e.g., to database or context)
+        if (messages.length > 0) {
+            const conn = connections.find(c => c.id === connectionId);
+            const aiMessages = messages.filter(m => m.sender === 'ai');
+            const lastAI = aiMessages[aiMessages.length - 1];
+            const newLog: SavedLog = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                source: 'clarity',
+                title: `Clarity: ${selectedThemes.length > 0 ? selectedThemes.join(', ') : 'General'}`,
+                summary: lastAI ? lastAI.text.substring(0, 120) + '...' : 'Chat saved.',
+                fullContent: messages.map(m => `${m.sender === 'user' ? 'You' : 'Signal'}: ${m.text}`).join('\n\n'),
+            };
+            const existing = conn?.savedLogs || [];
+            updateConnection(connectionId, { savedLogs: [newLog, ...existing] });
+        }
         setIsChatOpen(false);
     };
 
@@ -215,7 +230,8 @@ const ClarityContent = ({ name }: { name: string }) => {
 // Content Component for the "Decoder" tab
 // Content Component for the "Decoder" tab
 // Content Component for the "Decoder" tab
-const DecoderContent = ({ name }: { name: string }) => {
+const DecoderContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
+    const { updateConnection, connections } = useConnections();
     const [text, setText] = useState('');
     const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
     const [analysis, setAnalysis] = useState<{
@@ -332,6 +348,23 @@ const DecoderContent = ({ name }: { name: string }) => {
         inputRange: [0, 1],
         outputRange: [0, verticalScale(220)],
     });
+
+    const handleSaveDecoder = () => {
+        if (analysis) {
+            const conn = connections.find(c => c.id === connectionId);
+            const newLog: SavedLog = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                source: 'decoder',
+                title: `Decode: ${analysis.tone}`,
+                summary: analysis.subtext.substring(0, 120) + '...',
+                fullContent: `Tone: ${analysis.tone}\nEffort: ${analysis.effort}\nPower Dynamics: ${analysis.powerDynamics}\nSubtext: ${analysis.subtext}\nMotivation: ${analysis.motivation}\nRisks: ${(analysis.risks || []).join(', ')}\nSuggested Reply: ${analysis.replySuggestion}`,
+            };
+            const existing = conn?.savedLogs || [];
+            updateConnection(connectionId, { savedLogs: [newLog, ...existing] });
+            closeAnalysis();
+        }
+    };
 
     const closeAnalysis = () => {
         setIsAnalysisOpen(false);
@@ -471,6 +504,14 @@ const DecoderContent = ({ name }: { name: string }) => {
                                     <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
                                     <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{analysis.replySuggestion}"</Text>
                                 </View>
+
+                                {/* Save to Profile Button */}
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#1C1C1E', paddingVertical: 16, borderRadius: 28, alignItems: 'center', marginTop: 8 }}
+                                    onPress={handleSaveDecoder}
+                                >
+                                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>SAVE TO PROFILE</Text>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </ScrollView>
@@ -1195,12 +1236,461 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
 };
 
 
+// ──────────────────────────────────────────────────
+// PROFILE CONTENT — All-encompassing analysis page
+// ──────────────────────────────────────────────────
+const ProfileContent = ({ connection }: { connection: Connection }) => {
+    const { updateConnection } = useConnections();
+    const [advice, setAdvice] = useState<{
+        stateOfConnection: string;
+        todaysMove: string;
+        watchFor: string;
+    } | null>(null);
+    const [loadingAdvice, setLoadingAdvice] = useState(false);
+    const [selectedLog, setSelectedLog] = useState<SavedLog | null>(null);
+
+    const savedLogs = connection.savedLogs || [];
+    const dailyLogs = connection.dailyLogs || [];
+    const onboarding = connection.onboardingContext;
+
+    const fetchAdvice = async () => {
+        setLoadingAdvice(true);
+        try {
+            // Build context from all available data
+            let context = '';
+            if (onboarding) {
+                context += `How they met: ${onboarding.howWeMet || 'Unknown'}\n`;
+                context += `First impression: ${onboarding.firstImpression || 'Unknown'}\n`;
+                context += `Initial vibe: ${onboarding.initialVibe || 'Unknown'}\n`;
+                context += `Duration: ${onboarding.howLong || 'Unknown'}\n`;
+                context += `Current intent: ${onboarding.currentIntent || 'Unknown'}\n`;
+            }
+            if (dailyLogs.length > 0) {
+                const recentLogs = dailyLogs.slice(0, 3);
+                context += '\nRecent daily check-ins:\n';
+                recentLogs.forEach(log => {
+                    context += `- Energy: ${log.energyExchange}, Direction: ${log.direction}, Emotion: ${log.structured_emotion_state}, Clarity: ${log.clarity}/100\n`;
+                });
+            }
+            if (savedLogs.length > 0) {
+                const recentSaved = savedLogs.slice(0, 3);
+                context += '\nRecent analysis logs:\n';
+                recentSaved.forEach(log => {
+                    context += `- [${log.source.toUpperCase()}] ${log.title}: ${log.summary}\n`;
+                });
+            }
+
+            const result = await aiService.getDailyAdvice(
+                connection.name,
+                connection.tag,
+                connection.zodiac,
+                context || 'No prior data available yet.'
+            );
+            let jsonString = result.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(jsonString);
+            setAdvice(parsed);
+        } catch (error) {
+            console.error('Daily advice error:', error);
+            setAdvice({
+                stateOfConnection: 'Unable to generate advice right now. Try again later.',
+                todaysMove: '',
+                watchFor: '',
+            });
+        } finally {
+            setLoadingAdvice(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAdvice();
+    }, []);
+
+    const formatDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    };
+
+    const getSourceColor = (source: string) => {
+        switch (source) {
+            case 'clarity': return '#ec4899';
+            case 'decoder': return '#1C1C1E';
+            case 'stars': return '#a855f7';
+            default: return '#8E8E93';
+        }
+    };
+
+    const getSourceIcon = (source: string): any => {
+        switch (source) {
+            case 'clarity': return 'chatbubble-ellipses-outline';
+            case 'decoder': return 'scan-outline';
+            case 'stars': return 'sparkles-outline';
+            default: return 'document-outline';
+        }
+    };
+
+    const deleteLog = (logId: string) => {
+        const updated = savedLogs.filter(l => l.id !== logId);
+        updateConnection(connection.id, { savedLogs: updated });
+        setSelectedLog(null);
+    };
+
+    return (
+        <View style={{ paddingHorizontal: scale(24) }}>
+            {/* Header Info Card */}
+            <View style={profileStyles.infoCard}>
+                <View style={profileStyles.infoRow}>
+                    <View style={profileStyles.infoBadge}>
+                        <Ionicons name="heart-outline" size={14} color="#ec4899" />
+                        <Text style={profileStyles.infoBadgeText}>{connection.tag}</Text>
+                    </View>
+                    <View style={profileStyles.infoBadge}>
+                        <Ionicons name="star-outline" size={14} color="#a855f7" />
+                        <Text style={profileStyles.infoBadgeText}>{connection.zodiac}</Text>
+                    </View>
+                </View>
+
+                {onboarding && (
+                    <View style={profileStyles.contextSection}>
+                        <Text style={profileStyles.sectionLabel}>BACKSTORY</Text>
+                        {onboarding.howWeMet && (
+                            <Text style={profileStyles.contextText}>
+                                <Text style={{ fontWeight: '700' }}>How you met: </Text>{onboarding.howWeMet}
+                            </Text>
+                        )}
+                        {onboarding.currentIntent && (
+                            <Text style={profileStyles.contextText}>
+                                <Text style={{ fontWeight: '700' }}>Intent: </Text>{onboarding.currentIntent}
+                            </Text>
+                        )}
+                        {onboarding.howLong && (
+                            <Text style={profileStyles.contextText}>
+                                <Text style={{ fontWeight: '700' }}>Duration: </Text>{onboarding.howLong}
+                            </Text>
+                        )}
+                    </View>
+                )}
+            </View>
+
+            {/* Daily Advice Section */}
+            <View style={profileStyles.adviceCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={profileStyles.sectionTitle}>TODAY'S BRIEFING</Text>
+                    <TouchableOpacity onPress={fetchAdvice} disabled={loadingAdvice}>
+                        <Ionicons name="refresh-outline" size={18} color={loadingAdvice ? '#D1D1D6' : '#ec4899'} />
+                    </TouchableOpacity>
+                </View>
+
+                {loadingAdvice ? (
+                    <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                        <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Generating your daily briefing...</Text>
+                    </View>
+                ) : advice ? (
+                    <View style={{ gap: 16 }}>
+                        <View style={profileStyles.adviceBlock}>
+                            <Text style={profileStyles.adviceLabel}>STATE OF THE CONNECTION</Text>
+                            <Text style={profileStyles.adviceText}>{advice.stateOfConnection}</Text>
+                        </View>
+                        {advice.todaysMove ? (
+                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
+                                <Text style={[profileStyles.adviceLabel, { color: '#ec4899' }]}>TODAY'S MOVE</Text>
+                                <Text style={profileStyles.adviceText}>{advice.todaysMove}</Text>
+                            </View>
+                        ) : null}
+                        {advice.watchFor ? (
+                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+                                <Text style={[profileStyles.adviceLabel, { color: '#D97706' }]}>WATCH FOR</Text>
+                                <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
+                            </View>
+                        ) : null}
+                    </View>
+                ) : null}
+            </View>
+
+            {/* Saved Logs Section */}
+            <View style={profileStyles.logsSection}>
+                <Text style={profileStyles.sectionTitle}>SAVED ANALYSIS</Text>
+                <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                    Logs from Clarity, Decoder & Stars
+                </Text>
+
+                {savedLogs.length === 0 ? (
+                    <View style={profileStyles.emptyState}>
+                        <Ionicons name="file-tray-outline" size={32} color="#D1D1D6" />
+                        <Text style={profileStyles.emptyText}>No saved logs yet.</Text>
+                        <Text style={profileStyles.emptySubtext}>Use Clarity, Decoder, or Stars and hit "Save" to build your analysis history.</Text>
+                    </View>
+                ) : (
+                    <View style={{ gap: 10 }}>
+                        {savedLogs.map((log) => (
+                            <TouchableOpacity
+                                key={log.id}
+                                style={profileStyles.logCard}
+                                onPress={() => setSelectedLog(log)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                                    <View style={[profileStyles.logIcon, { backgroundColor: getSourceColor(log.source) + '15' }]}>
+                                        <Ionicons name={getSourceIcon(log.source)} size={16} color={getSourceColor(log.source)} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={profileStyles.logTitle}>{log.title}</Text>
+                                        <Text style={profileStyles.logDate}>{formatDate(log.date)}</Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={16} color="#D1D1D6" />
+                                </View>
+                                <Text style={profileStyles.logSummary} numberOfLines={2}>{log.summary}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+            </View>
+
+            {/* Daily Check-In History */}
+            {dailyLogs.length > 0 && (
+                <View style={profileStyles.logsSection}>
+                    <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
+                    <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                        Dynamic check-in history
+                    </Text>
+                    <View style={{ gap: 10 }}>
+                        {dailyLogs.slice(0, 10).map((log) => (
+                            <View key={log.id} style={profileStyles.dailyLogCard}>
+                                <Text style={profileStyles.dailyLogDate}>{formatDate(log.date)}</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F0F9FF' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#3B82F6' }]}>{log.direction}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F5F3FF' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#8B5CF6' }]}>{log.structured_emotion_state}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#6B7280' }]}>Clarity: {log.clarity}%</Text>
+                                    </View>
+                                </View>
+                                {log.notable ? (
+                                    <Text style={profileStyles.dailyNote}>"{log.notable}"</Text>
+                                ) : null}
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {/* Log Detail Modal */}
+            <Modal
+                visible={!!selectedLog}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setSelectedLog(null)}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                            <TouchableOpacity onPress={() => setSelectedLog(null)}>
+                                <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => selectedLog && deleteLog(selectedLog.id)}>
+                                <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DELETE</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {selectedLog && (
+                            <>
+                                <View style={[profileStyles.logIcon, { backgroundColor: getSourceColor(selectedLog.source) + '15', marginBottom: 12 }]}>
+                                    <Ionicons name={getSourceIcon(selectedLog.source)} size={20} color={getSourceColor(selectedLog.source)} />
+                                </View>
+                                <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 22, color: '#1C1C1E', marginBottom: 4 }}>{selectedLog.title}</Text>
+                                <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 24 }}>{formatDate(selectedLog.date)}</Text>
+                                <Text style={{ fontSize: 15, color: '#3A3A3C', lineHeight: 24 }}>{selectedLog.fullContent}</Text>
+                            </>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
+
+            <View style={{ height: 40 }} />
+        </View>
+    );
+};
+
+const profileStyles = StyleSheet.create({
+    infoCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 20,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 16,
+    },
+    infoBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#F9FAFB',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    infoBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#6B7280',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    contextSection: {
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+        paddingTop: 16,
+    },
+    contextText: {
+        fontSize: 13,
+        color: '#3A3A3C',
+        lineHeight: 20,
+        marginBottom: 4,
+    },
+    sectionLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1.5,
+        marginBottom: 10,
+    },
+    adviceCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#1C1C1E',
+        letterSpacing: 1.5,
+    },
+    adviceBlock: {
+        backgroundColor: '#F9FAFB',
+        borderRadius: 14,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    adviceLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
+    adviceText: {
+        fontSize: 14,
+        color: '#1C1C1E',
+        lineHeight: 22,
+    },
+    logsSection: {
+        marginBottom: 24,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    emptyText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#8E8E93',
+        marginTop: 12,
+    },
+    emptySubtext: {
+        fontSize: 12,
+        color: '#B0B0B0',
+        textAlign: 'center',
+        marginTop: 4,
+        paddingHorizontal: 40,
+    },
+    logCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    logIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1C1C1E',
+    },
+    logDate: {
+        fontSize: 11,
+        color: '#8E8E93',
+        marginTop: 1,
+    },
+    logSummary: {
+        fontSize: 12,
+        color: '#6B7280',
+        lineHeight: 18,
+    },
+    dailyLogCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+    },
+    dailyLogDate: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+    },
+    dailyTag: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    dailyTagText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    dailyNote: {
+        fontSize: 13,
+        color: '#6B7280',
+        fontStyle: 'italic',
+        marginTop: 8,
+    },
+});
+
+
 
 export default function ConnectionDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { connections, updateConnection, deleteConnection } = useConnections();
-    const [activeTab, setActiveTab] = useState<'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>('CLARITY');
+
+    // Determine initial tab from route params
+    const initialTab = String(params.tab || 'PROFILE') as 'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC';
+    const showProfile = initialTab === 'PROFILE';
+    const [activeTab, setActiveTab] = useState<'PROFILE' | 'CLARITY' | 'DECODER' | 'STARS' | 'DYNAMIC'>(initialTab);
 
     // Find the connection in context
     const connection = connections.find(c => c.id === params.id);
@@ -1211,6 +1701,7 @@ export default function ConnectionDetailScreen() {
     const zodiac = String(connection?.zodiac || params.zodiac || 'LIBRA');
     const icon = connection?.icon || params.icon || 'leaf-outline';
     const status = connection?.status || 'active';
+    const connectionId = String(params.id);
 
     const handleEdit = () => {
         if (connection) {
@@ -1279,37 +1770,41 @@ export default function ConnectionDetailScreen() {
                         </View>
                     </View>
 
-                    {/* Tabs (The "Toolbar") */}
-                    <View style={styles.tabsWrapper}>
-                        <View style={styles.tabsContainer}>
-                            {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
-                                <TouchableOpacity
-                                    key={tab}
-                                    style={styles.tabButton}
-                                    onPress={() => setActiveTab(tab as any)}
-                                >
-                                    <Text style={[
-                                        styles.tabText,
-                                        activeTab === tab ? styles.activeTabText : styles.inactiveTabText
-                                    ]}>
-                                        {tab}
-                                    </Text>
-                                    {activeTab === tab && <View style={styles.activeIndicator} />}
-                                </TouchableOpacity>
-                            ))}
+                    {/* Tabs — only shown when coming from Signal (not profile view) */}
+                    {!showProfile && (
+                        <View style={styles.tabsWrapper}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+                                <View style={styles.tabsContainer}>
+                                    {['CLARITY', 'DECODER', 'STARS', 'DYNAMIC'].map((tab) => (
+                                        <TouchableOpacity
+                                            key={tab}
+                                            style={styles.tabButton}
+                                            onPress={() => setActiveTab(tab as any)}
+                                        >
+                                            <Text style={[
+                                                styles.tabText,
+                                                activeTab === tab ? styles.activeTabText : styles.inactiveTabText
+                                            ]}>
+                                                {tab}
+                                            </Text>
+                                            {activeTab === tab && <View style={styles.activeIndicator} />}
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
                         </View>
-                    </View>
+                    )}
 
-                    {/* Dynamic Content Rendering */}
-
-                    {activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} />}
-                    {activeTab === 'DECODER' && <DecoderContent name={Array.isArray(name) ? name[0] : name} />}
-                    {activeTab === 'STARS' && <StarsContent
+                    {/* Content Rendering */}
+                    {showProfile && connection && <ProfileContent connection={connection} />}
+                    {!showProfile && activeTab === 'CLARITY' && <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />}
+                    {!showProfile && activeTab === 'DECODER' && <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />}
+                    {!showProfile && activeTab === 'STARS' && <StarsContent
                         name={Array.isArray(name) ? name[0] : name}
-                        userZodiac="Capricorn" // Defaulting for now, could be in user context
+                        userZodiac="Capricorn"
                         partnerZodiac={zodiac}
                     />}
-                    {activeTab === 'DYNAMIC' && connection && <DynamicContent connection={connection} />}
+                    {!showProfile && activeTab === 'DYNAMIC' && connection && <DynamicContent connection={connection} />}
 
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -1414,12 +1909,14 @@ const styles = StyleSheet.create({
     },
     tabsContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         borderBottomWidth: 1,
         borderBottomColor: '#F2F2F7',
+        flex: 1,
     },
     tabButton: {
         paddingVertical: 12,
+        marginRight: scale(20),
         alignItems: 'center',
         position: 'relative',
     },

@@ -81,7 +81,10 @@ const FloatingBubble = ({ connection, index }: { connection: Connection; index: 
     };
 
     const handlePress = () => {
-        router.push(`/connection/${connection.id}`);
+        router.push({
+            pathname: '/connection/[id]',
+            params: { id: connection.id, tab: 'CLARITY' }
+        });
     };
 
     // Helper to determine if icon is URL or icon name

@@ -58,5 +58,13 @@ export const aiService = {
     async getObjectiveCheckIn(signals: any[]) {
         const fullPrompt = `${Prompts.OBJECTIVE_CHECKIN_PROMPT}\n\nSignals Observed: ${JSON.stringify(signals)}`;
         return await generateContent(fullPrompt);
+    },
+
+    /**
+     * Get personalized daily advice for a specific connection.
+     */
+    async getDailyAdvice(name: string, tag: string, zodiac: string, context: string) {
+        const fullPrompt = `${Prompts.DAILY_ADVICE_PROMPT}\n\nConnection Name: ${name}\nConnection Type: ${tag}\nZodiac Sign: ${zodiac}\nToday's Date: ${new Date().toDateString()}\n\nContext & History:\n${context}`;
+        return await generateContent(fullPrompt);
     }
 };
