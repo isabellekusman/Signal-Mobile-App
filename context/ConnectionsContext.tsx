@@ -27,12 +27,14 @@ export interface Connection {
     dailyLogs?: DailyLog[];
     savedLogs?: SavedLog[];
     onboardingCompleted?: boolean;
-    onboardingContext?: {
-        howWeMet?: string;
-        firstImpression?: string;
-        initialVibe?: string;
-        howLong?: string;
-        currentIntent?: string;
+    onboardingContext?: Record<string, string> & {
+        skipped?: boolean;
+    };
+    cachedAdvice?: {
+        date: string;
+        stateOfConnection: string;
+        todaysMove: string;
+        watchFor: string;
     };
 }
 

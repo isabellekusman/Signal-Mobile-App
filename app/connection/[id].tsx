@@ -1081,59 +1081,250 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
         </View>
     );
 };
-const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, onComplete: (data: any) => void }) => {
+const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: string, tag: string, onComplete: (data: any) => void }) => {
     const [step, setStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [answers, setAnswers] = useState({
-        howWeMet: '',
-        firstImpression: '',
-        initialVibe: '',
-        howLong: '',
-        currentIntent: ''
-    });
+    const [answers, setAnswers] = useState<Record<string, string>>({});
 
-    const questions = [
-        {
+    // ── Build questions based on relationship type ──
+    const getQuestionsForTag = (relationshipTag: string) => {
+        const normalizedTag = relationshipTag.toUpperCase();
+
+        // Shared opening question
+        const howWeMet = {
             id: 'howWeMet',
             title: `How did you meet ${name}?`,
             subtitle: "The setting, the spark, the story.",
             type: 'text' as const,
             placeholder: "We met at a coffee shop in East Village...",
-        },
-        {
+        };
+
+        // Shared timeline question
+        const howLong = {
             id: 'howLong',
             title: "How long has this been going on?",
             subtitle: "Be honest about the timeline.",
             type: 'choice' as const,
             options: ["Just met", "A few weeks", "1-3 months", "6+ months", "It's been years"]
-        },
-        {
-            id: 'firstImpression',
-            title: "What was your first impression?",
-            subtitle: "Be honest. What was the very first thing you thought?",
-            type: 'text' as const,
-            placeholder: "He was taller than I expected and very calm...",
-        },
-        {
-            id: 'currentIntent',
-            title: "What's your current intent?",
-            subtitle: "Where are you standing right now?",
-            type: 'choice' as const,
-            options: ["Just curious", "Seeing where it goes", "Looking for serious", "It's complicated"]
-        },
-        {
-            id: 'initialVibe',
-            title: "What was the initial vibe?",
-            subtitle: "Describe the energy in the room.",
-            type: 'text' as const,
-            placeholder: "Comfortable but slightly mysterious...",
-        }
-    ];
+        };
 
+        // Final universal question — always last before finish
+        const anythingElse = {
+            id: 'anythingElse',
+            title: `Anything else Signal should know?`,
+            subtitle: "Context only you have. Write as much or as little as you want.",
+            type: 'text' as const,
+            placeholder: "He tends to pull away when things feel real, but always comes back...",
+        };
+
+        let middleQuestions: Array<{
+            id: string;
+            title: string;
+            subtitle: string;
+            type: 'text' | 'choice';
+            placeholder?: string;
+            options?: string[];
+        }> = [];
+
+        switch (normalizedTag) {
+            case 'EX':
+                middleQuestions = [
+                    {
+                        id: 'whatEnded',
+                        title: "What ended things?",
+                        subtitle: "No spin — just what actually happened.",
+                        type: 'text',
+                        placeholder: "We wanted different things. I needed more consistency...",
+                    },
+                    {
+                        id: 'lingeringFeelings',
+                        title: "What's the lingering feeling?",
+                        subtitle: "Be honest — even if it contradicts what you tell people.",
+                        type: 'choice',
+                        options: ["I miss them", "I'm over it", "I want closure", "I want them back", "I don't know yet"],
+                    },
+                    {
+                        id: 'currentContact',
+                        title: "Are you still in contact?",
+                        subtitle: "How present are they right now?",
+                        type: 'choice',
+                        options: ["No contact", "Occasional texts", "We talk regularly", "Still seeing each other", "On and off"],
+                    },
+                ];
+                break;
+
+            case 'SITUATIONSHIP':
+                middleQuestions = [
+                    {
+                        id: 'defined',
+                        title: "Have you defined this?",
+                        subtitle: "Labels aren't everything, but clarity matters.",
+                        type: 'choice',
+                        options: ["Never discussed it", "We talked but no label", "They avoid the conversation", "We agreed to keep it casual"],
+                    },
+                    {
+                        id: 'emotionalState',
+                        title: "How do you feel after seeing them?",
+                        subtitle: "The after-feeling is the truest signal.",
+                        type: 'choice',
+                        options: ["Secure and warm", "Anxious and overthinking", "Confused", "Happy but uncertain", "Drained"],
+                    },
+                    {
+                        id: 'whatYouWant',
+                        title: "What do you actually want from this?",
+                        subtitle: "Not what's cool to want. What do YOU want?",
+                        type: 'text',
+                        placeholder: "I want them to choose me, but I'm scared to say that...",
+                    },
+                ];
+                break;
+
+            case 'CRUSH':
+                middleQuestions = [
+                    {
+                        id: 'whatDrawsYou',
+                        title: `What draws you to ${name}?`,
+                        subtitle: "What is it specifically?",
+                        type: 'text',
+                        placeholder: "The way they look at me like they actually see me...",
+                    },
+                    {
+                        id: 'signals',
+                        title: "What signals are you picking up?",
+                        subtitle: "Are they showing interest?",
+                        type: 'choice',
+                        options: ["Strong interest", "Mixed signals", "Friendly but hard to read", "They don't know I exist yet", "Flirty energy"],
+                    },
+                    {
+                        id: 'biggestFear',
+                        title: "What's holding you back?",
+                        subtitle: "Be real about the hesitation.",
+                        type: 'choice',
+                        options: ["Fear of rejection", "Bad timing", "They're seeing someone", "I don't want to ruin the friendship", "Nothing — I'm going for it"],
+                    },
+                ];
+                break;
+
+            case 'RELATIONSHIP':
+                middleQuestions = [
+                    {
+                        id: 'currentState',
+                        title: "Where does the relationship stand right now?",
+                        subtitle: "Not the best day or worst — the honest baseline.",
+                        type: 'choice',
+                        options: ["Strong and growing", "Good but routine", "Rocky lately", "Going through something", "I'm not sure anymore"],
+                    },
+                    {
+                        id: 'recentTension',
+                        title: "What's the biggest tension point right now?",
+                        subtitle: "The thing that keeps coming up.",
+                        type: 'text',
+                        placeholder: "They've been distant and I can't tell if it's work or us...",
+                    },
+                    {
+                        id: 'currentIntent',
+                        title: "What are you trying to figure out?",
+                        subtitle: "Why did you add them here?",
+                        type: 'choice',
+                        options: ["Want to strengthen things", "Wondering if this is right", "Processing a rough patch", "Just tracking the dynamic", "Need clarity on where this is going"],
+                    },
+                ];
+                break;
+
+            case 'FRIENDS':
+                middleQuestions = [
+                    {
+                        id: 'friendshipType',
+                        title: "What's the dynamic like?",
+                        subtitle: "Every friendship has a pattern.",
+                        type: 'choice',
+                        options: ["Ride or die", "Fun but surface-level", "They know everything", "Growing apart", "Complicated history"],
+                    },
+                    {
+                        id: 'whyTracking',
+                        title: `Why are you tracking ${name}?`,
+                        subtitle: "What's the thing you're trying to see clearly?",
+                        type: 'text',
+                        placeholder: "I feel like I'm always the one reaching out...",
+                    },
+                    {
+                        id: 'energyBalance',
+                        title: "How balanced does this friendship feel?",
+                        subtitle: "Who gives more?",
+                        type: 'choice',
+                        options: ["Balanced", "I give more", "They give more", "We show up differently", "Hard to tell"],
+                    },
+                ];
+                break;
+
+            case 'TALKING':
+                middleQuestions = [
+                    {
+                        id: 'talkingPace',
+                        title: "How fast is this moving?",
+                        subtitle: "The pace says a lot.",
+                        type: 'choice',
+                        options: ["Slow and steady", "Moving fast", "Hot and cold", "Stalled", "Just got interesting"],
+                    },
+                    {
+                        id: 'firstImpression',
+                        title: "First impression?",
+                        subtitle: "Be honest — what was the very first thing you thought?",
+                        type: 'text',
+                        placeholder: "They were funnier in person than over text...",
+                    },
+                    {
+                        id: 'currentIntent',
+                        title: "What's your intent right now?",
+                        subtitle: "Where are you standing?",
+                        type: 'choice',
+                        options: ["Just curious", "Seeing where it goes", "Looking for serious", "Keeping my options open"],
+                    },
+                ];
+                break;
+
+            default: // OTHER or anything else
+                middleQuestions = [
+                    {
+                        id: 'firstImpression',
+                        title: "What was your first impression?",
+                        subtitle: "Be honest. What was the very first thing you thought?",
+                        type: 'text',
+                        placeholder: "They were calmer than I expected...",
+                    },
+                    {
+                        id: 'currentIntent',
+                        title: "What's your current intent?",
+                        subtitle: "Where are you standing right now?",
+                        type: 'choice',
+                        options: ["Just curious", "Seeing where it goes", "Looking for serious", "It's complicated"],
+                    },
+                    {
+                        id: 'initialVibe',
+                        title: "What was the initial vibe?",
+                        subtitle: "Describe the energy.",
+                        type: 'text',
+                        placeholder: "Comfortable but slightly mysterious...",
+                    },
+                ];
+                break;
+        }
+
+        return [howWeMet, howLong, ...middleQuestions, anythingElse];
+    };
+
+    const questions = getQuestionsForTag(tag);
     const currentQuestion = questions[step];
 
+    // Initialize answers for all question IDs
+    React.useEffect(() => {
+        const initial: Record<string, string> = {};
+        questions.forEach(q => { initial[q.id] = ''; });
+        setAnswers(initial);
+    }, []);
+
     const handleNext = () => {
-        if (!(answers as any)[currentQuestion.id].trim()) return;
+        if (!answers[currentQuestion.id]?.trim()) return;
 
         Keyboard.dismiss();
 
@@ -1141,16 +1332,22 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
             setStep(step + 1);
         } else {
             setIsSubmitting(true);
-            // Small delay to show "processing" state to user
             setTimeout(() => {
                 onComplete(answers);
             }, 600);
         }
     };
 
+    const handleSkip = () => {
+        // Skip marks onboarding as completed permanently — never show again
+        onComplete({ skipped: true });
+    };
+
     const handleSelection = (val: string) => {
         setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }));
     };
+
+    if (!currentQuestion) return null;
 
     return (
         <KeyboardAvoidingView
@@ -1167,8 +1364,18 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
                 <View style={styles.onboardingContainer}>
                     <View style={styles.onboardingHeader}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={styles.onboardingProgress}>QUESTION {step + 1} OF {questions.length}</Text>
-                            <TouchableOpacity onPress={() => onComplete({ skipped: true })}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                {step > 0 && (
+                                    <TouchableOpacity
+                                        onPress={() => { Keyboard.dismiss(); setStep(step - 1); }}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Ionicons name="arrow-back" size={20} color="#1C1C1E" />
+                                    </TouchableOpacity>
+                                )}
+                                <Text style={styles.onboardingProgress}>QUESTION {step + 1} OF {questions.length}</Text>
+                            </View>
+                            <TouchableOpacity onPress={handleSkip}>
                                 <Text style={styles.skipButtonText}>SKIP</Text>
                             </TouchableOpacity>
                         </View>
@@ -1186,7 +1393,7 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
                                 style={styles.onboardingInput}
                                 placeholder={currentQuestion.placeholder}
                                 placeholderTextColor="#D1D1D6"
-                                value={(answers as any)[currentQuestion.id]}
+                                value={answers[currentQuestion.id] || ''}
                                 onChangeText={(val) => setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }))}
                                 multiline
                                 autoFocus
@@ -1202,13 +1409,13 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
                                         key={option}
                                         style={[
                                             styles.optionButton,
-                                            (answers as any)[currentQuestion.id] === option && styles.optionButtonSelected
+                                            answers[currentQuestion.id] === option && styles.optionButtonSelected
                                         ]}
                                         onPress={() => handleSelection(option)}
                                     >
                                         <Text style={[
                                             styles.optionText,
-                                            (answers as any)[currentQuestion.id] === option && styles.optionTextSelected
+                                            answers[currentQuestion.id] === option && styles.optionTextSelected
                                         ]}>
                                             {option}
                                         </Text>
@@ -1220,9 +1427,9 @@ const OnboardingQuiz = ({ id, name, onComplete }: { id: string, name: string, on
 
                     <View style={{ marginTop: verticalScale(40), marginBottom: verticalScale(40) }}>
                         <TouchableOpacity
-                            style={[styles.onboardingNextButton, (!(answers as any)[currentQuestion.id].trim() || isSubmitting) && { opacity: 0.5 }]}
+                            style={[styles.onboardingNextButton, (!answers[currentQuestion.id]?.trim() || isSubmitting) && { opacity: 0.5 }]}
                             onPress={handleNext}
-                            disabled={!(answers as any)[currentQuestion.id].trim() || isSubmitting}
+                            disabled={!answers[currentQuestion.id]?.trim() || isSubmitting}
                         >
                             <Text style={styles.onboardingNextButtonText}>
                                 {isSubmitting ? 'PROCESSING...' : (step < questions.length - 1 ? 'CONTINUE' : 'FINISH PROFILE')}
@@ -1253,17 +1460,43 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
     const dailyLogs = connection.dailyLogs || [];
     const onboarding = connection.onboardingContext;
 
+    // Helper: get today's date string (YYYY-MM-DD) for cache comparison
+    const getTodayKey = () => new Date().toISOString().split('T')[0];
+
     const fetchAdvice = async () => {
         setLoadingAdvice(true);
         try {
             // Build context from all available data
             let context = '';
-            if (onboarding) {
-                context += `How they met: ${onboarding.howWeMet || 'Unknown'}\n`;
-                context += `First impression: ${onboarding.firstImpression || 'Unknown'}\n`;
-                context += `Initial vibe: ${onboarding.initialVibe || 'Unknown'}\n`;
-                context += `Duration: ${onboarding.howLong || 'Unknown'}\n`;
-                context += `Current intent: ${onboarding.currentIntent || 'Unknown'}\n`;
+            if (onboarding && !onboarding.skipped) {
+                const labelMap: Record<string, string> = {
+                    howWeMet: 'How they met',
+                    howLong: 'Duration',
+                    firstImpression: 'First impression',
+                    initialVibe: 'Initial vibe',
+                    currentIntent: 'Current intent',
+                    whatEnded: 'What ended things',
+                    lingeringFeelings: 'Lingering feelings',
+                    currentContact: 'Current contact level',
+                    defined: 'Have they defined it',
+                    emotionalState: 'Emotional state after seeing them',
+                    whatYouWant: 'What they actually want',
+                    whatDrawsYou: 'What draws them',
+                    signals: 'Signals picked up',
+                    biggestFear: 'What holds them back',
+                    currentState: 'Current state of relationship',
+                    recentTension: 'Biggest tension point',
+                    friendshipType: 'Friendship dynamic',
+                    whyTracking: 'Why tracking this person',
+                    energyBalance: 'Energy balance',
+                    talkingPace: 'Pace of things',
+                    anythingElse: 'Additional context from user',
+                };
+                Object.entries(onboarding).forEach(([key, value]) => {
+                    if (key === 'skipped' || !value) return;
+                    const label = labelMap[key] || key;
+                    context += `${label}: ${value}\n`;
+                });
             }
             if (dailyLogs.length > 0) {
                 const recentLogs = dailyLogs.slice(0, 3);
@@ -1289,6 +1522,16 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
             let jsonString = result.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(jsonString);
             setAdvice(parsed);
+
+            // Cache the advice on the connection so it persists for the day
+            updateConnection(connection.id, {
+                cachedAdvice: {
+                    date: getTodayKey(),
+                    stateOfConnection: parsed.stateOfConnection || '',
+                    todaysMove: parsed.todaysMove || '',
+                    watchFor: parsed.watchFor || '',
+                },
+            });
         } catch (error) {
             console.error('Daily advice error:', error);
             setAdvice({
@@ -1302,7 +1545,17 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
     };
 
     useEffect(() => {
-        fetchAdvice();
+        // Check if we already have today's cached advice
+        const cached = connection.cachedAdvice;
+        if (cached && cached.date === getTodayKey()) {
+            setAdvice({
+                stateOfConnection: cached.stateOfConnection,
+                todaysMove: cached.todaysMove,
+                watchFor: cached.watchFor,
+            });
+        } else {
+            fetchAdvice();
+        }
     }, []);
 
     const formatDate = (dateStr: string) => {
@@ -1373,11 +1626,8 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
 
             {/* Daily Advice Section */}
             <View style={profileStyles.adviceCard}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ marginBottom: 16 }}>
                     <Text style={profileStyles.sectionTitle}>TODAY'S BRIEFING</Text>
-                    <TouchableOpacity onPress={fetchAdvice} disabled={loadingAdvice}>
-                        <Ionicons name="refresh-outline" size={18} color={loadingAdvice ? '#D1D1D6' : '#ec4899'} />
-                    </TouchableOpacity>
                 </View>
 
                 {loadingAdvice ? (
@@ -1739,6 +1989,7 @@ export default function ConnectionDetailScreen() {
                 <OnboardingQuiz
                     id={connection.id}
                     name={name}
+                    tag={connection.tag || 'OTHER'}
                     onComplete={handleOnboardingComplete}
                 />
             </SafeAreaView>

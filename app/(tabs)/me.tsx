@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 
 const STANDARD_SUGGESTIONS = [
@@ -12,6 +12,11 @@ const STANDARD_SUGGESTIONS = [
 const BOUNDARY_SUGGESTIONS = [
     'No phones at dinner', 'Me-time Sunday', 'Work-life balance',
     'Direct feedback', 'Social limits', 'Early nights'
+];
+
+const ZODIAC_SIGNS = [
+    'ARIES', 'TAURUS', 'GEMINI', 'CANCER', 'LEO', 'VIRGO',
+    'LIBRA', 'SCORPIO', 'SAGITTARIUS', 'CAPRICORN', 'AQUARIUS', 'PISCES'
 ];
 
 export default function MeScreen() {
@@ -25,6 +30,7 @@ export default function MeScreen() {
     const [logs, setLogs] = useState<string[]>(['Reflecting on intentionality and personal space this month.']);
     const [newLog, setNewLog] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [showZodiacPicker, setShowZodiacPicker] = useState(false);
 
     const addStandard = () => {
         if (newStandard.trim().length > 0) {
@@ -126,13 +132,13 @@ export default function MeScreen() {
                             <Text style={styles.dataLabel}>ZODIAC SIGN</Text>
                             <View style={styles.dataValueContainer}>
                                 {isEditing ? (
-                                    <TextInput
-                                        style={[styles.dataInput, styles.zodiacSubText]}
-                                        value={zodiac}
-                                        onChangeText={setZodiac}
-                                        autoCapitalize="characters"
-                                        placeholder="Add zodiac"
-                                    />
+                                    <TouchableOpacity
+                                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                        onPress={() => setShowZodiacPicker(true)}
+                                    >
+                                        <Text style={[styles.dataValue, styles.zodiacSubText]}>{zodiac || 'Select sign'}</Text>
+                                        <Ionicons name="chevron-down" size={16} color="#8E8E93" />
+                                    </TouchableOpacity>
                                 ) : (
                                     <Text style={[styles.dataValue, styles.zodiacSubText]}>{zodiac}</Text>
                                 )}
@@ -296,6 +302,47 @@ export default function MeScreen() {
 
                 </ScrollView>
             </KeyboardAvoidingView>
+            {/* Zodiac Picker Modal */}
+            <Modal
+                visible={showZodiacPicker}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowZodiacPicker(false)}
+            >
+                <TouchableOpacity
+                    style={styles.zodiacModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowZodiacPicker(false)}
+                >
+                    <View style={styles.zodiacModalContent}>
+                        <Text style={styles.zodiacModalTitle}>Zodiac Sign</Text>
+                        <Text style={styles.zodiacModalSubtitle}>Select your sign.</Text>
+                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                            {ZODIAC_SIGNS.map((sign) => (
+                                <TouchableOpacity
+                                    key={sign}
+                                    style={[
+                                        styles.zodiacModalItem,
+                                        zodiac === sign && styles.zodiacModalItemSelected,
+                                    ]}
+                                    onPress={() => {
+                                        setZodiac(sign);
+                                        setShowZodiacPicker(false);
+                                    }}
+                                >
+                                    <Text style={[
+                                        styles.zodiacModalItemText,
+                                        zodiac === sign && styles.zodiacModalItemTextSelected,
+                                    ]}>{sign}</Text>
+                                    {zodiac === sign && (
+                                        <Ionicons name="checkmark" size={18} color="#ec4899" />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -551,5 +598,59 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         color: '#3A3A3C',
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    // Zodiac Picker Modal
+    zodiacModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    zodiacModalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 28,
+        padding: 28,
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    zodiacModalTitle: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 22,
+        color: '#1C1C1E',
+        marginBottom: 6,
+    },
+    zodiacModalSubtitle: {
+        fontSize: 12,
+        color: '#8E8E93',
+        marginBottom: 20,
+    },
+    zodiacModalItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F2F2F7',
+    },
+    zodiacModalItemSelected: {
+        backgroundColor: '#FDF2F8',
+        marginHorizontal: -12,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        borderBottomColor: 'transparent',
+    },
+    zodiacModalItemText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1C1C1E',
+        letterSpacing: 1,
+    },
+    zodiacModalItemTextSelected: {
+        color: '#ec4899',
     },
 });
