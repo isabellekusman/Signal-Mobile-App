@@ -59,7 +59,7 @@ export default function ReflectScreen() {
                                 style={styles.attachButton}
                                 onPress={() => setShowConnectionPicker(true)}
                             >
-                                <Ionicons name="add-outline" size={18} color="#8E8E93" />
+                                <Ionicons name="add-outline" size={18} color="#ec4899" />
                                 <Text style={styles.attachButtonText}>SELECT CONNECTION</Text>
                             </TouchableOpacity>
                         )}
@@ -161,18 +161,18 @@ const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
         paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingBottom: 16,
     },
     header: {
-        marginTop: 40,
-        marginBottom: 28,
+        marginTop: 20,
+        marginBottom: 14,
         paddingHorizontal: 10,
     },
     pageTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         fontSize: 36,
         color: '#1C1C1E',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     pageSubtitle: {
         fontSize: 10,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
         color: '#8E8E93',
         letterSpacing: 2,
         textTransform: 'uppercase',
-        marginBottom: 24,
+        marginBottom: 12,
     },
     separator: {
         height: 1,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
 
     // Attach Section
     attachSection: {
-        marginBottom: 24,
+        marginBottom: 12,
         paddingHorizontal: 10,
     },
     attachLabel: {
@@ -209,19 +209,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: 'rgba(236, 72, 153, 0.08)',
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F2F2F7',
+        borderColor: 'rgba(236, 72, 153, 0.3)',
         borderStyle: 'dashed',
         alignSelf: 'flex-start',
     },
     attachButtonText: {
         fontSize: 11,
         fontWeight: '700',
-        color: '#8E8E93',
+        color: '#ec4899',
         letterSpacing: 0.5,
     },
     attachedChip: {
@@ -257,6 +257,7 @@ const styles = StyleSheet.create({
 
     // Main Card
     card: {
+        flex: 1,
         backgroundColor: '#FFFFFF',
         borderRadius: 32,
         padding: 4,
@@ -267,7 +268,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 12,
         elevation: 5,
-        minHeight: 500,
     },
     cardContent: {
         flex: 1,
@@ -288,17 +288,17 @@ const styles = StyleSheet.create({
         color: '#1C1C1E',
         letterSpacing: 1,
         textTransform: 'uppercase',
-        marginBottom: 48,
+        marginBottom: 24,
         textAlign: 'center',
         fontStyle: 'italic',
     },
     inputContainer: {
         width: '100%',
-        height: 200,
+        flex: 1,
         backgroundColor: '#FAFAFA',
         borderRadius: 24,
-        padding: 24,
-        marginBottom: 40,
+        padding: 20,
+        marginBottom: 20,
         borderWidth: 1,
         borderColor: '#F2F2F7',
     },
@@ -310,25 +310,23 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     realignButton: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 18,
-        paddingHorizontal: 60,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: '#FCE7F3',
-        width: '100%',
+        backgroundColor: '#1C1C1E',
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
         alignItems: 'center',
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
     },
     realignButtonText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: '#1C1C1E',
-        letterSpacing: 1.5,
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '700',
+        letterSpacing: 1.2,
         textTransform: 'uppercase',
     },
 
