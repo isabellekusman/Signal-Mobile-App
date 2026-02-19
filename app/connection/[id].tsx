@@ -1729,7 +1729,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 </View>
             )}
 
-            {/* Log Detail Modal */}
+            {/* Log Detail Modal — Structured UI by source type */}
             <Modal
                 visible={!!selectedLog}
                 animationType="slide"
@@ -1737,7 +1737,8 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 onRequestClose={() => setSelectedLog(null)}
             >
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
+                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                        {/* Modal Header */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                             <TouchableOpacity onPress={() => setSelectedLog(null)}>
                                 <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
@@ -1749,12 +1750,138 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
 
                         {selectedLog && (
                             <>
+                                {/* Source Icon + Title + Date */}
                                 <View style={[profileStyles.logIcon, { backgroundColor: getSourceColor(selectedLog.source) + '15', marginBottom: 12 }]}>
                                     <Ionicons name={getSourceIcon(selectedLog.source)} size={20} color={getSourceColor(selectedLog.source)} />
                                 </View>
                                 <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 22, color: '#1C1C1E', marginBottom: 4 }}>{selectedLog.title}</Text>
                                 <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 24 }}>{formatDate(selectedLog.date)}</Text>
-                                <Text style={{ fontSize: 15, color: '#3A3A3C', lineHeight: 24 }}>{selectedLog.fullContent}</Text>
+
+                                {/* ── DECODER: Structured cards ── */}
+                                {selectedLog.source === 'decoder' && (() => {
+                                    // Parse "Key: Value\nKey: Value" format
+                                    const fields: Record<string, string> = {};
+                                    const lines = selectedLog.fullContent.split('\n');
+                                    lines.forEach(line => {
+                                        const colonIdx = line.indexOf(':');
+                                        if (colonIdx > -1) {
+                                            const key = line.substring(0, colonIdx).trim();
+                                            const val = line.substring(colonIdx + 1).trim();
+                                            fields[key] = val;
+                                        }
+                                    });
+                                    const risks = fields['Risks'] ? fields['Risks'].split(',').map(r => r.trim()).filter(Boolean) : [];
+
+                                    return (
+                                        <View style={{ gap: 20 }}>
+                                            {/* Row 1: Tone & Effort */}
+                                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                    <Text style={styles.decoderBoxLabel}>TONE</Text>
+                                                    <Text style={styles.decoderBoxValue}>{fields['Tone'] || '—'}</Text>
+                                                </View>
+                                                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                    <Text style={styles.decoderBoxLabel}>EFFORT</Text>
+                                                    <Text style={styles.decoderBoxValue}>{fields['Effort'] || '—'}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Power Dynamics */}
+                                            {fields['Power Dynamics'] && (
+                                                <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
+                                                    <Text style={[styles.decoderBoxLabel, { color: '#1C1C1E' }]}>POWER DYNAMICS</Text>
+                                                    <Text style={styles.decoderBoxBody}>{fields['Power Dynamics']}</Text>
+                                                </View>
+                                            )}
+
+                                            {/* What's Actually Being Said */}
+                                            {fields['Subtext'] && (
+                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                    <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>WHAT'S ACTUALLY BEING SAID</Text>
+                                                    <Text style={styles.decoderBoxBody}>{fields['Subtext']}</Text>
+                                                </View>
+                                            )}
+
+                                            {/* The Why */}
+                                            {fields['Motivation'] && (
+                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                    <Text style={styles.decoderBoxLabel}>THE "WHY"</Text>
+                                                    <Text style={styles.decoderBoxBody}>{fields['Motivation']}</Text>
+                                                </View>
+                                            )}
+
+                                            {/* Detected Signals */}
+                                            {risks.length > 0 && (
+                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                    <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
+                                                    <View style={{ gap: 8, marginTop: 4 }}>
+                                                        {risks.map((risk, index) => (
+                                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
+                                                                <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                </View>
+                                            )}
+
+                                            {/* Suggested Reply */}
+                                            {fields['Suggested Reply'] && (
+                                                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: 4 }]}>
+                                                    <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
+                                                    <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{fields['Suggested Reply']}"</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    );
+                                })()}
+
+                                {/* ── CLARITY: Chat-style transcript ── */}
+                                {selectedLog.source === 'clarity' && (() => {
+                                    const messages = selectedLog.fullContent
+                                        .split(/\\n\\n|\n\n/)
+                                        .filter(m => m.trim().length > 0)
+                                        .map(m => {
+                                            const isUser = m.startsWith('You:');
+                                            const text = m.replace(/^(You|Signal):\s*/, '');
+                                            return { isUser, text };
+                                        });
+
+                                    return (
+                                        <View style={{ gap: 12 }}>
+                                            {messages.map((msg, i) => (
+                                                <View
+                                                    key={i}
+                                                    style={{
+                                                        alignSelf: msg.isUser ? 'flex-end' : 'flex-start',
+                                                        maxWidth: '85%',
+                                                        backgroundColor: msg.isUser ? '#1C1C1E' : '#F2F2F7',
+                                                        borderRadius: 18,
+                                                        borderBottomRightRadius: msg.isUser ? 4 : 18,
+                                                        borderBottomLeftRadius: msg.isUser ? 18 : 4,
+                                                        paddingHorizontal: 16,
+                                                        paddingVertical: 12,
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        fontSize: 14,
+                                                        lineHeight: 21,
+                                                        color: msg.isUser ? '#FFFFFF' : '#1C1C1E',
+                                                        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+                                                    }}>{msg.text}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    );
+                                })()}
+
+                                {/* ── STARS: Styled content card ── */}
+                                {selectedLog.source === 'stars' && (
+                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>COSMIC ANALYSIS</Text>
+                                        <Text style={[styles.decoderBoxBody, { lineHeight: 24 }]}>{selectedLog.fullContent}</Text>
+                                    </View>
+                                )}
                             </>
                         )}
                     </ScrollView>
@@ -1938,17 +2065,16 @@ export default function ConnectionDetailScreen() {
     const { connections, updateConnection, deleteConnection } = useConnections();
 
     // Determine initial section from route params
-    type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'DECIDE';
+    type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'CLARITY';
     type UnderstandTool = 'DECODER' | 'STARS' | 'DYNAMIC' | null;
 
     const mapParamToSection = (tab: string): { section: HubSection; tool: UnderstandTool } => {
         switch (tab) {
-            case 'CLARITY': return { section: 'DECIDE', tool: null };
+            case 'CLARITY': return { section: 'CLARITY', tool: null };
             case 'DECODER': return { section: 'UNDERSTAND', tool: 'DECODER' };
             case 'STARS': return { section: 'UNDERSTAND', tool: 'STARS' };
             case 'DYNAMIC': return { section: 'UNDERSTAND', tool: 'DYNAMIC' };
             case 'UNDERSTAND': return { section: 'UNDERSTAND', tool: null };
-            case 'DECIDE': return { section: 'DECIDE', tool: null };
             default: return { section: 'OVERVIEW', tool: null };
         }
     };
@@ -1996,7 +2122,7 @@ export default function ConnectionDetailScreen() {
         );
     }
 
-    const SECTIONS: HubSection[] = ['OVERVIEW', 'UNDERSTAND', 'DECIDE'];
+    const SECTIONS: HubSection[] = ['OVERVIEW', 'UNDERSTAND', 'CLARITY'];
 
     const UNDERSTAND_TOOLS = [
         { id: 'DECODER' as const, label: 'Decoder', icon: 'scan-outline' as const, description: 'Read between the lines' },
@@ -2151,7 +2277,7 @@ export default function ConnectionDetailScreen() {
                         <DynamicContent connection={connection} />
                     )}
 
-                    {activeSection === 'DECIDE' && (
+                    {activeSection === 'CLARITY' && (
                         <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />
                     )}
 

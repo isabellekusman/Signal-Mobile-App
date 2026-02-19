@@ -19,13 +19,12 @@ import { useConnections } from '../../context/ConnectionsContext';
 import {
     computeObservedVsInterpreted,
     computeProfileSummary,
-    computeProfileTimeline,
+
     extractData,
     ObservedVsInterpreted,
 } from '../../services/profileAggregation';
 import {
     ProfileSummary,
-    ProfileTimelineItem,
 } from '../../services/profileTypes';
 
 // ─── Palette (pink-500, black, gray, white only) ─────────────────
@@ -335,33 +334,7 @@ function SelfTrustCard({ drift }: { drift: ProfileSummary['perceptionDrift'] }) 
     );
 }
 
-// ─── ReflectionArchive ───────────────────────────────────────────
-function ReflectionArchive({ timeline }: { timeline: ProfileTimelineItem[] }) {
-    if (timeline.length === 0) {
-        return (
-            <View style={s.card}>
-                <Text style={s.cardBody}>No timeline entries yet. Your activity will populate this over time.</Text>
-            </View>
-        );
-    }
-    return (
-        <View style={{ gap: 10 }}>
-            {timeline.map((item) => (
-                <View key={item.id} style={s.timelineItem}>
-                    <View style={s.timelineHeader}>
-                        <Text style={s.timelineDate}>
-                            {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
-                        </Text>
-                        {item.evidenceRef && (
-                            <Text style={s.timelineSource}>{item.evidenceRef.toUpperCase()}</Text>
-                        )}
-                    </View>
-                    <Text style={s.timelineText}>{item.insight}</Text>
-                </View>
-            ))}
-        </View>
-    );
-}
+
 
 // ═══════════════════════════════════════════════════════════════════
 //  MAIN SCREEN
@@ -403,10 +376,7 @@ export default function MeScreen() {
         return computeObservedVsInterpreted(data);
     }, [connections]);
 
-    const timeline: ProfileTimelineItem[] = useMemo(() => {
-        const data = extractData(connections);
-        return computeProfileTimeline(data, logs, 10);
-    }, [connections, logs]);
+
 
     // ── Refresh handler ──
     const handleRefresh = useCallback(() => {
@@ -609,11 +579,7 @@ export default function MeScreen() {
                         </View>
                     </View>
 
-                    {/* ═══ REFLECTION ARCHIVE ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>INSIGHT ARCHIVE</SectionLabel>
-                        <ReflectionArchive timeline={timeline} />
-                    </View>
+
 
                     {/* ═════════════════════════════════════ */}
                     {/*  YOUR DEFINITIONS                     */}
