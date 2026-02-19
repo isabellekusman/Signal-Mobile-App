@@ -1,5 +1,6 @@
 
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export interface Signal {
     type: 'RED' | 'GREEN' | 'YELLOW';
@@ -53,41 +54,29 @@ export interface DailyLog {
     notable?: string;
 }
 
-const INITIAL_CONNECTIONS: Connection[] = [
-    {
-        id: '1',
-        name: 'Samuel',
-        tag: 'SITUATIONSHIP',
-        zodiac: 'LIBRA',
-        lastActive: 'LAST ACTIVE 2D AGO',
-        icon: 'leaf-outline',
-        status: 'active',
-        signals: [],
-        dailyLogs: [],
-    },
-    {
-        id: '2',
-        name: 'Nicholas',
-        tag: 'TALKING',
-        zodiac: 'CAPRICORN',
-        lastActive: 'LAST ACTIVE 4H AGO',
-        icon: 'flash-outline',
-        status: 'active',
-        signals: [],
-        dailyLogs: [],
-    },
-    {
-        id: '3',
-        name: 'Thomas',
-        tag: 'DATING',
-        zodiac: 'AQUARIUS',
-        lastActive: 'LAST ACTIVE 1W AGO',
-        icon: 'water-outline',
-        status: 'active',
-        signals: [],
-        dailyLogs: [],
-    },
-];
+export interface UserProfile {
+    name: string;
+    zodiac: string;
+    about: string;
+    standards: string[];
+    boundaries: string[];
+    attachmentStyle: string[];
+    dealbreakers: string[];
+    loveLanguage: string;
+}
+
+const DEFAULT_PROFILE: UserProfile = {
+    name: '',
+    zodiac: '',
+    about: '',
+    standards: [],
+    boundaries: [],
+    attachmentStyle: [],
+    dealbreakers: [],
+    loveLanguage: '',
+};
+
+const INITIAL_CONNECTIONS: Connection[] = [];
 
 interface ConnectionsContextType {
     connections: Connection[];
@@ -96,13 +85,60 @@ interface ConnectionsContextType {
     deleteConnection: (id: string) => void;
     theme: 'light' | 'dark';
     setTheme: (theme: 'light' | 'dark') => void;
+    // User profile & onboarding
+    userProfile: UserProfile;
+    setUserProfile: (profile: UserProfile) => void;
+    hasCompletedOnboarding: boolean | null; // null = loading
+    completeOnboarding: (profile?: UserProfile) => void;
+    showAddPulse: boolean;
+    setShowAddPulse: (v: boolean) => void;
 }
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
+const ONBOARDING_KEY = '@signal_onboarding_complete';
+const PROFILE_KEY = '@signal_user_profile';
+
 export function ConnectionsProvider({ children }: { children: ReactNode }) {
     const [connections, setConnections] = useState<Connection[]>(INITIAL_CONNECTIONS);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [userProfile, setUserProfileState] = useState<UserProfile>(DEFAULT_PROFILE);
+    const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
+    const [showAddPulse, setShowAddPulse] = useState(false);
+
+    // DEV MODE: Always show onboarding on reload.
+    // To restore persistence, uncomment the AsyncStorage block below and remove the line after it.
+    useEffect(() => {
+        // (async () => {
+        //     try {
+        //         const [onboardingDone, savedProfile] = await Promise.all([
+        //             AsyncStorage.getItem(ONBOARDING_KEY),
+        //             AsyncStorage.getItem(PROFILE_KEY),
+        //         ]);
+        //         setHasCompletedOnboarding(onboardingDone === 'true');
+        //         if (savedProfile) {
+        //             setUserProfileState(JSON.parse(savedProfile));
+        //         }
+        //     } catch {
+        //         setHasCompletedOnboarding(false);
+        //     }
+        // })();
+        setHasCompletedOnboarding(false); // ← Always show onboarding
+    }, []);
+
+    const setUserProfile = (profile: UserProfile) => {
+        setUserProfileState(profile);
+        AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile)).catch(() => { });
+    };
+
+    const completeOnboarding = (profile?: UserProfile) => {
+        setHasCompletedOnboarding(true);
+        AsyncStorage.setItem(ONBOARDING_KEY, 'true').catch(() => { });
+        if (profile) {
+            setUserProfile(profile);
+        }
+        setShowAddPulse(true);
+    };
 
     const addConnection = (connection: Connection) => {
         setConnections((prev) => [connection, ...prev]);
@@ -119,7 +155,13 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <ConnectionsContext.Provider value={{ connections, addConnection, updateConnection, deleteConnection, theme, setTheme }}>
+        <ConnectionsContext.Provider value={{
+            connections, addConnection, updateConnection, deleteConnection,
+            theme, setTheme,
+            userProfile, setUserProfile,
+            hasCompletedOnboarding, completeOnboarding,
+            showAddPulse, setShowAddPulse,
+        }}>
             {children}
         </ConnectionsContext.Provider>
     );

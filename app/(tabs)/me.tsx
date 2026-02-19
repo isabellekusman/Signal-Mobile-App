@@ -341,19 +341,23 @@ function SelfTrustCard({ drift }: { drift: ProfileSummary['perceptionDrift'] }) 
 // ═══════════════════════════════════════════════════════════════════
 
 export default function MeScreen() {
-    const { connections } = useConnections();
+    const { connections, userProfile } = useConnections();
 
-    // ── Identity (editable) ──
-    const [name, setName] = useState('izzy');
-    const [zodiac, setZodiac] = useState('CAPRICORN');
-    const [aboutMe, setAboutMe] = useState('');
+    // ── Identity (editable, seeded from onboarding profile) ──
+    const [name, setName] = useState(userProfile.name || 'izzy');
+    const [zodiac, setZodiac] = useState(userProfile.zodiac || 'CAPRICORN');
+    const [aboutMe, setAboutMe] = useState(userProfile.about || '');
     const [isEditingIdentity, setIsEditingIdentity] = useState(false);
     const [showZodiacPicker, setShowZodiacPicker] = useState(false);
 
     // ── User content (standards, boundaries, reflections) ──
-    const [standards, setStandards] = useState(['Growth mindset', 'Shared ambition']);
+    const [standards, setStandards] = useState(
+        userProfile.standards.length > 0 ? userProfile.standards : ['Growth mindset', 'Shared ambition']
+    );
     const [newStandard, setNewStandard] = useState('');
-    const [boundaries, setBoundaries] = useState<string[]>(['No phone after 11 PM', 'Direct communication only']);
+    const [boundaries, setBoundaries] = useState<string[]>(
+        userProfile.boundaries.length > 0 ? userProfile.boundaries : ['No phone after 11 PM', 'Direct communication only']
+    );
     const [newBoundary, setNewBoundary] = useState('');
     const [logs, setLogs] = useState<string[]>(['Reflecting on intentionality and personal space this month.']);
     const [newLog, setNewLog] = useState('');
