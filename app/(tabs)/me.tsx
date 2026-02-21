@@ -19,7 +19,6 @@ import { useConnections } from '../../context/ConnectionsContext';
 import {
     computeObservedVsInterpreted,
     computeProfileSummary,
-
     extractData,
     ObservedVsInterpreted,
 } from '../../services/profileAggregation';
@@ -27,7 +26,7 @@ import {
     ProfileSummary,
 } from '../../services/profileTypes';
 
-// ─── Palette (pink-500, black, gray, white only) ─────────────────
+// ─── Palette ─────────────────────────────────────────────────────
 const PINK = '#ec4899';
 const DARK = '#1C1C1E';
 const MID_DARK = '#3A3A3C';
@@ -38,6 +37,8 @@ const OFF_WHITE = '#F9FAFB';
 const WHITE = '#FFFFFF';
 const PINK_TINT = '#FDF2F8';
 const PINK_BORDER = '#FCE7F3';
+const CONTRACT_BG = '#FAFAF5'; // warm off-white to distinguish user-authored
+const CONTRACT_BORDER = '#EDE9E0';
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 const SERIF_ITALIC = Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif';
 
@@ -57,80 +58,44 @@ const BOUNDARY_SUGGESTIONS = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-//  SUB-COMPONENTS
+//  1. IDENTITY HEADER – no card, persistent
 // ═══════════════════════════════════════════════════════════════════
 
-// ─── Evidence Badge ──────────────────────────────────────────────
-function EvidenceBadge({ text }: { text: string }) {
-    return (
-        <Text style={sub.evidenceBadge}>({text})</Text>
-    );
-}
-
-// ─── Section Label ───────────────────────────────────────────────
-function SectionLabel({ children }: { children: string }) {
-    return <Text style={sub.sectionLabel}>{children}</Text>;
-}
-
-// ─── Divider with Label ──────────────────────────────────────────
-function LabelDivider({ label }: { label: string }) {
-    return (
-        <View style={sub.dividerWrap}>
-            <View style={sub.dividerLine} />
-            <Text style={sub.dividerText}>{label}</Text>
-            <View style={sub.dividerLine} />
-        </View>
-    );
-}
-
-// ─── Bar Indicator ───────────────────────────────────────────────
-function BarIndicator({ label, value }: { label: string; value: number }) {
-    return (
-        <View style={sub.barContainer}>
-            <View style={sub.barLabelRow}>
-                <Text style={sub.barLabel}>{label}</Text>
-                <Text style={sub.barValue}>{value}%</Text>
-            </View>
-            <View style={sub.barTrack}>
-                <View style={[sub.barFill, { width: `${Math.min(value, 100)}%` }]} />
-            </View>
-        </View>
-    );
-}
-
-// ─── IdentityHeader ──────────────────────────────────────────────
 function IdentityHeader({
-    name, zodiac, about,
-    onChangeName, onChangeZodiac, onChangeAbout,
+    name, zodiac, about, archetype, summary,
+    onChangeName, onChangeAbout,
     isEditing, onToggleEdit, onOpenZodiac,
 }: {
     name: string; zodiac: string; about: string;
+    archetype: string; summary: string;
     onChangeName: (v: string) => void;
-    onChangeZodiac: () => void;
     onChangeAbout: (v: string) => void;
     isEditing: boolean;
     onToggleEdit: () => void;
     onOpenZodiac: () => void;
 }) {
     return (
-        <View style={s.identityCard}>
-            <View style={s.identityHeader}>
-                <View style={s.avatarWrap}>
+        <View style={s.identityBlock}>
+            <View style={s.identityRow}>
+                {/* Large avatar */}
+                <View style={s.avatarOuter}>
                     <View style={s.avatar}>
                         <Text style={s.avatarInitial}>
                             {name ? name.charAt(0).toUpperCase() : '?'}
                         </Text>
                     </View>
                 </View>
+
                 <TouchableOpacity style={s.editBtn} onPress={onToggleEdit}>
                     <Ionicons
                         name={isEditing ? 'checkmark-outline' : 'pencil-outline'}
-                        size={16}
+                        size={15}
                         color={isEditing ? PINK : GRAY}
                     />
                 </TouchableOpacity>
             </View>
 
+            {/* Name */}
             {isEditing ? (
                 <TextInput
                     style={s.nameInput}
@@ -143,19 +108,24 @@ function IdentityHeader({
                 <Text style={s.nameText}>{name}</Text>
             )}
 
+            {/* Archetype subtitle */}
+            <Text style={s.archetypeText}>{archetype.toUpperCase()}</Text>
+
+            {/* Zodiac */}
             {isEditing ? (
                 <TouchableOpacity style={s.zodiacRow} onPress={onOpenZodiac}>
-                    <Ionicons name="sparkles-outline" size={14} color={PINK} />
+                    <Ionicons name="sparkles-outline" size={13} color={PINK} />
                     <Text style={s.zodiacText}>{zodiac || 'Select sign'}</Text>
-                    <Ionicons name="chevron-down" size={14} color={GRAY} />
+                    <Ionicons name="chevron-down" size={13} color={GRAY} />
                 </TouchableOpacity>
             ) : (
                 <View style={s.zodiacRow}>
-                    <Ionicons name="sparkles-outline" size={14} color={PINK} />
+                    <Ionicons name="sparkles-outline" size={13} color={PINK} />
                     <Text style={s.zodiacText}>{zodiac}</Text>
                 </View>
             )}
 
+            {/* Behavioral summary */}
             {isEditing ? (
                 <TextInput
                     style={s.aboutInput}
@@ -166,175 +136,422 @@ function IdentityHeader({
                     multiline
                     maxLength={200}
                 />
+            ) : summary ? (
+                <Text style={s.summaryText}>{summary}</Text>
             ) : about ? (
-                <Text style={s.aboutText}>{about}</Text>
+                <Text style={s.summaryText}>{about}</Text>
             ) : null}
         </View>
     );
 }
 
-// ─── CurrentPullCard ─────────────────────────────────────────────
-function CurrentPullCard({ pull }: { pull: ProfileSummary['currentPull'] }) {
-    return (
-        <View style={s.pullCard}>
-            <View style={s.pullAccent} />
-            <Text style={s.pullHeadline}>{pull.headline}</Text>
-            <Text style={s.pullExplanation}>{pull.explanation}</Text>
-            <Text style={s.pullEvidence}>{pull.basedOn}</Text>
-        </View>
-    );
-}
+// ═══════════════════════════════════════════════════════════════════
+//  2. DIAGNOSTIC STATUS BLOCK – "Current Position"
+// ═══════════════════════════════════════════════════════════════════
 
-// ─── MentalOccupationMeter (Regulation Style) ────────────────────
-function MentalOccupationMeter({ reg }: { reg: ProfileSummary['regulationStyle'] }) {
+function DiagnosticBlock({ pull, confidence }: {
+    pull: ProfileSummary['currentPull'];
+    confidence: string;
+}) {
     return (
-        <View style={s.card}>
-            <View style={s.regHeader}>
-                <Text style={s.regLabel}>{reg.primary.toUpperCase()}</Text>
-                <Text style={s.regScore}>{reg.score}%</Text>
-            </View>
-            <View style={sub.barTrack}>
-                <View style={[sub.barFill, { width: `${reg.score}%` }]} />
-            </View>
-            <Text style={s.regDesc}>{reg.description}</Text>
-        </View>
-    );
-}
-
-// ─── ReciprocityCheck ────────────────────────────────────────────
-function ReciprocityCheck({ effort }: { effort: ProfileSummary['effortBalance'] }) {
-    return (
-        <View style={s.card}>
-            <View style={s.recipRow}>
-                <View style={s.recipCol}>
-                    <Text style={s.recipColTitle}>YOU</Text>
-                    <Text style={s.recipPct}>{effort.youInitiatePct}%</Text>
-                    <Text style={s.recipLabel}>initiate</Text>
-                    <Text style={s.recipPct}>{effort.youFollowThroughPct}%</Text>
-                    <Text style={s.recipLabel}>follow through</Text>
+        <View style={s.diagnosticBlock}>
+            <View style={s.diagnosticAccent} />
+            <View style={s.diagnosticContent}>
+                <View style={s.diagnosticHeader}>
+                    <Text style={s.diagnosticTitle}>CURRENT POSITION</Text>
+                    <View style={s.confidenceBadge}>
+                        <View style={[s.confidenceDot, {
+                            backgroundColor: confidence === 'high' ? PINK
+                                : confidence === 'moderate' ? GRAY : SOFT_GRAY
+                        }]} />
+                        <Text style={s.confidenceText}>{confidence.toUpperCase()}</Text>
+                    </View>
                 </View>
-                <View style={s.recipDivider} />
-                <View style={s.recipCol}>
-                    <Text style={s.recipColTitle}>THEM</Text>
-                    <Text style={s.recipPct}>{effort.theyInitiatePct}%</Text>
-                    <Text style={s.recipLabel}>initiate</Text>
-                    <Text style={s.recipPct}>{effort.theyFollowThroughPct}%</Text>
-                    <Text style={s.recipLabel}>follow through</Text>
-                </View>
-            </View>
-            <Text style={s.cardFootnote}>{effort.summary}</Text>
-        </View>
-    );
-}
-
-// ─── ObservedVsInterpreted ───────────────────────────────────────
-function ObservedVsInterpretedCard({ data }: { data: ObservedVsInterpreted }) {
-    return (
-        <View style={s.card}>
-            <View style={s.oviRow}>
-                <View style={s.oviCol}>
-                    <Text style={s.oviColTitle}>OBSERVED</Text>
-                    {data.observed.map((item, i) => (
-                        <View key={i} style={s.oviItem}>
-                            <View style={s.oviBullet} />
-                            <Text style={s.oviText}>{item}</Text>
-                        </View>
-                    ))}
-                </View>
-                <View style={s.oviDivider} />
-                <View style={s.oviCol}>
-                    <Text style={s.oviColTitle}>INTERPRETED</Text>
-                    {data.interpreted.map((item, i) => (
-                        <View key={i} style={s.oviItem}>
-                            <View style={[s.oviBullet, { backgroundColor: PINK }]} />
-                            <Text style={s.oviText}>{item}</Text>
-                        </View>
-                    ))}
-                </View>
+                <Text style={s.diagnosticHeadline}>{pull.headline}</Text>
+                <Text style={s.diagnosticBody}>{pull.explanation}</Text>
+                <Text style={s.diagnosticEvidence}>{pull.basedOn}</Text>
             </View>
         </View>
     );
 }
 
-// ─── PatternLoopCard ─────────────────────────────────────────────
-function PatternLoopCard({ dynamics }: { dynamics: ProfileSummary['repeatingDynamics'] }) {
-    if (!dynamics.detected || !dynamics.pattern) {
-        return (
-            <View style={s.card}>
-                <Text style={s.cardBody}>{dynamics.summary}</Text>
-            </View>
-        );
-    }
-    const p = dynamics.pattern;
-    const steps = [
-        { label: 'Trigger', value: p.trigger },
-        { label: 'Reaction', value: p.reaction },
-        { label: 'Response', value: p.theirResponse },
-        { label: 'Result', value: p.result },
-    ];
+// ═══════════════════════════════════════════════════════════════════
+//  3. TRAIT METER ROWS – no card background
+// ═══════════════════════════════════════════════════════════════════
+
+function TraitMeter({ label, value, explanation }: {
+    label: string; value: number; explanation?: string;
+}) {
     return (
-        <View style={s.card}>
-            <Text style={s.cardBody}>{dynamics.summary}</Text>
-            {dynamics.affectedConnections.length > 0 && (
-                <Text style={s.patternAffected}>
-                    Across: {dynamics.affectedConnections.join(', ')}
-                </Text>
+        <View style={s.traitRow}>
+            <View style={s.traitLabelRow}>
+                <Text style={s.traitLabel}>{label}</Text>
+                <Text style={s.traitValue}>{value}%</Text>
+            </View>
+            <View style={s.traitTrack}>
+                <View style={[s.traitFill, { width: `${Math.min(value, 100)}%` }]} />
+            </View>
+            {explanation ? (
+                <Text style={s.traitExplanation}>{explanation}</Text>
+            ) : null}
+        </View>
+    );
+}
+
+function RegulationSection({ reg }: { reg: ProfileSummary['regulationStyle'] }) {
+    return (
+        <View style={s.traitSection}>
+            <Text style={s.sectionTitle}>REGULATION STYLE</Text>
+            <View style={s.regLabelRow}>
+                <Text style={s.regPrimary}>{reg.primary.toUpperCase()}</Text>
+            </View>
+            <TraitMeter label="Intensity" value={reg.score} explanation={reg.description} />
+        </View>
+    );
+}
+
+function EmotionalOutcomeSection({ emo }: { emo: ProfileSummary['emotionalOutcome'] }) {
+    return (
+        <View style={s.traitSection}>
+            <Text style={s.sectionTitle}>EMOTIONAL OUTCOME</Text>
+            {Object.entries(emo.distribution).map(([emotion, pct]) => (
+                <TraitMeter key={emotion} label={emotion} value={pct as number} />
+            ))}
+            <Text style={s.traitFootnote}>{emo.interpretation}</Text>
+        </View>
+    );
+}
+
+function TendenciesSection({ tendencies }: { tendencies: ProfileSummary['baseline']['tendencies'] }) {
+    return (
+        <View style={s.traitSection}>
+            <Text style={s.sectionTitle}>YOU TEND TO…</Text>
+            {tendencies.map((t, i) => {
+                const strengthPct = t.strength === 'strong' ? 90
+                    : t.strength === 'moderate' ? 60 : 30;
+                return (
+                    <TraitMeter
+                        key={i}
+                        label={t.text}
+                        value={strengthPct}
+                        explanation={`${t.strength} · ${t.evidenceCount} signal${t.evidenceCount !== 1 ? 's' : ''}`}
+                    />
+                );
+            })}
+        </View>
+    );
+}
+
+function SelfTrustSection({ drift }: { drift: ProfileSummary['perceptionDrift'] }) {
+    return (
+        <View style={s.traitSection}>
+            <Text style={s.sectionTitle}>SELF-TRUST</Text>
+            <TraitMeter
+                label={drift.label}
+                value={drift.score}
+                explanation={drift.summary}
+            />
+            <Text style={s.traitEvidence}>
+                {drift.driftIndicators} drift indicator{drift.driftIndicators !== 1 ? 's' : ''} detected
+            </Text>
+        </View>
+    );
+}
+
+function BoundaryAlignmentSection({ ba }: { ba: ProfileSummary['boundaryAlignment'] }) {
+    return (
+        <View style={s.traitSection}>
+            <Text style={s.sectionTitle}>BOUNDARY ALIGNMENT</Text>
+            {ba.total > 0 ? (
+                <TraitMeter label="Upheld" value={ba.percentage} explanation={ba.summary} />
+            ) : (
+                <Text style={s.traitFootnote}>{ba.summary}</Text>
             )}
-            <View style={s.patternChain}>
-                {steps.map((step, i) => (
-                    <React.Fragment key={i}>
-                        <View style={s.patternStep}>
-                            <Text style={s.patternStepLabel}>{step.label}</Text>
-                            <Text style={s.patternStepValue}>{step.value}</Text>
+        </View>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  4. COLLAPSIBLE INSIGHT RATIONALE
+// ═══════════════════════════════════════════════════════════════════
+
+function InsightRationale({
+    effort, signalStory, trajectory, dynamics, observedInterpreted,
+}: {
+    effort: ProfileSummary['effortBalance'];
+    signalStory: ProfileSummary['signalStory'];
+    trajectory: ProfileSummary['trajectory'];
+    dynamics: ProfileSummary['repeatingDynamics'];
+    observedInterpreted: ObservedVsInterpreted;
+}) {
+    const [expanded, setExpanded] = useState(false);
+
+    return (
+        <View style={s.rationaleWrap}>
+            <TouchableOpacity
+                style={s.rationaleHeader}
+                onPress={() => setExpanded(!expanded)}
+                activeOpacity={0.7}
+            >
+                <Text style={s.rationaleTitle}>WHY THIS INSIGHT WAS GENERATED</Text>
+                <Ionicons
+                    name={expanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={GRAY}
+                />
+            </TouchableOpacity>
+
+            {expanded && (
+                <View style={s.rationaleBody}>
+
+                    {/* Effort Balance */}
+                    <View style={s.rationaleSubsection}>
+                        <Text style={s.rationaleSubTitle}>EFFORT BALANCE</Text>
+                        <View style={s.effortRow}>
+                            <View style={s.effortCol}>
+                                <Text style={s.effortWho}>YOU</Text>
+                                <Text style={s.effortPct}>{effort.youInitiatePct}%</Text>
+                                <Text style={s.effortLabel}>initiate</Text>
+                                <Text style={s.effortPct}>{effort.youFollowThroughPct}%</Text>
+                                <Text style={s.effortLabel}>follow through</Text>
+                            </View>
+                            <View style={s.effortDivider} />
+                            <View style={s.effortCol}>
+                                <Text style={s.effortWho}>THEM</Text>
+                                <Text style={s.effortPct}>{effort.theyInitiatePct}%</Text>
+                                <Text style={s.effortLabel}>initiate</Text>
+                                <Text style={s.effortPct}>{effort.theyFollowThroughPct}%</Text>
+                                <Text style={s.effortLabel}>follow through</Text>
+                            </View>
                         </View>
-                        {i < steps.length - 1 && (
-                            <Ionicons name="arrow-forward" size={12} color={SOFT_GRAY} style={{ marginHorizontal: 2 }} />
+                        <Text style={s.rationaleNote}>{effort.summary}</Text>
+                    </View>
+
+                    {/* Signal vs Story */}
+                    <View style={s.rationaleSubsection}>
+                        <Text style={s.rationaleSubTitle}>SIGNAL VS STORY</Text>
+                        <View style={s.svsBar}>
+                            <Text style={s.svsLabel}>Interpretation</Text>
+                            <View style={s.svsTrack}>
+                                <View style={[s.svsFill, { width: `${Math.min(signalStory.score * 100, 100)}%` }]} />
+                            </View>
+                            <Text style={s.svsLabel}>Observed</Text>
+                        </View>
+                        <Text style={s.rationaleNote}>{signalStory.summary}</Text>
+                        <Text style={s.rationaleEvidence}>
+                            {signalStory.interpretationEvents} interpretations / {signalStory.observationEvents} observations
+                        </Text>
+                    </View>
+
+                    {/* Observed vs Interpreted */}
+                    <View style={s.rationaleSubsection}>
+                        <Text style={s.rationaleSubTitle}>OBSERVED VS INTERPRETED</Text>
+                        <View style={s.oviRow}>
+                            <View style={s.oviCol}>
+                                <Text style={s.oviColTitle}>OBSERVED</Text>
+                                {observedInterpreted.observed.map((item, i) => (
+                                    <View key={i} style={s.oviItem}>
+                                        <View style={s.oviBullet} />
+                                        <Text style={s.oviText}>{item}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={s.oviDivider} />
+                            <View style={s.oviCol}>
+                                <Text style={s.oviColTitle}>INTERPRETED</Text>
+                                {observedInterpreted.interpreted.map((item, i) => (
+                                    <View key={i} style={s.oviItem}>
+                                        <View style={[s.oviBullet, { backgroundColor: PINK }]} />
+                                        <Text style={s.oviText}>{item}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Trajectory */}
+                    <View style={s.rationaleSubsection}>
+                        <Text style={s.rationaleSubTitle}>TRAJECTORY</Text>
+                        <View style={s.trajRow}>
+                            <View style={[s.trajBadge, {
+                                backgroundColor: trajectory.direction === 'stabilizing' ? PINK
+                                    : trajectory.direction === 'fading' ? MID_DARK : GRAY
+                            }]}>
+                                <Text style={s.trajBadgeText}>{trajectory.direction.toUpperCase()}</Text>
+                            </View>
+                            <Text style={s.trajConf}>confidence: {trajectory.confidence}</Text>
+                        </View>
+                        <Text style={s.rationaleNote}>{trajectory.statement}</Text>
+                    </View>
+
+                    {/* Repeating Dynamics */}
+                    <View style={[s.rationaleSubsection, { borderBottomWidth: 0 }]}>
+                        <Text style={s.rationaleSubTitle}>REPEATING DYNAMICS</Text>
+                        <Text style={s.rationaleNote}>{dynamics.summary}</Text>
+                        {dynamics.detected && dynamics.pattern && (
+                            <View style={s.patternChain}>
+                                {[
+                                    { label: 'Trigger', value: dynamics.pattern.trigger },
+                                    { label: 'Reaction', value: dynamics.pattern.reaction },
+                                    { label: 'Response', value: dynamics.pattern.theirResponse },
+                                    { label: 'Result', value: dynamics.pattern.result },
+                                ].map((step, i) => (
+                                    <React.Fragment key={i}>
+                                        <View style={s.patternStep}>
+                                            <Text style={s.patternStepLabel}>{step.label}</Text>
+                                            <Text style={s.patternStepValue}>{step.value}</Text>
+                                        </View>
+                                        {i < 3 && (
+                                            <Ionicons name="arrow-forward" size={11} color={SOFT_GRAY} style={{ marginHorizontal: 1 }} />
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </View>
                         )}
-                    </React.Fragment>
+                        {dynamics.affectedConnections.length > 0 && (
+                            <Text style={s.rationaleEvidence}>
+                                Across: {dynamics.affectedConnections.join(', ')}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+            )}
+        </View>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  5. YOUR CONTRACT – user-authored values
+// ═══════════════════════════════════════════════════════════════════
+
+function ContractSection({
+    standards, boundaries,
+    newStandard, newBoundary,
+    onSetNewStandard, onSetNewBoundary,
+    onAddStandard, onAddBoundary,
+    onRemoveStandard, onRemoveBoundary,
+    isEditing, onToggleEdit,
+}: {
+    standards: string[]; boundaries: string[];
+    newStandard: string; newBoundary: string;
+    onSetNewStandard: (v: string) => void;
+    onSetNewBoundary: (v: string) => void;
+    onAddStandard: () => void;
+    onAddBoundary: () => void;
+    onRemoveStandard: (i: number) => void;
+    onRemoveBoundary: (i: number) => void;
+    isEditing: boolean;
+    onToggleEdit: () => void;
+}) {
+    return (
+        <View style={s.contractSurface}>
+            <View style={s.contractHeaderRow}>
+                <View>
+                    <Text style={s.contractTitle}>YOUR CONTRACT</Text>
+                    <Text style={s.contractSubtitle}>What you've defined for yourself</Text>
+                </View>
+                <TouchableOpacity style={s.contractEditBtn} onPress={onToggleEdit}>
+                    <Ionicons
+                        name={isEditing ? 'checkmark-circle-outline' : 'create-outline'}
+                        size={15}
+                        color={isEditing ? PINK : GRAY}
+                    />
+                    <Text style={[s.contractEditLabel, isEditing && { color: PINK }]}>
+                        {isEditing ? 'Done' : 'Edit'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Standards */}
+            <View style={s.contractGroup}>
+                <Text style={s.contractGroupLabel}>MY STANDARDS</Text>
+                {standards.map((item, i) => (
+                    <View key={i} style={s.contractItem}>
+                        <View style={s.contractItemBullet} />
+                        <Text style={s.contractItemText}>{item}</Text>
+                        {isEditing && (
+                            <TouchableOpacity onPress={() => onRemoveStandard(i)} style={s.removeBtn}>
+                                <Ionicons name="close-outline" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 ))}
+                {isEditing && (
+                    <View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsRow}>
+                            {STANDARD_SUGGESTIONS.filter(x => !standards.includes(x)).map((x, i) => (
+                                <TouchableOpacity key={i} style={s.contractChip} onPress={() => {
+                                    onSetNewStandard('');
+                                    // directly add
+                                    standards.push(x); // handled by parent
+                                    onAddStandard();
+                                }}>
+                                    <Text style={s.contractChipText}>{x}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <View style={s.addRow}>
+                            <TextInput
+                                style={s.addInput}
+                                placeholder="Add a standard…"
+                                placeholderTextColor={SOFT_GRAY}
+                                value={newStandard}
+                                onChangeText={onSetNewStandard}
+                            />
+                            <TouchableOpacity style={s.addBtn} onPress={onAddStandard}>
+                                <Ionicons name="add-outline" size={18} color={DARK} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
             </View>
+
+            {/* Boundaries */}
+            <View style={s.contractGroup}>
+                <Text style={s.contractGroupLabel}>BOUNDARIES</Text>
+                {boundaries.map((item, i) => (
+                    <View key={i} style={s.contractItem}>
+                        <View style={s.contractItemBullet} />
+                        <Text style={s.contractItemText}>{item}</Text>
+                        {isEditing && (
+                            <TouchableOpacity onPress={() => onRemoveBoundary(i)} style={s.removeBtn}>
+                                <Ionicons name="close-outline" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                ))}
+                {isEditing && (
+                    <View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsRow}>
+                            {BOUNDARY_SUGGESTIONS.filter(x => !boundaries.includes(x)).map((x, i) => (
+                                <TouchableOpacity key={i} style={s.contractChip} onPress={() => {
+                                    onSetNewBoundary('');
+                                    boundaries.push(x);
+                                    onAddBoundary();
+                                }}>
+                                    <Text style={s.contractChipText}>{x}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <View style={s.addRow}>
+                            <TextInput
+                                style={s.addInput}
+                                placeholder="Add a boundary…"
+                                placeholderTextColor={SOFT_GRAY}
+                                value={newBoundary}
+                                onChangeText={onSetNewBoundary}
+                            />
+                            <TouchableOpacity style={s.addBtn} onPress={onAddBoundary}>
+                                <Ionicons name="add-outline" size={18} color={DARK} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+            </View>
+
         </View>
     );
 }
-
-// ─── TrajectoryCard ──────────────────────────────────────────────
-function TrajectoryCard({ trajectory }: { trajectory: ProfileSummary['trajectory'] }) {
-    const badgeColors: Record<string, string> = {
-        stabilizing: PINK,
-        plateauing: GRAY,
-        fading: MID_DARK,
-    };
-    return (
-        <View style={s.card}>
-            <View style={s.trajRow}>
-                <View style={[s.trajBadge, { backgroundColor: badgeColors[trajectory.direction] || GRAY }]}>
-                    <Text style={s.trajBadgeText}>{trajectory.direction.toUpperCase()}</Text>
-                </View>
-                <Text style={s.trajConf}>confidence: {trajectory.confidence}</Text>
-            </View>
-            <Text style={s.cardBody}>{trajectory.statement}</Text>
-        </View>
-    );
-}
-
-// ─── SelfTrustCard ───────────────────────────────────────────────
-function SelfTrustCard({ drift }: { drift: ProfileSummary['perceptionDrift'] }) {
-    return (
-        <View style={s.card}>
-            <View style={s.trustRow}>
-                <View style={s.trustCircle}>
-                    <Text style={s.trustScore}>{drift.score}</Text>
-                </View>
-                <View style={s.trustMeta}>
-                    <Text style={s.trustLabel}>{drift.label}</Text>
-                    <Text style={s.trustDesc}>{drift.summary}</Text>
-                </View>
-            </View>
-        </View>
-    );
-}
-
-
 
 // ═══════════════════════════════════════════════════════════════════
 //  MAIN SCREEN
@@ -343,14 +560,14 @@ function SelfTrustCard({ drift }: { drift: ProfileSummary['perceptionDrift'] }) 
 export default function MeScreen() {
     const { connections, userProfile } = useConnections();
 
-    // ── Identity (editable, seeded from onboarding profile) ──
+    // ── Identity ──
     const [name, setName] = useState(userProfile.name || 'izzy');
     const [zodiac, setZodiac] = useState(userProfile.zodiac || 'CAPRICORN');
     const [aboutMe, setAboutMe] = useState(userProfile.about || '');
     const [isEditingIdentity, setIsEditingIdentity] = useState(false);
     const [showZodiacPicker, setShowZodiacPicker] = useState(false);
 
-    // ── User content (standards, boundaries, reflections) ──
+    // ── User content ──
     const [standards, setStandards] = useState(
         userProfile.standards.length > 0 ? userProfile.standards : ['Growth mindset', 'Shared ambition']
     );
@@ -359,8 +576,7 @@ export default function MeScreen() {
         userProfile.boundaries.length > 0 ? userProfile.boundaries : ['No phone after 11 PM', 'Direct communication only']
     );
     const [newBoundary, setNewBoundary] = useState('');
-    const [logs, setLogs] = useState<string[]>(['Reflecting on intentionality and personal space this month.']);
-    const [newLog, setNewLog] = useState('');
+
     const [isEditingContent, setIsEditingContent] = useState(false);
 
     // ── Computed profile ──
@@ -371,25 +587,24 @@ export default function MeScreen() {
             connections,
             { name, zodiac, about: aboutMe },
             boundaries,
-            logs,
+            [],
         );
-    }, [connections, name, zodiac, aboutMe, boundaries, logs]);
+    }, [connections, name, zodiac, aboutMe, boundaries]);
 
     const observedInterpreted: ObservedVsInterpreted = useMemo(() => {
         const data = extractData(connections);
         return computeObservedVsInterpreted(data);
     }, [connections]);
 
+    // Derive archetype + summary for identity header
+    const archetype = profile.regulationStyle.primary;
+    const behavioralSummary = profile.currentPull.headline;
 
-
-    // ── Refresh handler ──
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
-        // Force recompute by waiting one tick (useMemo deps already handle it)
         setTimeout(() => setIsRefreshing(false), 600);
     }, []);
 
-    // ── Export handler ──
     const handleExport = useCallback(async () => {
         try {
             const exportData = JSON.stringify(profile, null, 2);
@@ -419,17 +634,7 @@ export default function MeScreen() {
     };
     const removeBoundary = (i: number) => setBoundaries(boundaries.filter((_, idx) => idx !== i));
 
-    const addLog = () => {
-        if (newLog.trim().length > 0) {
-            setLogs([newLog.trim(), ...logs]);
-            setNewLog('');
-        }
-    };
-    const removeLog = (i: number) => setLogs(logs.filter((_, idx) => idx !== i));
 
-    // ── Evidence string ──
-    const ev = profile.evidence;
-    const evidenceStr = `${ev.totalDynamicLogs} logs, ${ev.totalDecoderRequests + ev.totalClarityChats + ev.totalStarsEntries} tool uses, last ${ev.periodDays}d`;
 
     return (
         <SafeAreaView style={s.safe}>
@@ -439,307 +644,80 @@ export default function MeScreen() {
             >
                 <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-                    {/* ═══ IDENTITY HEADER ═══ */}
+                    {/* ═══ 1. IDENTITY ═══ */}
                     <IdentityHeader
                         name={name}
                         zodiac={zodiac}
                         about={aboutMe}
+                        archetype={archetype}
+                        summary={behavioralSummary}
                         onChangeName={setName}
-                        onChangeZodiac={() => setShowZodiacPicker(true)}
                         onChangeAbout={setAboutMe}
                         isEditing={isEditingIdentity}
                         onToggleEdit={() => setIsEditingIdentity(!isEditingIdentity)}
                         onOpenZodiac={() => setShowZodiacPicker(true)}
                     />
 
-                    {/* ═══ TRANSITION ═══ */}
-                    <LabelDivider label="BEHAVIORAL INSIGHTS" />
-
-                    {/* Refresh button */}
-                    <TouchableOpacity style={s.refreshBtn} onPress={handleRefresh} disabled={isRefreshing}>
-                        {isRefreshing ? (
-                            <ActivityIndicator size="small" color={PINK} />
-                        ) : (
-                            <Ionicons name="refresh-outline" size={14} color={GRAY} />
-                        )}
-                        <Text style={s.refreshLabel}>
-                            {isRefreshing ? 'Refreshing…' : 'Refresh insights'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* ═══ CURRENT PULL ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>CURRENT POSITION</SectionLabel>
-                        <CurrentPullCard pull={profile.currentPull} />
-                    </View>
-
-                    {/* ═══ REGULATION STYLE ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>REGULATION STYLE</SectionLabel>
-                        <MentalOccupationMeter reg={profile.regulationStyle} />
-                        <EvidenceBadge text={evidenceStr} />
-                    </View>
-
-                    {/* ═══ TENDENCIES ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>YOU TEND TO…</SectionLabel>
-                        <View style={s.card}>
-                            {profile.baseline.tendencies.map((t, i) => (
-                                <View key={i} style={s.tendencyRow}>
-                                    <View style={s.tendencyBullet} />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={s.tendencyText}>{t.text}</Text>
-                                        <Text style={s.tendencyMeta}>
-                                            {t.strength} · {t.evidenceCount} signal{t.evidenceCount !== 1 ? 's' : ''}
-                                        </Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                        <EvidenceBadge text={`based on ${ev.totalDynamicLogs + ev.totalDecoderRequests} data points`} />
-                    </View>
-
-                    {/* ═══ EMOTIONAL OUTCOME ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>YOUR INTERACTIONS LEAVE YOU FEELING</SectionLabel>
-                        <View style={s.card}>
-                            {Object.entries(profile.emotionalOutcome.distribution).map(([emotion, pctVal]) => (
-                                <View key={emotion} style={sub.barContainer}>
-                                    <View style={sub.barLabelRow}>
-                                        <Text style={sub.barLabel}>{emotion}</Text>
-                                        <Text style={sub.barValue}>{pctVal}%</Text>
-                                    </View>
-                                    <View style={sub.barTrack}>
-                                        <View style={[sub.barFill, { width: `${Math.min(pctVal as number, 100)}%` }]} />
-                                    </View>
-                                </View>
-                            ))}
-                            <Text style={s.cardFootnote}>{profile.emotionalOutcome.interpretation}</Text>
-                        </View>
-                        <EvidenceBadge text={`last ${profile.emotionalOutcome.periodDays} days`} />
-                    </View>
-
-                    {/* ═══ RECIPROCITY CHECK ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>EFFORT BALANCE</SectionLabel>
-                        <ReciprocityCheck effort={profile.effortBalance} />
-                        <EvidenceBadge text={evidenceStr} />
-                    </View>
-
-                    {/* ═══ OBSERVED VS INTERPRETED ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>OBSERVED VS INTERPRETED</SectionLabel>
-                        <ObservedVsInterpretedCard data={observedInterpreted} />
-                    </View>
-
-                    {/* ═══ SIGNAL VS STORY ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>SIGNAL VS STORY</SectionLabel>
-                        <View style={s.card}>
-                            <View style={s.svsBar}>
-                                <Text style={s.svsLabel}>Interpretation</Text>
-                                <View style={s.svsTrack}>
-                                    <View style={[s.svsFill, { width: `${Math.min(profile.signalStory.score * 100, 100)}%` }]} />
-                                    <View style={[s.svsMarker, { left: `${Math.min(profile.signalStory.score * 100, 100)}%` }]} />
-                                </View>
-                                <Text style={s.svsLabel}>Observed</Text>
-                            </View>
-                            <Text style={s.cardBody}>{profile.signalStory.summary}</Text>
-                            <Text style={s.cardFootnote}>
-                                {profile.signalStory.interpretationEvents} interpretations / {profile.signalStory.observationEvents} observations
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* ═══ REPEATING DYNAMICS ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>REPEATING DYNAMICS</SectionLabel>
-                        <PatternLoopCard dynamics={profile.repeatingDynamics} />
-                    </View>
-
-                    {/* ═══ TRAJECTORY ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>TRAJECTORY</SectionLabel>
-                        <TrajectoryCard trajectory={profile.trajectory} />
-                    </View>
-
-                    {/* ═══ SELF-TRUST ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>SELF-TRUST</SectionLabel>
-                        <SelfTrustCard drift={profile.perceptionDrift} />
-                        <EvidenceBadge text={`${profile.perceptionDrift.driftIndicators} drift indicator${profile.perceptionDrift.driftIndicators !== 1 ? 's' : ''} detected`} />
-                    </View>
-
-                    {/* ═══ BOUNDARY ALIGNMENT ═══ */}
-                    <View style={s.section}>
-                        <SectionLabel>BOUNDARY ALIGNMENT</SectionLabel>
-                        <View style={s.card}>
-                            <Text style={s.cardBody}>{profile.boundaryAlignment.summary}</Text>
-                            {profile.boundaryAlignment.total > 0 && (
-                                <View style={{ marginTop: 12 }}>
-                                    <BarIndicator label="Upheld" value={profile.boundaryAlignment.percentage} />
-                                </View>
+                    {/* Refresh + Export row */}
+                    <View style={s.actionRow}>
+                        <TouchableOpacity style={s.actionBtn} onPress={handleRefresh} disabled={isRefreshing}>
+                            {isRefreshing ? (
+                                <ActivityIndicator size="small" color={PINK} />
+                            ) : (
+                                <Ionicons name="refresh-outline" size={13} color={GRAY} />
                             )}
-                        </View>
-                    </View>
-
-
-
-                    {/* ═════════════════════════════════════ */}
-                    {/*  YOUR DEFINITIONS                     */}
-                    {/* ═══════════════════════════════════════ */}
-                    <LabelDivider label="YOUR DEFINITIONS" />
-
-                    {/* Content edit toggle */}
-                    <View style={s.contentEditRow}>
-                        <TouchableOpacity
-                            style={s.contentEditBtn}
-                            onPress={() => setIsEditingContent(!isEditingContent)}
-                        >
-                            <Ionicons
-                                name={isEditingContent ? 'checkmark-circle-outline' : 'create-outline'}
-                                size={16}
-                                color={isEditingContent ? PINK : GRAY}
-                            />
-                            <Text style={[s.contentEditLabel, isEditingContent && { color: PINK }]}>
-                                {isEditingContent ? 'Done' : 'Edit'}
+                            <Text style={s.actionLabel}>
+                                {isRefreshing ? 'Refreshing…' : 'Refresh'}
                             </Text>
                         </TouchableOpacity>
-                    </View>
-
-                    {/* ── Standards ── */}
-                    <View style={s.contentSection}>
-                        <SectionLabel>MY STANDARDS</SectionLabel>
-                        <View style={s.itemsList}>
-                            {standards.map((item, i) => (
-                                <View key={i} style={s.contentItem}>
-                                    <Text style={s.contentItemText}>{item}</Text>
-                                    {isEditingContent && (
-                                        <TouchableOpacity onPress={() => removeStandard(i)} style={s.removeBtn}>
-                                            <Ionicons name="close-outline" size={18} color={SOFT_GRAY} />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            ))}
-                        </View>
-                        {isEditingContent && (
-                            <View>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsRow}>
-                                    {STANDARD_SUGGESTIONS.filter(x => !standards.includes(x)).map((x, i) => (
-                                        <TouchableOpacity key={i} style={s.chip} onPress={() => setStandards([...standards, x])}>
-                                            <Text style={s.chipText}>{x}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                                <View style={s.addRow}>
-                                    <TextInput
-                                        style={s.addInput}
-                                        placeholder="Add a standard…"
-                                        placeholderTextColor={SOFT_GRAY}
-                                        value={newStandard}
-                                        onChangeText={setNewStandard}
-                                    />
-                                    <TouchableOpacity style={s.addBtn} onPress={addStandard}>
-                                        <Ionicons name="add-outline" size={20} color={DARK} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* ── Boundaries ── */}
-                    <View style={s.contentSection}>
-                        <SectionLabel>BOUNDARIES</SectionLabel>
-                        <View style={s.itemsList}>
-                            {boundaries.map((item, i) => (
-                                <View key={i} style={s.contentItem}>
-                                    <Text style={s.contentItemText}>{item}</Text>
-                                    {isEditingContent && (
-                                        <TouchableOpacity onPress={() => removeBoundary(i)} style={s.removeBtn}>
-                                            <Ionicons name="close-outline" size={18} color={SOFT_GRAY} />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            ))}
-                        </View>
-                        {isEditingContent && (
-                            <View>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsRow}>
-                                    {BOUNDARY_SUGGESTIONS.filter(x => !boundaries.includes(x)).map((x, i) => (
-                                        <TouchableOpacity key={i} style={s.chip} onPress={() => setBoundaries([...boundaries, x])}>
-                                            <Text style={s.chipText}>{x}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                                <View style={s.addRow}>
-                                    <TextInput
-                                        style={s.addInput}
-                                        placeholder="Add a boundary…"
-                                        placeholderTextColor={SOFT_GRAY}
-                                        value={newBoundary}
-                                        onChangeText={setNewBoundary}
-                                    />
-                                    <TouchableOpacity style={s.addBtn} onPress={addBoundary}>
-                                        <Ionicons name="add-outline" size={20} color={DARK} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* ── Reflections Log ── */}
-                    <View style={s.contentSection}>
-                        <SectionLabel>REFLECTIONS LOG</SectionLabel>
-                        {isEditingContent && (
-                            <View style={[s.notesBox, { marginBottom: 20 }]}>
-                                <TextInput
-                                    style={s.notesInput}
-                                    placeholder="Log a new reflection…"
-                                    placeholderTextColor={SOFT_GRAY}
-                                    multiline
-                                    value={newLog}
-                                    onChangeText={setNewLog}
-                                />
-                                <TouchableOpacity style={s.saveLogBtn} onPress={addLog}>
-                                    <Ionicons name="arrow-up-circle" size={32} color={DARK} />
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                        <View style={{ gap: 12 }}>
-                            {logs.map((item, i) => (
-                                <View key={i} style={s.logItem}>
-                                    <View style={s.logHeader}>
-                                        <Text style={s.logDate}>
-                                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
-                                        </Text>
-                                        {isEditingContent && (
-                                            <TouchableOpacity onPress={() => removeLog(i)}>
-                                                <Ionicons name="trash-outline" size={14} color={SOFT_GRAY} />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                    <Text style={s.logText}>{item}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* ═══ FOOTER ═══ */}
-                    <View style={s.footer}>
-                        <TouchableOpacity style={s.footerBtn} onPress={() => setIsEditingIdentity(true)}>
-                            <Ionicons name="person-outline" size={16} color={GRAY} />
-                            <Text style={s.footerBtnText}>Edit Identity</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={s.footerBtn} onPress={handleExport}>
-                            <Ionicons name="download-outline" size={16} color={GRAY} />
-                            <Text style={s.footerBtnText}>Export Insights</Text>
+                        <TouchableOpacity style={s.actionBtn} onPress={handleExport}>
+                            <Ionicons name="download-outline" size={13} color={GRAY} />
+                            <Text style={s.actionLabel}>Export</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* ═══ 2. DIAGNOSTIC STATUS BLOCK ═══ */}
+                    <DiagnosticBlock
+                        pull={profile.currentPull}
+                        confidence={profile.trajectory.confidence}
+                    />
+
+                    {/* ═══ 3. TRAIT METERS ═══ */}
+                    <RegulationSection reg={profile.regulationStyle} />
+                    <TendenciesSection tendencies={profile.baseline.tendencies} />
+                    <EmotionalOutcomeSection emo={profile.emotionalOutcome} />
+                    <SelfTrustSection drift={profile.perceptionDrift} />
+                    <BoundaryAlignmentSection ba={profile.boundaryAlignment} />
+
+                    {/* ═══ 4. COLLAPSIBLE INSIGHT RATIONALE ═══ */}
+                    <InsightRationale
+                        effort={profile.effortBalance}
+                        signalStory={profile.signalStory}
+                        trajectory={profile.trajectory}
+                        dynamics={profile.repeatingDynamics}
+                        observedInterpreted={observedInterpreted}
+                    />
+
+                    {/* ═══ 5. YOUR CONTRACT ═══ */}
+                    <ContractSection
+                        standards={standards}
+                        boundaries={boundaries}
+                        newStandard={newStandard}
+                        newBoundary={newBoundary}
+                        onSetNewStandard={setNewStandard}
+                        onSetNewBoundary={setNewBoundary}
+                        onAddStandard={addStandard}
+                        onAddBoundary={addBoundary}
+                        onRemoveStandard={removeStandard}
+                        onRemoveBoundary={removeBoundary}
+                        isEditing={isEditingContent}
+                        onToggleEdit={() => setIsEditingContent(!isEditingContent)}
+                    />
 
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* ═══ Zodiac Picker Modal ═══ */}
+            {/* Zodiac Picker Modal */}
             <Modal
                 visible={showZodiacPicker}
                 transparent
@@ -779,46 +757,6 @@ export default function MeScreen() {
 //  STYLES
 // ═══════════════════════════════════════════════════════════════════
 
-const sub = StyleSheet.create({
-    evidenceBadge: {
-        fontSize: 11,
-        color: SOFT_GRAY,
-        fontFamily: SERIF_ITALIC,
-        marginTop: 8,
-    },
-    sectionLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: GRAY,
-        letterSpacing: 2.5,
-        textTransform: 'uppercase',
-        marginBottom: 12,
-    },
-    dividerWrap: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 28,
-        gap: 12,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: LIGHT_GRAY,
-    },
-    dividerText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: SOFT_GRAY,
-        letterSpacing: 2.5,
-    },
-    barContainer: { marginBottom: 14 },
-    barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-    barLabel: { fontSize: 13, color: MID_DARK, fontFamily: SERIF },
-    barValue: { fontSize: 13, color: GRAY, fontFamily: SERIF },
-    barTrack: { height: 5, backgroundColor: LIGHT_GRAY, borderRadius: 3, overflow: 'hidden' },
-    barFill: { height: 5, borderRadius: 3, backgroundColor: PINK },
-});
-
 const s = StyleSheet.create({
     safe: {
         flex: 1,
@@ -829,69 +767,41 @@ const s = StyleSheet.create({
         paddingBottom: 120,
         paddingHorizontal: 24,
     },
-    section: {
-        marginBottom: 32,
-    },
 
-    // ── Refresh ──
-    refreshBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-end',
-        gap: 6,
-        marginBottom: 24,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: LIGHT_GRAY,
-    },
-    refreshLabel: {
-        fontSize: 11,
-        color: GRAY,
-        fontWeight: '600',
-        letterSpacing: 0.3,
-    },
-
-    // ── Identity Card ──
-    identityCard: {
-        marginTop: 24,
-        backgroundColor: WHITE,
-        borderRadius: 20,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: LIGHT_GRAY,
+    // ── 1. Identity (no card) ──
+    identityBlock: {
+        marginTop: 28,
         marginBottom: 8,
     },
-    identityHeader: {
+    identityRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 16,
+        marginBottom: 18,
     },
-    avatarWrap: {
+    avatarOuter: {
         padding: 3,
-        borderRadius: 28,
+        borderRadius: 40,
         borderWidth: 2,
         borderColor: PINK,
     },
     avatar: {
-        width: 52,
-        height: 52,
-        borderRadius: 24,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         backgroundColor: PINK_TINT,
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarInitial: {
-        fontSize: 22,
+        fontSize: 30,
         fontWeight: '700',
         color: PINK,
         fontFamily: SERIF,
     },
     editBtn: {
-        width: 36,
-        height: 36,
+        width: 34,
+        height: 34,
         borderRadius: 10,
         borderWidth: 1,
         borderColor: LIGHT_GRAY,
@@ -899,31 +809,39 @@ const s = StyleSheet.create({
         alignItems: 'center',
     },
     nameText: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: '500',
         color: DARK,
         fontFamily: SERIF,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     nameInput: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: '500',
         color: MID_DARK,
         fontFamily: SERIF,
-        marginBottom: 4,
+        marginBottom: 2,
         padding: 0,
         borderBottomWidth: 1,
         borderBottomColor: LIGHT_GRAY,
         paddingBottom: 6,
     },
+    archetypeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: PINK,
+        letterSpacing: 2.5,
+        marginBottom: 6,
+        marginTop: 4,
+    },
     zodiacRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginTop: 4,
+        gap: 5,
+        marginTop: 2,
     },
     zodiacText: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '600',
         color: GRAY,
         letterSpacing: 1.5,
@@ -932,248 +850,308 @@ const s = StyleSheet.create({
         fontSize: 14,
         color: MID_DARK,
         fontFamily: SERIF_ITALIC,
-        marginTop: 14,
+        marginTop: 16,
         padding: 14,
         backgroundColor: OFF_WHITE,
         borderRadius: 12,
         minHeight: 60,
         textAlignVertical: 'top',
     },
-    aboutText: {
-        fontSize: 14,
-        color: MID_DARK,
-        fontFamily: SERIF_ITALIC,
-        marginTop: 14,
-        lineHeight: 22,
-    },
-
-    // ── Generic Card ──
-    card: {
-        backgroundColor: OFF_WHITE,
-        borderRadius: 16,
-        padding: 20,
-    },
-    cardBody: {
+    summaryText: {
         fontSize: 15,
         color: MID_DARK,
         fontFamily: SERIF,
         lineHeight: 23,
-    },
-    cardFootnote: {
-        fontSize: 11,
-        color: SOFT_GRAY,
-        fontFamily: SERIF_ITALIC,
-        marginTop: 12,
+        marginTop: 16,
     },
 
-    // ── Current Pull ──
-    pullCard: {
-        backgroundColor: OFF_WHITE,
-        borderRadius: 16,
-        padding: 22,
-        borderLeftWidth: 3,
-        borderLeftColor: PINK,
+    // ── Action row ──
+    actionRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+        marginBottom: 28,
+        marginTop: 8,
     },
-    pullAccent: {
-        width: 24,
-        height: 3,
+    actionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: LIGHT_GRAY,
+    },
+    actionLabel: {
+        fontSize: 11,
+        color: GRAY,
+        fontWeight: '600',
+        letterSpacing: 0.3,
+    },
+
+    // ── 2. Diagnostic Block ──
+    diagnosticBlock: {
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: LIGHT_GRAY,
+        marginBottom: 36,
+    },
+    diagnosticAccent: {
+        width: 3,
         backgroundColor: PINK,
-        borderRadius: 2,
-        marginBottom: 14,
-        opacity: 0.5,
     },
-    pullHeadline: {
-        fontSize: 18,
+    diagnosticContent: {
+        flex: 1,
+        paddingVertical: 20,
+        paddingHorizontal: 18,
+    },
+    diagnosticHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    diagnosticTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: GRAY,
+        letterSpacing: 2.5,
+    },
+    confidenceBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    confidenceDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    confidenceText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: SOFT_GRAY,
+        letterSpacing: 1,
+    },
+    diagnosticHeadline: {
+        fontSize: 19,
         fontWeight: '500',
         color: DARK,
         fontFamily: SERIF,
         lineHeight: 28,
+        marginBottom: 10,
     },
-    pullExplanation: {
-        fontSize: 13,
+    diagnosticBody: {
+        fontSize: 14,
         color: GRAY,
         fontFamily: SERIF,
-        lineHeight: 20,
-        marginTop: 10,
+        lineHeight: 22,
     },
-    pullEvidence: {
+    diagnosticEvidence: {
         fontSize: 10,
         color: SOFT_GRAY,
         marginTop: 12,
         letterSpacing: 0.5,
     },
 
-    // ── Regulation Style ──
-    regHeader: {
+    // ── 3. Trait Meters ──
+    sectionTitle: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: GRAY,
+        letterSpacing: 2.5,
+        marginBottom: 16,
+    },
+    traitSection: {
+        marginBottom: 32,
+    },
+    traitRow: {
+        marginBottom: 16,
+    },
+    traitLabelRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 6,
     },
-    regLabel: {
+    traitLabel: {
+        fontSize: 13,
+        color: MID_DARK,
+        fontFamily: SERIF,
+        flex: 1,
+    },
+    traitValue: {
+        fontSize: 13,
+        color: GRAY,
+        fontFamily: SERIF,
+        marginLeft: 8,
+    },
+    traitTrack: {
+        height: 4,
+        backgroundColor: LIGHT_GRAY,
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    traitFill: {
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: PINK,
+    },
+    traitExplanation: {
+        fontSize: 12,
+        color: SOFT_GRAY,
+        fontFamily: SERIF_ITALIC,
+        marginTop: 5,
+        lineHeight: 18,
+    },
+    traitFootnote: {
+        fontSize: 13,
+        color: GRAY,
+        fontFamily: SERIF_ITALIC,
+        marginTop: 8,
+        lineHeight: 20,
+    },
+    traitEvidence: {
+        fontSize: 11,
+        color: SOFT_GRAY,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    regLabelRow: {
+        marginBottom: 12,
+    },
+    regPrimary: {
         fontSize: 11,
         fontWeight: '700',
         color: PINK,
         letterSpacing: 2,
     },
-    regScore: {
-        fontSize: 13,
-        color: GRAY,
-        fontFamily: SERIF,
+
+    // ── 4. Collapsible Rationale ──
+    rationaleWrap: {
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: LIGHT_GRAY,
+        marginBottom: 36,
     },
-    regDesc: {
+    rationaleHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 18,
+    },
+    rationaleTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: GRAY,
+        letterSpacing: 2,
+    },
+    rationaleBody: {
+        paddingBottom: 8,
+    },
+    rationaleSubsection: {
+        paddingBottom: 20,
+        marginBottom: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: LIGHT_GRAY,
+    },
+    rationaleSubTitle: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: SOFT_GRAY,
+        letterSpacing: 2,
+        marginBottom: 14,
+    },
+    rationaleNote: {
         fontSize: 14,
         color: MID_DARK,
         fontFamily: SERIF,
         lineHeight: 22,
-        marginTop: 12,
     },
-
-    // ── Tendencies ──
-    tendencyRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 14,
-    },
-    tendencyBullet: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: PINK,
-        marginTop: 8,
-        marginRight: 12,
-    },
-    tendencyText: {
-        fontSize: 15,
-        color: MID_DARK,
-        fontFamily: SERIF,
-        lineHeight: 22,
-    },
-    tendencyMeta: {
+    rationaleEvidence: {
         fontSize: 11,
         color: SOFT_GRAY,
-        marginTop: 2,
+        marginTop: 8,
     },
 
-    // ── Reciprocity ──
-    recipRow: {
+    // Effort balance inside rationale
+    effortRow: {
         flexDirection: 'row',
+        marginBottom: 14,
     },
-    recipCol: {
+    effortCol: {
         flex: 1,
         alignItems: 'center',
-        gap: 4,
+        gap: 3,
     },
-    recipDivider: {
-        width: 1,
-        backgroundColor: LIGHT_GRAY,
-        marginHorizontal: 16,
-    },
-    recipColTitle: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: GRAY,
-        letterSpacing: 2,
-        marginBottom: 8,
-    },
-    recipPct: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: DARK,
-        fontFamily: SERIF,
-    },
-    recipLabel: {
-        fontSize: 11,
-        color: GRAY,
-        marginBottom: 8,
-    },
-
-    // ── Observed vs Interpreted ──
-    oviRow: {
-        flexDirection: 'row',
-    },
-    oviCol: {
-        flex: 1,
-    },
-    oviDivider: {
+    effortDivider: {
         width: 1,
         backgroundColor: LIGHT_GRAY,
         marginHorizontal: 14,
     },
-    oviColTitle: {
+    effortWho: {
         fontSize: 9,
         fontWeight: '700',
         color: GRAY,
-        letterSpacing: 1.5,
-        marginBottom: 10,
+        letterSpacing: 2,
+        marginBottom: 6,
     },
-    oviItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 8,
-    },
-    oviBullet: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: GRAY,
-        marginTop: 6,
-        marginRight: 8,
-    },
-    oviText: {
-        fontSize: 12,
-        color: MID_DARK,
+    effortPct: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: DARK,
         fontFamily: SERIF,
-        lineHeight: 18,
-        flex: 1,
+    },
+    effortLabel: {
+        fontSize: 11,
+        color: GRAY,
+        marginBottom: 4,
     },
 
-    // ── Signal vs Story ──
+    // Signal vs Story
     svsBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 14,
+        marginBottom: 12,
         gap: 8,
     },
     svsLabel: {
-        fontSize: 10,
+        fontSize: 9,
         color: GRAY,
         fontWeight: '600',
         letterSpacing: 0.3,
     },
     svsTrack: {
         flex: 1,
-        height: 8,
+        height: 6,
         backgroundColor: LIGHT_GRAY,
-        borderRadius: 4,
-        overflow: 'visible',
-        position: 'relative',
+        borderRadius: 3,
+        overflow: 'hidden',
     },
     svsFill: {
-        height: 8,
+        height: 6,
         backgroundColor: PINK,
-        borderRadius: 4,
+        borderRadius: 3,
         opacity: 0.6,
     },
-    svsMarker: {
-        position: 'absolute',
-        top: -4,
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: PINK,
-        marginLeft: -8,
-        borderWidth: 3,
-        borderColor: WHITE,
-    },
 
-    // ── Pattern Loop ──
-    patternAffected: {
-        fontSize: 11,
-        color: GRAY,
-        marginTop: 6,
-        marginBottom: 12,
-    },
+    // Observed vs Interpreted
+    oviRow: { flexDirection: 'row' },
+    oviCol: { flex: 1 },
+    oviDivider: { width: 1, backgroundColor: LIGHT_GRAY, marginHorizontal: 12 },
+    oviColTitle: { fontSize: 8, fontWeight: '700', color: GRAY, letterSpacing: 1.5, marginBottom: 10 },
+    oviItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+    oviBullet: { width: 4, height: 4, borderRadius: 2, backgroundColor: GRAY, marginTop: 5, marginRight: 7 },
+    oviText: { fontSize: 12, color: MID_DARK, fontFamily: SERIF, lineHeight: 17, flex: 1 },
+
+    // Trajectory
+    trajRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+    trajBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    trajBadgeText: { fontSize: 9, fontWeight: '700', color: WHITE, letterSpacing: 1.5 },
+    trajConf: { fontSize: 11, color: SOFT_GRAY },
+
+    // Pattern chain
     patternChain: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1183,157 +1161,96 @@ const s = StyleSheet.create({
     },
     patternStep: {
         backgroundColor: PINK_TINT,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 14,
     },
     patternStepLabel: {
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
         color: GRAY,
         letterSpacing: 1,
-        marginBottom: 2,
+        marginBottom: 1,
     },
     patternStepValue: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '600',
         color: PINK,
     },
 
-    // ── Trajectory ──
-    trajRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-        gap: 10,
+    // ── 5. Contract Surface ──
+    contractSurface: {
+        backgroundColor: CONTRACT_BG,
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: CONTRACT_BORDER,
+        marginBottom: 40,
     },
-    trajBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    trajBadgeText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: WHITE,
-        letterSpacing: 1.5,
-    },
-    trajConf: {
-        fontSize: 11,
-        color: SOFT_GRAY,
-    },
-
-    // ── Self-Trust ──
-    trustRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    trustCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        borderWidth: 3,
-        borderColor: PINK,
-        backgroundColor: PINK_TINT,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    trustScore: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: PINK,
-        fontFamily: SERIF,
-    },
-    trustMeta: {
-        flex: 1,
-    },
-    trustLabel: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: DARK,
-        marginBottom: 4,
-    },
-    trustDesc: {
-        fontSize: 13,
-        color: MID_DARK,
-        fontFamily: SERIF,
-        lineHeight: 20,
-    },
-
-    // ── Timeline ──
-    timelineItem: {
-        backgroundColor: OFF_WHITE,
-        borderRadius: 12,
-        padding: 16,
-        borderLeftWidth: 3,
-        borderLeftColor: PINK,
-    },
-    timelineHeader: {
+    contractHeaderRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 6,
+        alignItems: 'flex-start',
+        marginBottom: 28,
     },
-    timelineDate: {
+    contractTitle: {
         fontSize: 10,
-        fontWeight: '700',
+        fontWeight: '800',
+        color: DARK,
+        letterSpacing: 2.5,
+        marginBottom: 4,
+    },
+    contractSubtitle: {
+        fontSize: 12,
         color: GRAY,
-        letterSpacing: 1.5,
+        fontFamily: SERIF_ITALIC,
     },
-    timelineSource: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: SOFT_GRAY,
-        letterSpacing: 1,
-    },
-    timelineText: {
-        fontSize: 13,
-        lineHeight: 20,
-        color: MID_DARK,
-        fontFamily: SERIF,
-    },
-
-    // ── Content Editing ──
-    contentEditRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginBottom: 20,
-    },
-    contentEditBtn: {
+    contractEditBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 10,
+        gap: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: LIGHT_GRAY,
+        borderColor: CONTRACT_BORDER,
+        backgroundColor: WHITE,
     },
-    contentEditLabel: {
-        fontSize: 12,
+    contractEditLabel: {
+        fontSize: 11,
         fontWeight: '600',
         color: GRAY,
         letterSpacing: 0.5,
     },
-    contentSection: {
-        marginBottom: 36,
+    contractGroup: {
+        marginBottom: 28,
     },
-    itemsList: {
-        gap: 4,
+    contractGroupLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: GRAY,
+        letterSpacing: 2,
+        marginBottom: 14,
     },
-    contentItem: {
+    contractItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 14,
+        paddingVertical: 11,
         borderBottomWidth: 1,
-        borderBottomColor: LIGHT_GRAY,
+        borderBottomColor: CONTRACT_BORDER,
     },
-    contentItemText: {
+    contractItemBullet: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: DARK,
+        marginRight: 12,
+    },
+    contractItemText: {
         fontSize: 15,
         color: MID_DARK,
         fontFamily: SERIF,
+        flex: 1,
     },
     removeBtn: {
         padding: 4,
@@ -1342,114 +1259,43 @@ const s = StyleSheet.create({
         marginTop: 12,
         marginBottom: 8,
     },
-    chip: {
-        backgroundColor: PINK_TINT,
+    contractChip: {
+        backgroundColor: WHITE,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
         marginRight: 8,
         borderWidth: 1,
-        borderColor: PINK_BORDER,
+        borderColor: CONTRACT_BORDER,
     },
-    chipText: {
+    contractChipText: {
         fontSize: 12,
-        color: PINK,
+        color: MID_DARK,
         fontFamily: SERIF,
     },
     addRow: {
         flexDirection: 'row',
         alignItems: 'center',
         marginTop: 8,
-        gap: 12,
+        gap: 10,
     },
     addInput: {
         flex: 1,
-        fontSize: 15,
+        fontSize: 14,
         color: MID_DARK,
         fontFamily: SERIF_ITALIC,
-        paddingVertical: 12,
+        paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: LIGHT_GRAY,
+        borderBottomColor: CONTRACT_BORDER,
     },
     addBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         borderWidth: 1,
         borderColor: DARK,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    notesBox: {
-        backgroundColor: OFF_WHITE,
-        borderRadius: 12,
-        padding: 18,
-        minHeight: 100,
-        position: 'relative',
-    },
-    notesInput: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: MID_DARK,
-        fontFamily: SERIF,
-        textAlignVertical: 'top',
-        minHeight: 60,
-        paddingBottom: 36,
-    },
-    saveLogBtn: {
-        position: 'absolute',
-        bottom: 14,
-        right: 14,
-    },
-    logItem: {
-        backgroundColor: OFF_WHITE,
-        borderRadius: 12,
-        padding: 16,
-        borderLeftWidth: 3,
-        borderLeftColor: PINK,
-    },
-    logHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    logDate: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: GRAY,
-        letterSpacing: 1.5,
-    },
-    logText: {
-        fontSize: 14,
-        lineHeight: 22,
-        color: MID_DARK,
-        fontFamily: SERIF,
-    },
-
-    // ── Footer ──
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 20,
-        paddingVertical: 24,
-        marginTop: 8,
-    },
-    footerBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: LIGHT_GRAY,
-    },
-    footerBtnText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: GRAY,
-        letterSpacing: 0.5,
     },
 
     // ── Zodiac Modal ──

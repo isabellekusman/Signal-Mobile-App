@@ -1324,7 +1324,8 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
     }, []);
 
     const handleNext = () => {
-        if (!answers[currentQuestion.id]?.trim()) return;
+        // Allow proceeding without an answer on the "anythingElse" step
+        if (!answers[currentQuestion.id]?.trim() && currentQuestion.id !== 'anythingElse') return;
 
         Keyboard.dismiss();
 
@@ -1425,16 +1426,30 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
                         )}
                     </View>
 
-                    <View style={{ marginTop: verticalScale(40), marginBottom: verticalScale(40) }}>
+                    <View style={{ marginTop: verticalScale(40), marginBottom: verticalScale(40), gap: 12 }}>
                         <TouchableOpacity
-                            style={[styles.onboardingNextButton, (!answers[currentQuestion.id]?.trim() || isSubmitting) && { opacity: 0.5 }]}
+                            style={[styles.onboardingNextButton, (!answers[currentQuestion.id]?.trim() || isSubmitting) && currentQuestion.id !== 'anythingElse' && { opacity: 0.5 }]}
                             onPress={handleNext}
-                            disabled={!answers[currentQuestion.id]?.trim() || isSubmitting}
+                            disabled={(!answers[currentQuestion.id]?.trim() && currentQuestion.id !== 'anythingElse') || isSubmitting}
                         >
                             <Text style={styles.onboardingNextButtonText}>
                                 {isSubmitting ? 'PROCESSING...' : (step < questions.length - 1 ? 'CONTINUE' : 'FINISH PROFILE')}
                             </Text>
                         </TouchableOpacity>
+
+                        {currentQuestion.id === 'anythingElse' && !answers[currentQuestion.id]?.trim() && (
+                            <TouchableOpacity
+                                style={styles.noImGoodButton}
+                                onPress={() => {
+                                    setAnswers(prev => ({ ...prev, anythingElse: ' ' }));
+                                    setIsSubmitting(true);
+                                    setTimeout(() => onComplete({ ...answers, anythingElse: '' }), 600);
+                                }}
+                                disabled={isSubmitting}
+                            >
+                                <Text style={styles.noImGoodText}>NO, I'M GOOD</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </ScrollView>
@@ -3015,6 +3030,20 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
+    },
+    noImGoodButton: {
+        paddingVertical: verticalScale(16),
+        borderRadius: scale(32),
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E5EA',
+        backgroundColor: 'transparent',
+    },
+    noImGoodText: {
+        color: '#8E8E93',
+        fontSize: fs(12),
+        fontWeight: '600',
+        letterSpacing: 1.5,
     },
     optionsGrid: {
         marginTop: verticalScale(20),
