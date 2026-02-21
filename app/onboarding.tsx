@@ -377,7 +377,7 @@ export default function OnboardingScreen() {
 
     const handleSkip = () => {
         completeOnboarding();
-        router.replace('/(tabs)/connections');
+        router.replace('/(tabs)');
     };
 
     const handleFinish = () => {
@@ -391,7 +391,7 @@ export default function OnboardingScreen() {
             dealbreakers,
             loveLanguage,
         });
-        router.replace('/(tabs)/connections');
+        router.replace('/(tabs)');
     };
 
     const renderStep = () => {
