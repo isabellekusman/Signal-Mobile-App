@@ -2070,7 +2070,7 @@ const profileStyles = StyleSheet.create({
 
 
 export default function ConnectionDetailScreen() {
-    const { id } = useLocalSearchParams();
+    const { id: paramId, tab: paramTab, name: paramName, tag: paramTag, zodiac: paramZodiac, icon: paramIcon } = useLocalSearchParams();
     const router = useRouter();
     const { connections, updateConnection, deleteConnection, setShowPaywall } = useConnections();
 
@@ -2089,20 +2089,20 @@ export default function ConnectionDetailScreen() {
         }
     };
 
-    const initialMapping = mapParamToSection(String(params.tab || 'OVERVIEW'));
+    const initialMapping = mapParamToSection(String(paramTab || 'OVERVIEW'));
     const [activeSection, setActiveSection] = useState<HubSection>(initialMapping.section);
     const [activeTool, setActiveTool] = useState<UnderstandTool>(initialMapping.tool);
 
     // Find the connection in context
-    const connection = connections.find(c => c.id === params.id);
+    const connection = connections.find(c => c.id === paramId);
 
     // Fallback or Loading state could be better, but using params as initial data
-    const name = String(connection?.name || params.name || 'sam');
-    const tag = String(connection?.tag || params.tag || 'SITUATIONSHIP');
-    const zodiac = String(connection?.zodiac || params.zodiac || 'LIBRA');
-    const icon = connection?.icon || params.icon || 'leaf-outline';
+    const name = String(connection?.name || paramName || 'sam');
+    const tag = String(connection?.tag || paramTag || 'SITUATIONSHIP');
+    const zodiac = String(connection?.zodiac || paramZodiac || 'LIBRA');
+    const icon = connection?.icon || paramIcon || 'leaf-outline';
     const status = connection?.status || 'active';
-    const connectionId = String(params.id);
+    const connectionId = String(paramId);
 
     const handleEdit = () => {
         if (connection) {

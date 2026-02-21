@@ -172,27 +172,23 @@ async function getDailyUsageCount(feature?: string): Promise<number> {
 // ─── Account Operations ─────────────────────────────────────
 
 async function deleteAccount(): Promise<boolean> {
-    // This deletes user profile and connections (CASCADE from auth.users)
-    // Actual user deletion requires a Supabase Edge Function with service role
-    // For now, we delete the data we can access
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { error: connError } = await supabase
-        .from('connections')
-        .delete()
-        .eq('user_id', user.id);
-
-    const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
-
-    if (connError || profileError) {
-        console.error('db.deleteAccount errors:', { connError, profileError });
+    try {
+        const { error } = await supabase.functions.invoke('delete-account');
+        if (error) {
+            console.error('db.deleteAccount function error:', error);
+            // Fallback to manual delete of what we can if function is not deployed
+            const { error: connError } = await supabase.from('connections').delete().eq('user_id', user.id);
+            const { error: profileError } = await supabase.from('profiles').delete().eq('id', user.id);
+            return !connError && !profileError;
+        }
+        return true;
+    } catch (err) {
+        console.error('db.deleteAccount catch:', err);
         return false;
     }
-    return true;
 }
 
 // ─── Export All ──────────────────────────────────────────────

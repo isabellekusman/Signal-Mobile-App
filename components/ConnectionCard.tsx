@@ -90,7 +90,12 @@ export default function ConnectionCard({
                 <View style={styles.infoContainer}>
                     <Text style={[styles.nameText, isDark && styles.textDark]} numberOfLines={1}>{name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                        <Text style={styles.statusText}>{lastActive}</Text>
+                        <Text style={styles.statusText}>{(() => {
+                            if (!lastActive) return '';
+                            const d = new Date(lastActive);
+                            if (isNaN(d.getTime())) return lastActive;
+                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        })()}</Text>
                     </View>
                 </View>
             </View>

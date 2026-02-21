@@ -35,21 +35,21 @@
   - JWT validation
   - Per-user, per-feature rate limiting
   - System prompts stored server-side (not exposed to client)
-  - Gemini API key accessed from server env only
-  - Usage logging
-  - Content safety filters
-- ✅ Excluded Edge Functions from Expo TypeScript config
-
 ### Database Service Layer
 - ✅ Created `services/database.ts` with typed CRUD operations
 - ✅ Profile, connection, usage, and account deletion operations
-- ✅ Ready for future migration from AsyncStorage → Supabase
+- ✅ Account deletion now calls the secure Edge Function
+
+### H-2 + H-6: Server-Side Security & Compliance
+- ✅ Created `supabase/functions/delete-account/index.ts` — handles permanent auth + data deletion
+- ✅ Created `supabase/functions/ai-proxy/index.ts` — handles AI requests with server-side prompts
+- ✅ Deleted `services/prompts.ts` — prompts are no longer exposed in the client bundle
 
 ---
 
 ## 🔲 TODO — Requires Your Action
 
-### 1. Set Up Supabase Project
+### 1. Set Up Supabase Project (Crucial)
 If you haven't already:
 1. Go to [supabase.com](https://supabase.com) → Create a project
 2. Go to **Settings → API** and copy:
@@ -57,7 +57,8 @@ If you haven't already:
    - Anon key → put in `.env` as `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 3. Go to **SQL Editor** → paste and run `supabase/migrations/001_initial_schema.sql`
 
-### 2. Deploy AI Proxy Edge Function
+### 2. Deploy Edge Functions
+You MUST deploy these for AI and account deletion to work in production:
 ```bash
 # Install Supabase CLI if not done
 npm install -g supabase
@@ -71,32 +72,27 @@ supabase link --project-ref YOUR_PROJECT_REF
 # Set the Gemini API key as a server secret
 supabase secrets set GEMINI_API_KEY=your-key-here
 
-# Deploy the function
+# Deploy both functions
 supabase functions deploy ai-proxy
+supabase functions deploy delete-account
 ```
 
-### 3. Rotate Exposed Gemini API Key
-Your current key (`AIzaSyCJP4...`) was committed in client code.
-1. Go to Google Cloud Console → API Keys
-2. Rotate/regenerate the key
-3. Update the new key in Supabase secrets (step 2 above)
-4. Once the AI proxy is deployed, remove `EXPO_PUBLIC_GEMINI_API_KEY` from `.env`
+### 3. Rotate and Secure Gemini API Key
+1. Go to Google Cloud Console → API Keys → Rotate/regenerate your key.
+2. Once the `ai-proxy` is deployed, **PERMANENTLY REMOVE** `EXPO_PUBLIC_GEMINI_API_KEY` from your `.env` file.
+   - *Note: This ensures the key is never bundled into your app again.*
 
 ### 4. Enable Auth Providers (Optional)
 In Supabase Dashboard → Authentication → Providers:
 - Enable **Email** (already works)
 - Optionally enable **Google** and **Apple** sign-in
 
-### 5. Subscription System (B-6)
-Still needed before monetization:
-- Integrate RevenueCat for App Store subscriptions
-- Create paywall component
-- Gate AI features behind premium check
+### 5. Real Subscription Integration (B-6)
+- [ ] Sign up for [RevenueCat](https://www.revenuecat.com/)
+- [ ] Install `react-native-purchases`
+- [ ] Replace the mock logic in `app/_layout.tsx` with real RevenueCat calls.
 
-### 6. Migrate aiService.ts to Use Edge Function
-Once the Edge Function is deployed, update `services/aiService.ts` to call through Supabase:
-```typescript
-const { data } = await supabase.functions.invoke('ai-proxy', {
-  body: { feature: 'clarity', prompt: userInput, context: connectionContext }
-});
-```
+### 6. Final Polish
+- [ ] Add a "Tap to Retry" button for failed AI requests (Offline Handling)
+- [ ] Set up Sentry for error tracking
+- [ ] Set up Privacy Policy and TOS links in Settings

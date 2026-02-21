@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useConnections } from '../../context/ConnectionsContext';
+import { db } from '../../services/database';
 
 const STANDARD_SUGGESTIONS = [
     'Growth mindset', 'Transpancy', 'Mutual respect',
@@ -313,9 +314,13 @@ export default function SettingsScreen() {
                                         { text: 'Cancel', style: 'cancel' },
                                         {
                                             text: 'Delete Account', style: 'destructive', onPress: async () => {
-                                                // TODO: Call Supabase Edge Function to delete server-side data
-                                                await AsyncStorage.clear();
-                                                await signOut();
+                                                const success = await db.deleteAccount();
+                                                if (success) {
+                                                    await AsyncStorage.clear();
+                                                    await signOut();
+                                                } else {
+                                                    Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
+                                                }
                                             }
                                         },
                                     ]

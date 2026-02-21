@@ -70,43 +70,51 @@ export default function LoginScreen() {
                 );
 
                 if (result.type === 'success' && result.url) {
-                    // Extract tokens from the callback URL
-                    // Supabase may return tokens in hash fragment (#) or query params (?)
                     const callbackUrl = result.url;
+                    console.log('[Auth] Callback URL received:', callbackUrl);
+
                     let accessToken: string | null = null;
                     let refreshToken: string | null = null;
+                    let oauthError: string | null = null;
 
-                    // Try hash fragment first (most common for Supabase OAuth)
-                    if (callbackUrl.includes('#')) {
-                        const hashPart = callbackUrl.split('#')[1];
-                        const hashParams = new URLSearchParams(hashPart);
-                        accessToken = hashParams.get('access_token');
-                        refreshToken = hashParams.get('refresh_token');
-                    }
+                    // Manual parsing to be more robust across different environments
+                    const paramsPart = callbackUrl.includes('#')
+                        ? callbackUrl.split('#')[1]
+                        : callbackUrl.includes('?')
+                            ? callbackUrl.split('?')[1]
+                            : '';
 
-                    // Fallback to query params
-                    if (!accessToken && callbackUrl.includes('?')) {
-                        const queryPart = callbackUrl.split('?')[1]?.split('#')[0];
-                        if (queryPart) {
-                            const queryParams = new URLSearchParams(queryPart);
-                            accessToken = queryParams.get('access_token');
-                            refreshToken = queryParams.get('refresh_token');
+                    if (paramsPart) {
+                        const pairs = paramsPart.split('&');
+                        for (const pair of pairs) {
+                            const [key, value] = pair.split('=');
+                            if (key === 'access_token') accessToken = value;
+                            if (key === 'refresh_token') refreshToken = value;
+                            if (key === 'error_description') oauthError = decodeURIComponent(value.replace(/\+/g, ' '));
+                            if (key === 'error' && !oauthError) oauthError = value;
                         }
                     }
 
                     if (accessToken && refreshToken) {
-                        await supabase.auth.setSession({
+                        const { error: sessionError } = await supabase.auth.setSession({
                             access_token: accessToken,
                             refresh_token: refreshToken,
                         });
-                        // AuthContext will pick up the session change and navigate automatically
+
+                        if (sessionError) {
+                            console.error('[Auth] setSession error:', sessionError);
+                            setError(`Session error: ${sessionError.message}`);
+                        }
+                    } else if (oauthError) {
+                        setError(`Google Sign-in: ${oauthError}`);
                     } else {
                         console.warn('[Auth] No tokens found in callback URL:', callbackUrl);
-                        setError('Sign-in completed but no session was returned. Please try again.');
+                        setError('Sign-in completed but no session was returned. Please check your Supabase configuration.');
                     }
                 } else if (result.type === 'cancel' || result.type === 'dismiss') {
-                    // User closed the browser — not an error
                     console.log('[Auth] User cancelled Google sign-in');
+                } else if (result.type === 'error') {
+                    setError('The login browser failed to open. Please try again.');
                 }
             }
         } catch (err) {
