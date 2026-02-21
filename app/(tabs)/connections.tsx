@@ -1,33 +1,18 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ConnectionCard from '../../components/ConnectionCard';
 import { Connection, useConnections } from '../../context/ConnectionsContext';
 import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
 
 export default function ConnectionsScreen() {
     const router = useRouter();
-    const { connections, addConnection, deleteConnection, updateConnection, theme, setTheme, showAddPulse, setShowAddPulse } = useConnections();
+    const { connections, addConnection, deleteConnection, updateConnection, theme, setTheme } = useConnections();
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
 
-    // Pulse animation for Add Connection button
-    const pulseAnim = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-        if (showAddPulse) {
-            const pulse = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseAnim, { toValue: 1.06, duration: 800, useNativeDriver: true }),
-                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-                ])
-            );
-            pulse.start();
-            return () => pulse.stop();
-        }
-    }, [showAddPulse]);
 
     // Sync global theme with tab selection
     React.useEffect(() => {
@@ -160,18 +145,13 @@ export default function ConnectionsScreen() {
 
                 {/* Add Connection Button */}
                 {activeTab === 'active' && (
-                    <Animated.View style={showAddPulse ? { transform: [{ scale: pulseAnim }] } : undefined}>
-                        <TouchableOpacity
-                            style={[styles.addButton, isDark && styles.addButtonDark]}
-                            activeOpacity={0.8}
-                            onPress={() => {
-                                if (showAddPulse) setShowAddPulse(false);
-                                router.push('/add-connection');
-                            }}
-                        >
-                            <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
+                    <TouchableOpacity
+                        style={[styles.addButton, isDark && styles.addButtonDark]}
+                        activeOpacity={0.8}
+                        onPress={() => router.push('/add-connection')}
+                    >
+                        <Text style={[styles.addButtonText, isDark && styles.addButtonTextDark]}>ADD CONNECTION</Text>
+                    </TouchableOpacity>
                 )}
 
                 <View style={{ height: 40 }} />

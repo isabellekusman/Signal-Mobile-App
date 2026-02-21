@@ -22,7 +22,7 @@ export default function ReflectScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                <View style={styles.container}>
 
                     {/* Page Header */}
                     <View style={styles.header}>
@@ -88,7 +88,7 @@ export default function ReflectScreen() {
                         </View>
                     </View>
 
-                </ScrollView>
+                </View>
             </KeyboardAvoidingView>
 
             {/* Connection Picker Modal */}

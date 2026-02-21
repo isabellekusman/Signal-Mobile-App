@@ -1,7 +1,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
+import { useConnections } from '../../context/ConnectionsContext';
 
 const STANDARD_SUGGESTIONS = [
     'Growth mindset', 'Transpancy', 'Mutual respect',
@@ -14,13 +17,15 @@ const BOUNDARY_SUGGESTIONS = [
 ];
 
 export default function SettingsScreen() {
-    const [standards, setStandards] = useState(['Growth mindset', 'Shared ambition']);
+    const { userProfile } = useConnections();
+    const { signOut, user } = useAuth();
+    const [standards, setStandards] = useState(userProfile.standards);
     const [newStandard, setNewStandard] = useState('');
-    const [name, setName] = useState('izzy');
-    const [zodiac, setZodiac] = useState('CAPRICORN');
-    const [boundaries, setBoundaries] = useState<string[]>(['No phone after 11 PM', 'Direct communication only']);
+    const [name, setName] = useState(userProfile.name || '');
+    const [zodiac, setZodiac] = useState(userProfile.zodiac || '');
+    const [boundaries, setBoundaries] = useState<string[]>(userProfile.boundaries);
     const [newBoundary, setNewBoundary] = useState('');
-    const [logs, setLogs] = useState<string[]>(['Reflecting on intentionality and personal space this month.']);
+    const [logs, setLogs] = useState<string[]>([]);
     const [newLog, setNewLog] = useState('');
     const [isEditing, setIsEditing] = useState(false);
 
@@ -268,6 +273,60 @@ export default function SettingsScreen() {
                         <Text style={styles.backupText}>DATA & BACKUP</Text>
                     </TouchableOpacity>
 
+                    {/* Account Actions */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>ACCOUNT</Text>
+
+                        {user?.email && (
+                            <Text style={styles.accountEmail}>{user.email}</Text>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.signOutButton}
+                            onPress={() => {
+                                Alert.alert(
+                                    'Sign Out',
+                                    'Are you sure you want to sign out?',
+                                    [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        {
+                                            text: 'Sign Out', style: 'destructive', onPress: async () => {
+                                                await AsyncStorage.clear();
+                                                await signOut();
+                                            }
+                                        },
+                                    ]
+                                );
+                            }}
+                        >
+                            <Ionicons name="log-out-outline" size={18} color="#8E8E93" />
+                            <Text style={styles.signOutButtonText}>SIGN OUT</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.deleteAccountButton}
+                            onPress={() => {
+                                Alert.alert(
+                                    'Delete Account',
+                                    'This will permanently delete your account and all data. This cannot be undone.',
+                                    [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        {
+                                            text: 'Delete Account', style: 'destructive', onPress: async () => {
+                                                // TODO: Call Supabase Edge Function to delete server-side data
+                                                await AsyncStorage.clear();
+                                                await signOut();
+                                            }
+                                        },
+                                    ]
+                                );
+                            }}
+                        >
+                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            <Text style={styles.deleteAccountButtonText}>DELETE ACCOUNT</Text>
+                        </TouchableOpacity>
+                    </View>
+
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -447,11 +506,52 @@ const styles = StyleSheet.create({
         paddingVertical: 32,
     },
     backupText: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: '#94A3B8',
-        letterSpacing: 2,
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#1C1C1E',
+        letterSpacing: 1,
         textTransform: 'uppercase',
+    },
+    accountEmail: {
+        fontSize: 13,
+        color: '#8E8E93',
+        marginBottom: 20,
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    signOutButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#F9FAFB',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 12,
+    },
+    signOutButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1,
+    },
+    deleteAccountButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#FEF2F2',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+    },
+    deleteAccountButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#EF4444',
+        letterSpacing: 1,
     },
     // Suggestions
     suggestionsRow: {

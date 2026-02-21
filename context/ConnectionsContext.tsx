@@ -1,6 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useAuth } from './AuthContext';
 
 export interface Signal {
     type: 'RED' | 'GREEN' | 'YELLOW';
@@ -90,68 +91,121 @@ interface ConnectionsContextType {
     setUserProfile: (profile: UserProfile) => void;
     hasCompletedOnboarding: boolean | null; // null = loading
     completeOnboarding: (profile?: UserProfile) => void;
-    showAddPulse: boolean;
-    setShowAddPulse: (v: boolean) => void;
+
 }
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
-const ONBOARDING_KEY = '@signal_onboarding_complete';
-const PROFILE_KEY = '@signal_user_profile';
+const ONBOARDING_KEY_PREFIX = '@signal_onboarding_complete_';
+const PROFILE_KEY_PREFIX = '@signal_user_profile_';
+const CONNECTIONS_KEY_PREFIX = '@signal_connections_';
 
 export function ConnectionsProvider({ children }: { children: ReactNode }) {
+    const { user, isLoading: authLoading } = useAuth();
     const [connections, setConnections] = useState<Connection[]>(INITIAL_CONNECTIONS);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [userProfile, setUserProfileState] = useState<UserProfile>(DEFAULT_PROFILE);
     const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
-    const [showAddPulse, setShowAddPulse] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    // DEV MODE: Always show onboarding on reload.
-    // To restore persistence, uncomment the AsyncStorage block below and remove the line after it.
+    const currentUserId = user?.id ?? null;
+
+    // Get user-specific storage keys
+    const getKeys = (uid: string | null) => ({
+        onboarding: uid ? `${ONBOARDING_KEY_PREFIX}${uid}` : null,
+        profile: uid ? `${PROFILE_KEY_PREFIX}${uid}` : null,
+        connections: uid ? `${CONNECTIONS_KEY_PREFIX}${uid}` : null,
+    });
+
+    // Load persisted data from AsyncStorage when user changes
     useEffect(() => {
-        // (async () => {
-        //     try {
-        //         const [onboardingDone, savedProfile] = await Promise.all([
-        //             AsyncStorage.getItem(ONBOARDING_KEY),
-        //             AsyncStorage.getItem(PROFILE_KEY),
-        //         ]);
-        //         setHasCompletedOnboarding(onboardingDone === 'true');
-        //         if (savedProfile) {
-        //             setUserProfileState(JSON.parse(savedProfile));
-        //         }
-        //     } catch {
-        //         setHasCompletedOnboarding(false);
-        //     }
-        // })();
-        setHasCompletedOnboarding(false); // ← Always show onboarding
-    }, []);
+        // If auth is still loading, wait
+        if (authLoading) return;
+
+        // If no user is logged in, set defaults and stop loading
+        if (!currentUserId) {
+            setHasCompletedOnboarding(false);
+            setIsLoaded(true);
+            return;
+        }
+
+        const keys = getKeys(currentUserId);
+
+        (async () => {
+            try {
+                const [onboardingDone, savedProfile, savedConnections] = await Promise.all([
+                    AsyncStorage.getItem(keys.onboarding!),
+                    AsyncStorage.getItem(keys.profile!),
+                    AsyncStorage.getItem(keys.connections!),
+                ]);
+                setHasCompletedOnboarding(onboardingDone === 'true');
+                if (savedProfile) {
+                    setUserProfileState(JSON.parse(savedProfile));
+                } else {
+                    setUserProfileState(DEFAULT_PROFILE);
+                }
+                if (savedConnections) {
+                    setConnections(JSON.parse(savedConnections));
+                } else {
+                    setConnections(INITIAL_CONNECTIONS);
+                }
+            } catch {
+                setHasCompletedOnboarding(false);
+            } finally {
+                setIsLoaded(true);
+            }
+        })();
+    }, [currentUserId, authLoading]);
+
+    // Helper to persist connections to AsyncStorage
+    const persistConnections = (updated: Connection[]) => {
+        const keys = getKeys(currentUserId);
+        if (keys.connections) {
+            AsyncStorage.setItem(keys.connections, JSON.stringify(updated)).catch(() => { });
+        }
+    };
 
     const setUserProfile = (profile: UserProfile) => {
         setUserProfileState(profile);
-        AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile)).catch(() => { });
+        const keys = getKeys(currentUserId);
+        if (keys.profile) {
+            AsyncStorage.setItem(keys.profile, JSON.stringify(profile)).catch(() => { });
+        }
     };
 
     const completeOnboarding = (profile?: UserProfile) => {
         setHasCompletedOnboarding(true);
-        AsyncStorage.setItem(ONBOARDING_KEY, 'true').catch(() => { });
+        const keys = getKeys(currentUserId);
+        if (keys.onboarding) {
+            AsyncStorage.setItem(keys.onboarding, 'true').catch(() => { });
+        }
         if (profile) {
             setUserProfile(profile);
         }
-        setShowAddPulse(true);
     };
 
     const addConnection = (connection: Connection) => {
-        setConnections((prev) => [connection, ...prev]);
+        setConnections((prev) => {
+            const updated = [connection, ...prev];
+            persistConnections(updated);
+            return updated;
+        });
     };
 
     const updateConnection = (id: string, updates: Partial<Connection>) => {
-        setConnections((prev) =>
-            prev.map((conn) => (conn.id === id ? { ...conn, ...updates } : conn))
-        );
+        setConnections((prev) => {
+            const updated = prev.map((conn) => (conn.id === id ? { ...conn, ...updates } : conn));
+            persistConnections(updated);
+            return updated;
+        });
     };
 
     const deleteConnection = (id: string) => {
-        setConnections((prev) => prev.filter((conn) => conn.id !== id));
+        setConnections((prev) => {
+            const updated = prev.filter((conn) => conn.id !== id);
+            persistConnections(updated);
+            return updated;
+        });
     };
 
     return (
@@ -160,7 +214,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
             theme, setTheme,
             userProfile, setUserProfile,
             hasCompletedOnboarding, completeOnboarding,
-            showAddPulse, setShowAddPulse,
+
         }}>
             {children}
         </ConnectionsContext.Provider>

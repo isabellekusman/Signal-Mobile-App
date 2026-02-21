@@ -1,8 +1,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -15,6 +17,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 import { useConnections } from '../../context/ConnectionsContext';
 import {
     computeObservedVsInterpreted,
@@ -559,21 +562,22 @@ function ContractSection({
 
 export default function MeScreen() {
     const { connections, userProfile } = useConnections();
+    const { signOut, user } = useAuth();
 
     // ── Identity ──
-    const [name, setName] = useState(userProfile.name || 'izzy');
-    const [zodiac, setZodiac] = useState(userProfile.zodiac || 'CAPRICORN');
+    const [name, setName] = useState(userProfile.name || '');
+    const [zodiac, setZodiac] = useState(userProfile.zodiac || '');
     const [aboutMe, setAboutMe] = useState(userProfile.about || '');
     const [isEditingIdentity, setIsEditingIdentity] = useState(false);
     const [showZodiacPicker, setShowZodiacPicker] = useState(false);
 
     // ── User content ──
     const [standards, setStandards] = useState(
-        userProfile.standards.length > 0 ? userProfile.standards : ['Growth mindset', 'Shared ambition']
+        userProfile.standards
     );
     const [newStandard, setNewStandard] = useState('');
     const [boundaries, setBoundaries] = useState<string[]>(
-        userProfile.boundaries.length > 0 ? userProfile.boundaries : ['No phone after 11 PM', 'Direct communication only']
+        userProfile.boundaries
     );
     const [newBoundary, setNewBoundary] = useState('');
 
@@ -713,6 +717,37 @@ export default function MeScreen() {
                         isEditing={isEditingContent}
                         onToggleEdit={() => setIsEditingContent(!isEditingContent)}
                     />
+
+                    {/* ── Account Section ── */}
+                    <View style={{ marginTop: 40, marginBottom: 60 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>ACCOUNT</Text>
+
+                        {user?.email && (
+                            <Text style={{ fontSize: 13, color: GRAY, marginBottom: 16, fontFamily: SERIF }}>{user.email}</Text>
+                        )}
+
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: OFF_WHITE, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: LIGHT_GRAY, marginBottom: 12 }}
+                            onPress={() => Alert.alert('Sign Out', 'Are you sure?', [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Sign Out', style: 'destructive', onPress: async () => { await AsyncStorage.clear(); await signOut(); } },
+                            ])}
+                        >
+                            <Ionicons name="log-out-outline" size={18} color={GRAY} />
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: GRAY, letterSpacing: 1 }}>SIGN OUT</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF2F2', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA' }}
+                            onPress={() => Alert.alert('Delete Account', 'This will permanently delete your account and all data. This cannot be undone.', [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Delete Account', style: 'destructive', onPress: async () => { await AsyncStorage.clear(); await signOut(); } },
+                            ])}
+                        >
+                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444', letterSpacing: 1 }}>DELETE ACCOUNT</Text>
+                        </TouchableOpacity>
+                    </View>
 
                 </ScrollView>
             </KeyboardAvoidingView>
