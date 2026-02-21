@@ -1,20 +1,50 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
+import { aiService } from '../../services/aiService';
 
 export default function ReflectScreen() {
-    const { connections } = useConnections();
+    const { connections, setShowPaywall } = useConnections();
     const activeConnections = connections.filter(c => c.status === 'active');
 
-    // Connection selector state
     const [attachedConnectionId, setAttachedConnectionId] = useState<string | null>(null);
     const [showConnectionPicker, setShowConnectionPicker] = useState(false);
+    const [reflection, setReflection] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [insight, setInsight] = useState<string | null>(null);
+    const [showInsight, setShowInsight] = useState(false);
 
     const attachedConnection = attachedConnectionId
         ? connections.find(c => c.id === attachedConnectionId)
         : null;
+
+    const handleRealign = async () => {
+        if (!reflection.trim()) return;
+        setLoading(true);
+        try {
+            const standardsStr = Array.isArray(attachedConnection?.onboardingContext?.standards)
+                ? attachedConnection.onboardingContext.standards.join(', ')
+                : (attachedConnection?.onboardingContext?.standards || 'Default');
+
+            const context = attachedConnection
+                ? `Attached to: ${attachedConnection.name} (${attachedConnection.tag}). Standards: ${standardsStr}`
+                : 'General reflection on standards and dynamics.';
+
+            const result = await aiService.getClarityInsight(reflection, context);
+            setInsight(result);
+            setShowInsight(true);
+        } catch (error: any) {
+            if (error.message === 'DAILY_LIMIT_REACHED') {
+                setShowPaywall('voluntary');
+            } else {
+                alert("Something went wrong. Please try again.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -79,17 +109,53 @@ export default function ReflectScreen() {
                                     multiline
                                     textAlignVertical="top"
                                     selectionColor="#000000"
+                                    value={reflection}
+                                    onChangeText={setReflection}
                                 />
                             </View>
 
-                            <TouchableOpacity style={styles.realignButton}>
-                                <Text style={styles.realignButtonText}>REALIGN ME</Text>
+                            <TouchableOpacity
+                                style={[styles.realignButton, !reflection.trim() && { opacity: 0.5 }]}
+                                onPress={handleRealign}
+                                disabled={loading || !reflection.trim()}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.realignButtonText}>REALIGN ME</Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>
 
                 </View>
             </KeyboardAvoidingView>
+
+            {/* Insight Modal */}
+            <Modal
+                visible={showInsight}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowInsight(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Clarity Insight</Text>
+                        <Text style={styles.modalSubtitle}>A GROUNDED VIEW ON YOUR REFLECTION.</Text>
+
+                        <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.insightText}>{insight}</Text>
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={[styles.realignButton, { marginTop: 20 }]}
+                            onPress={() => setShowInsight(false)}
+                        >
+                            <Text style={styles.realignButtonText}>DONE</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Connection Picker Modal */}
             <Modal
@@ -409,5 +475,11 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1,
+    },
+    insightText: {
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontSize: 16,
+        color: '#1C1C1E',
+        lineHeight: 24,
     },
 });

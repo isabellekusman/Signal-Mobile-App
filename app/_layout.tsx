@@ -5,8 +5,10 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
+import PaywallModal from '../components/PaywallModal';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ConnectionsProvider, useConnections } from '../context/ConnectionsContext';
+import { db } from '../services/database';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -14,7 +16,7 @@ export const unstable_settings = {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, isLoading: authLoading } = useAuth();
-  const { hasCompletedOnboarding } = useConnections();
+  const { hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry } = useConnections();
   const router = useRouter();
   const segments = useSegments();
 
@@ -25,21 +27,22 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inLoginScreen = segments[0] === 'login';
     const inOnboarding = segments[0] === 'onboarding';
 
-    if (!session && !inLoginScreen) {
-      // Not authenticated → send to login
-      router.replace('/login');
-    } else if (session && inLoginScreen) {
-      // Authenticated → check onboarding status
-      if (!hasCompletedOnboarding) {
-        router.replace('/onboarding');
-      } else {
-        router.replace('/(tabs)');
-      }
-    } else if (session && !hasCompletedOnboarding && !inOnboarding && !inLoginScreen) {
-      // Authenticated but hasn't onboarded → send to onboarding
-      router.replace('/onboarding');
+    if (!session) {
+      if (!inLoginScreen) router.replace('/login');
+      return;
     }
-  }, [session, authLoading, hasCompletedOnboarding, segments]);
+
+    // --- Authenticated Paths ---
+    if (!hasCompletedOnboarding) {
+      if (!inOnboarding) router.replace('/onboarding');
+      return;
+    }
+
+    // If we get here, they should be in the main app
+    if (inLoginScreen || inOnboarding) {
+      router.replace('/(tabs)');
+    }
+  }, [session, authLoading, hasCompletedOnboarding, segments, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
   if (authLoading || hasCompletedOnboarding === null) {
     return (
@@ -53,7 +56,50 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function InnerLayout() {
-  const { theme } = useConnections();
+  const { theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
+
+  useEffect(() => {
+    // Only trigger if we've completed initial onboarding and haven't seen the sub welcome/expiry
+    if (hasCompletedOnboarding && (!hasSeenSubWelcome || (!isTrialActive && !hasSeenTrialExpiry))) {
+      setShowPaywall('forced');
+    }
+  }, [hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
+
+  const markSubscriptionSeen = async () => {
+    try {
+      if (!hasSeenSubWelcome) {
+        // First time welcome: set trial and mark seen
+        const trialDate = new Date();
+        trialDate.setDate(trialDate.getDate() + 7);
+        await db.upsertProfile({
+          has_seen_sub_welcome: true,
+          trial_expires_at: trialDate.toISOString(),
+          subscription_tier: 'signal'
+        } as any);
+      } else if (!isTrialActive && !hasSeenTrialExpiry) {
+        // Trial expired: mark seen
+        await db.upsertProfile({ has_seen_trial_expiry: true } as any);
+      }
+    } catch (err) {
+      console.error("Failed to update subscription seen status:", err);
+    }
+  };
+
+  const handleSubscribe = async (tier: 'seeker' | 'signal') => {
+    try {
+      await markSubscriptionSeen();
+      await db.upsertProfile({ subscription_tier: tier });
+      setShowPaywall(null);
+      alert(`Success! You are now subscribed to ${tier.charAt(0).toUpperCase() + tier.slice(1)}.`);
+    } catch (err) {
+      alert("Subscription failed. Please try again.");
+    }
+  };
+
+  const handleClose = async () => {
+    await markSubscriptionSeen();
+    setShowPaywall(null);
+  };
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -66,6 +112,12 @@ function InnerLayout() {
           <Stack.Screen name="add-connection" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
       </AuthGate>
+      <PaywallModal
+        visible={paywallMode !== null}
+        onClose={handleClose}
+        onSubscribe={handleSubscribe}
+        showCloseButton={paywallMode === 'voluntary'}
+      />
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );

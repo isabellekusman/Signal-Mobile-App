@@ -231,7 +231,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 // Content Component for the "Decoder" tab
 // Content Component for the "Decoder" tab
 const DecoderContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
-    const { updateConnection, connections } = useConnections();
+    const { updateConnection, connections, setShowPaywall } = useConnections();
     const [text, setText] = useState('');
     const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
     const [analysis, setAnalysis] = useState<{
@@ -327,18 +327,13 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 replySuggestion: result.replySuggestion || "No specific suggestion."
             });
             setIsAnalysisOpen(true);
-        } catch (error) {
-            console.error("Decoder parsing error", error);
-            setAnalysis({
-                tone: "Error",
-                effort: "N/A",
-                powerDynamics: "N/A",
-                subtext: "Could not decode this thread.",
-                motivation: "N/A",
-                risks: [],
-                replySuggestion: ""
-            });
-            setIsAnalysisOpen(true);
+        } catch (error: any) {
+            if (error.message === 'DAILY_LIMIT_REACHED') {
+                setShowPaywall('voluntary');
+            } else {
+                console.error("Analysis Error:", error);
+                alert("Failed to analyze. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -2075,9 +2070,9 @@ const profileStyles = StyleSheet.create({
 
 
 export default function ConnectionDetailScreen() {
+    const { id } = useLocalSearchParams();
     const router = useRouter();
-    const params = useLocalSearchParams();
-    const { connections, updateConnection, deleteConnection } = useConnections();
+    const { connections, updateConnection, deleteConnection, setShowPaywall } = useConnections();
 
     // Determine initial section from route params
     type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'CLARITY';

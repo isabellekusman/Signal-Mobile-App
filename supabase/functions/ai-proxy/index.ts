@@ -8,9 +8,6 @@
  * 4. Logs usage to ai_usage table
  * 5. Returns the AI response
  *
- * Deployment:
- *   supabase functions deploy ai-proxy
- *
  * Environment Variables (set with `supabase secrets set`):
  *   GEMINI_API_KEY - Your Google Gemini API key
  */
@@ -27,30 +24,12 @@ const RATE_LIMITS: Record<string, { free: number; premium: number }> = {
     objective: { free: 5, premium: 50 },
 };
 
-// System prompts (moved from client-side)
+// System prompts
 const SYSTEM_PROMPTS: Record<string, string> = {
-    clarity: `You are not a cheerleader and you are not a cold analyst.
-You are a grounded, perceptive, emotionally intelligent friend who tells the truth with care.
-Your purpose is to help the user see relationship dynamics clearly — not to validate every fear, and not to dismiss every concern.
+    clarity: `You are a grounded, perceptive, emotionally intelligent friend who tells the truth with care.
+Help the user see relationship dynamics clearly. Prioritize clarity over comfort.`,
 
-Core behavior rules:
-1. Prioritize clarity over comfort
-2. Give grounded interpretations, not therapy clichés
-3. Hold nuance (most likely + charitable alternative)
-4. No catastrophizing, no false hope
-5. Speak like a thoughtful person, not a self-help book
-6. Focus on behavior patterns
-7. End with perspective, not instructions
-
-Response style:
-Start with a short direct read of the situation.
-Then explain the reasoning behind it.
-Then offer the grounded perspective the user likely needs.
-You are a clear mirror, not a motivational speaker.`,
-
-    decoder: `You are not a cheerleader and you are not a cold analyst.
-You are a grounded, perceptive, emotionally intelligent friend who tells the truth with care.
-Analyze the provided text message/thread. Return strict JSON:
+    decoder: `Analyze the provided text message/thread. Return strict JSON:
 {
   "tone": "2-3 word description",
   "effort": "1-10 score with justification",
@@ -66,31 +45,33 @@ Do not include markdown code blocks. Just raw JSON.`,
 Return a JSON object with: connectionTheme, dailyForecast, planetaryTransits, cosmicStrategy, detailedAnalysis.
 Do not include markdown code blocks. Just raw JSON.`,
 
-    dynamic: `You are an objective behavioral analyst. Analyze the user's daily check-in and provide a vibe summary.`,
+    dynamic: `Evaluate the daily vibe check and provide an objective behavioral analysis.`,
 
-    daily_advice: `You are a sharp, emotionally intelligent relationship advisor.
-Return JSON: { "stateOfConnection": "...", "todaysMove": "...", "watchFor": "..." }
+    daily_advice: `Return JSON: { "stateOfConnection": "...", "todaysMove": "...", "watchFor": "..." }
 Do not include markdown code blocks. Just raw JSON.`,
 
-    objective: `Provide an objective evaluation of a connection based on recent observations.`,
+    objective: `Provide an objective evaluation of connection signals.`,
+};
+
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 Deno.serve(async (req) => {
-    // CORS headers
+    // 1. Handle CORS
     if (req.method === 'OPTIONS') {
-        return new Response('ok', {
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-            },
-        });
+        return new Response('ok', { headers: CORS_HEADERS });
     }
 
     try {
-        // 1. Verify JWT
+        // 2. Auth Check
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) {
-            return new Response(JSON.stringify({ error: 'Missing authorization' }), { status: 401 });
+            return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+                status: 401,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
         const supabase = createClient(
@@ -101,17 +82,34 @@ Deno.serve(async (req) => {
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
-        // 2. Parse request
-        const { feature, prompt, context } = await req.json();
+        // 3. Parse Body
+        const { feature, prompt, context, image } = await req.json();
 
         if (!feature || !SYSTEM_PROMPTS[feature]) {
-            return new Response(JSON.stringify({ error: 'Invalid feature' }), { status: 400 });
+            return new Response(JSON.stringify({ error: 'Invalid feature' }), {
+                status: 400,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
-        // 3. Check rate limit
+        // 3. Get User Tier & Trial Status
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_tier, trial_expires_at')
+            .eq('id', user.id)
+            .single();
+
+        const tier = profile?.subscription_tier ?? 'free';
+        const trialExpiresAt = profile?.trial_expires_at ? new Date(profile.trial_expires_at) : null;
+        const isTrialActive = trialExpiresAt ? trialExpiresAt > new Date() : false;
+
+        // 4. Rate Limiting Check
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -122,31 +120,47 @@ Deno.serve(async (req) => {
             .eq('feature', feature)
             .gte('created_at', todayStart.toISOString());
 
-        const limits = RATE_LIMITS[feature] || { free: 5, premium: 50 };
-        // TODO: Check if user has premium subscription
-        const isPremium = false;
-        const limit = isPremium ? limits.premium : limits.free;
+        // Determine effective tier (Trial = Oracle/Signal)
+        const effectiveTier = isTrialActive ? 'signal' : tier;
+
+        let limit = 3; // Default Free
+        if (effectiveTier === 'signal') {
+            limit = 999999; // Unlimited
+        } else if (effectiveTier === 'seeker') {
+            limit = 25;
+        }
 
         if ((usageCount ?? 0) >= limit) {
             return new Response(
                 JSON.stringify({
-                    error: 'Daily limit reached',
+                    error: 'LIMIT_REACHED',
                     limit,
                     used: usageCount,
-                    isPremium,
+                    tier: effectiveTier,
+                    trialActive: isTrialActive
                 }),
-                { status: 429 }
+                {
+                    status: 429,
+                    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+                }
             );
         }
 
-        // 4. Build full prompt with server-side system prompt
-        const systemPrompt = SYSTEM_PROMPTS[feature];
-        const fullPrompt = `${systemPrompt}\n\n${context || ''}\n\n${prompt}`;
-
-        // 5. Call Gemini API (key is server-side only)
+        // 5. Prepare Gemini Call
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-        if (!GEMINI_API_KEY) {
-            return new Response(JSON.stringify({ error: 'AI service not configured' }), { status: 500 });
+        if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
+
+        const systemPrompt = SYSTEM_PROMPTS[feature];
+        const textPrompt = `${systemPrompt}\n\n${context || ''}\n\n${prompt}`;
+
+        const parts: any[] = [{ text: textPrompt }];
+        if (image && image.data && image.mimeType) {
+            parts.push({
+                inlineData: {
+                    data: image.data,
+                    mimeType: image.mimeType
+                }
+            });
         }
 
         const geminiResponse = await fetch(
@@ -155,7 +169,7 @@ Deno.serve(async (req) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: fullPrompt }] }],
+                    contents: [{ parts }],
                     safetySettings: [
                         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
                         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -167,15 +181,18 @@ Deno.serve(async (req) => {
         );
 
         if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text();
-            console.error('Gemini API error:', errorText);
-            return new Response(JSON.stringify({ error: 'AI service error' }), { status: 502 });
+            const err = await geminiResponse.text();
+            console.error('Gemini API error:', err);
+            return new Response(JSON.stringify({ error: 'AI service unavailable' }), {
+                status: 502,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
         const geminiData = await geminiResponse.json();
         const aiText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        // 6. Log usage (using service role for insert)
+        // 6. Log usage
         const serviceSupabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -184,20 +201,26 @@ Deno.serve(async (req) => {
         await serviceSupabase.from('ai_usage').insert({
             user_id: user.id,
             feature,
-            tokens_used: fullPrompt.length + aiText.length, // rough estimate
+            tokens_used: textPrompt.length + aiText.length,
         });
 
-        // 7. Return response
+        // 7. Success Response
         return new Response(
             JSON.stringify({ result: aiText }),
-            { headers: { 'Content-Type': 'application/json' } }
+            {
+                status: 200,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            }
         );
 
     } catch (error) {
-        console.error('AI Proxy error:', error);
+        console.error('Proxy Error:', error);
         return new Response(
             JSON.stringify({ error: 'Internal server error' }),
-            { status: 500 }
+            {
+                status: 500,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            }
         );
     }
 });

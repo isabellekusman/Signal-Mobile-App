@@ -23,6 +23,10 @@ export interface DBProfile {
     attachment_style: string[];
     dealbreakers: string[];
     love_language: string;
+    subscription_tier?: 'free' | 'seeker' | 'signal';
+    trial_expires_at?: string;
+    has_seen_sub_welcome?: boolean;
+    has_seen_trial_expiry?: boolean;
 }
 
 export interface DBConnection {
@@ -51,7 +55,7 @@ async function getProfile(): Promise<DBProfile | null> {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('db.getProfile error:', error);

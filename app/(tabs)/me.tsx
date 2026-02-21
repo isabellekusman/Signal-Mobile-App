@@ -561,7 +561,7 @@ function ContractSection({
 // ═══════════════════════════════════════════════════════════════════
 
 export default function MeScreen() {
-    const { connections, userProfile } = useConnections();
+    const { connections, userProfile, subscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
     const { signOut, user } = useAuth();
 
     // ── Identity ──
@@ -717,6 +717,38 @@ export default function MeScreen() {
                         isEditing={isEditingContent}
                         onToggleEdit={() => setIsEditingContent(!isEditingContent)}
                     />
+
+                    {/* ── Subscription Section ── */}
+                    <View style={{ marginTop: 40 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>SUBSCRIPTION</Text>
+
+                        <View style={{ backgroundColor: OFF_WHITE, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: LIGHT_GRAY }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <View>
+                                    <Text style={{ fontSize: 14, fontWeight: '700', color: DARK }}>{subscriptionTier.toUpperCase()}</Text>
+                                    {isTrialActive && (
+                                        <Text style={{ fontSize: 12, color: PINK, marginTop: 2, fontWeight: '600' }}>
+                                            Trial Active · {trialExpiresAt ? Math.ceil((new Date(trialExpiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0} days left
+                                        </Text>
+                                    )}
+                                </View>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: DARK, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 }}
+                                    onPress={() => setShowPaywall('voluntary')}
+                                >
+                                    <Text style={{ color: WHITE, fontSize: 11, fontWeight: '700' }}>MANAGE PLAN</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={{ fontSize: 12, color: GRAY, lineHeight: 18 }}>
+                                {subscriptionTier === 'free'
+                                    ? "Unlock unlimited decodes and priority AI analysis by upgrading your plan."
+                                    : subscriptionTier === 'seeker'
+                                        ? "You have 25 daily decodes and full analysis access."
+                                        : "You have unlimited access to every Signal tool and decode."}
+                            </Text>
+                        </View>
+                    </View>
 
                     {/* ── Account Section ── */}
                     <View style={{ marginTop: 40, marginBottom: 60 }}>
