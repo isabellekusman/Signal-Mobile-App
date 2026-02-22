@@ -17,54 +17,85 @@ export const aiService = {
         context?: string,
         image?: { data: string; mimeType: string }
     ): Promise<string> {
-        try {
-            // 1) ensure there's a logged-in user
-            const { data: { session } } = await supabase.auth.getSession();
-            console.log("SESSION TOKEN:", session?.access_token ?? "NULL");
-            if (!session?.access_token) {
-                throw new Error("User not authenticated");
-            }
+        const MAX_RETRIES = 1;
 
-            // 2) invoke the edge function with the user's token
-            const payload = { feature, prompt, context, image };
-
-            const { data, error } = await supabase.functions.invoke("ai-proxy", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            // 3) handle SDK-level error
-            if (error) {
-                logger.error(error, { tags: { service: 'ai', method: 'callProxy' }, extra: { feature } });
-                logger.breadcrumb('AI proxy error keys: ' + Object.keys(error).join(', '), 'ai');
-                if (error.context) {
-                    try {
-                        const body = await error.context.json();
-                        logger.error(new Error(body.message || body.error || error.message), { tags: { service: 'ai' }, extra: { body } });
-                        throw new Error(body.message || body.error || error.message);
-                    } catch (e) {
-                        logger.warn('Could not parse AI error body', { extra: { feature } });
-                    }
+        const executeRequest = async (attempt: number): Promise<string> => {
+            try {
+                // 1) ensure there's a logged-in user
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                    throw new Error("User not authenticated");
                 }
-                throw error;
+
+                // 2) invoke the edge function with the user's token and a timeout
+                const payload = { feature, prompt, context, image };
+
+                logger.breadcrumb(`AI Request: ${feature} (Attempt ${attempt + 1})`, 'ai', { feature });
+
+                // We wrap the invoke in a timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
+
+                const { data, error } = await supabase.functions.invoke("ai-proxy", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                // 3) handle SDK-level error
+                if (error) {
+                    // If it's a transient error or rate limit, we might want to retry, but usually rate limits shouldn't be retried
+                    if (attempt < MAX_RETRIES && (error.message?.includes('timeout') || error.message?.includes('network'))) {
+                        logger.warn(`AI request failed, retrying... (Attempt ${attempt + 1})`, { extra: { error: error.message } });
+                        return executeRequest(attempt + 1);
+                    }
+
+                    logger.error(error, { tags: { service: 'ai', method: 'callProxy' }, extra: { feature, attempt } });
+
+                    if (error.context) {
+                        try {
+                            const body = await error.context.json();
+                            throw new Error(body.message || body.error || error.message);
+                        } catch (e) {
+                            // ignore parse error, throw original
+                        }
+                    }
+                    throw error;
+                }
+
+                // 4) Normalize return
+                if (typeof data === "string") return data;
+                if (data == null) return "";
+
+                const result = (data as any).result;
+                if (result?.output) return typeof result.output === 'string' ? result.output : JSON.stringify(result.output);
+                if (result) return typeof result === 'string' ? result : JSON.stringify(result);
+
+                return JSON.stringify(data);
+
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    logger.warn('AI request timed out', { tags: { feature } });
+                    throw new Error("Request timed out. Please try again.");
+                }
+
+                if (attempt < MAX_RETRIES && !err.message?.includes('authenticated')) {
+                    logger.warn(`AI catch-block retry... (Attempt ${attempt + 1})`, { extra: { err: err.message } });
+                    return executeRequest(attempt + 1);
+                }
+
+                logger.error(err, { tags: { service: 'ai', method: 'callProxy' }, extra: { feature, attempt } });
+                throw err;
             }
+        };
 
-            // 4) Normalize return
-            if (typeof data === "string") return data;
-            if (data == null) return "";
-
-            if ((data as any).result?.output) return JSON.stringify((data as any).result.output);
-            if ((data as any).result) return typeof (data as any).result === 'string' ? (data as any).result : JSON.stringify((data as any).result);
-            return JSON.stringify(data);
-
-        } catch (err) {
-            logger.error(err, { tags: { service: 'ai', method: 'callProxy' } });
-            throw err;
-        }
+        return executeRequest(0);
     },
 
     async getClarityInsight(userInput: string, connectionContext?: string, history?: string) {

@@ -98,12 +98,7 @@ function InnerLayout() {
   useEffect(() => {
     if (session?.user?.id) {
       setupSubscription(session.user.id).then(() => {
-        // After setup, check if they are already premium
-        checkPremiumStatus().then(isPremium => {
-          if (isPremium) {
-            // Updated premium status logic can go here
-          }
-        });
+        checkPremiumStatus();
       });
     }
   }, [session?.user?.id]);

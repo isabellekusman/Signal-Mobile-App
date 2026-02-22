@@ -375,13 +375,13 @@ export default function OnboardingScreen() {
         }
     };
 
-    const handleSkip = () => {
-        completeOnboarding();
+    const handleSkip = async () => {
+        await completeOnboarding();
         router.replace('/(tabs)');
     };
 
-    const handleFinish = () => {
-        completeOnboarding({
+    const handleFinish = async () => {
+        await completeOnboarding({
             name,
             zodiac,
             about: '',

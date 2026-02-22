@@ -133,6 +133,20 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Patterns used for prompt injection detection
+const INJECTION_PATTERNS = [
+    /ignore all previous instructions/i,
+    /disregard all previous instructions/i,
+    /system prompt/i,
+    /new instructions/i,
+    /you are now/i,
+    /prompt injection/i,
+    /translate the following/i,
+    /output the system prompt/i,
+    /forget everything/i,
+    /developer mode/i
+];
+
 Deno.serve(async (req) => {
     // 1. Handle CORS
     if (req.method === 'OPTIONS') {
@@ -168,6 +182,21 @@ Deno.serve(async (req) => {
         if (!feature || !SYSTEM_PROMPTS[feature]) {
             console.error('[AI Proxy] Invalid feature:', feature);
             throw new Error('Invalid feature requested');
+        }
+
+        // ─── H-3: Prompt Injection Protection ───
+        const combinedInput = `${prompt || ''} ${context || ''}`;
+        const isInjection = INJECTION_PATTERNS.some(pattern => pattern.test(combinedInput));
+
+        if (isInjection) {
+            console.warn('[AI Proxy] Blocked potential prompt injection from user:', user.id);
+            return new Response(JSON.stringify({
+                error: 'SECURITY_BLOCK',
+                message: 'Your request contains prohibited instructions. Please stay on topic.'
+            }), {
+                status: 400,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
         // 4. Rate Limiting Check (Service Role for Bypass)
@@ -231,8 +260,9 @@ Deno.serve(async (req) => {
         const systemPrompt = SYSTEM_PROMPTS[feature];
 
         // Prepare contents for Gemini multimodal API
+        // We now use system_instruction in the root of the JSON body for stronger gating
         const parts: any[] = [
-            { text: `${systemPrompt}\n\nContext:\n${context || 'None'}\n\nPrompt:\n${prompt}` }
+            { text: `Context:\n${context || 'None'}\n\nUser Input:\n${prompt}` }
         ];
 
         // Add image part if provided
@@ -254,6 +284,9 @@ Deno.serve(async (req) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    system_instruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
                     contents: [{ parts }],
                     generationConfig: {
                         response_mime_type: (feature === 'stars' || feature === 'daily_advice' || feature === 'decoder') ? "application/json" : "text/plain"

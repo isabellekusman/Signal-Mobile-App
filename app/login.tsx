@@ -341,9 +341,15 @@ export default function LoginScreen() {
                     )}
 
                     {/* Footer */}
-                    <Text style={styles.footerText}>
-                        By continuing, you agree to Signal's{'\n'}Terms of Service and Privacy Policy.
-                    </Text>
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>
+                            By continuing, you agree to Signal's{'\n'}
+                            <Text style={styles.footerLink}>Terms of Service</Text> and <Text style={styles.footerLink}>Privacy Policy</Text>.
+                        </Text>
+                        <Text style={[styles.footerText, { marginTop: 12, opacity: 0.6 }]}>
+                            Notice: Signal uses artificial intelligence to analyze relationship dynamics. AI-generated content can be inaccurate; use it as a tool for reflection, not as absolute fact.
+                        </Text>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -351,6 +357,22 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+    footer: {
+        marginTop: 40,
+        marginBottom: 20,
+        paddingHorizontal: 20,
+    },
+    footerText: {
+        fontSize: 11,
+        color: '#C7C7CC',
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    footerLink: {
+        color: '#8E8E93',
+        fontWeight: '600',
+        textDecorationLine: 'underline',
+    },
     safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
@@ -591,15 +613,5 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1,
-    },
-
-    // Footer
-    footerText: {
-        fontSize: 11,
-        color: '#C7C7CC',
-        textAlign: 'center',
-        lineHeight: 18,
-        paddingHorizontal: 20,
-        marginTop: 32,
     },
 });

@@ -12,14 +12,14 @@ Signal Mobile has successfully transitioned from a local-only prototype to a **p
 
 The app now features real **Subscription Integration (RevenueCat)**, **Offline Resilience**, and proper **Account Management** tools.
 
-**Current Status:** 0 Blockers remaining. Focus shifts to **Medium** compliance items required for App Store submission (Legal Content, Safety Filters, Notifications).
+**Current Status:** 0 Blockers remaining. Focus shifts to **Nice to Have** items and final App Store metadata preparation.
 
 | Priority | Count | Key Themes |
 | :--- | :--- | :--- |
 | 🔴 **BLOCKERS** | **0** | All cleared (Auth, DB, Security, Payments) |
-| 🟠 **HIGH RISK** | **1** | Rate Limiting / Sentry logging |
-| 🟡 **MEDIUM** | **3** | AI Safety Filters, Notifications, Real Legal Copy |
-| 🟢 **NICE TO HAVE** | **10** | Analytics, Deep Linking, Social Share |
+| 🟠 **HIGH RISK** | **0** | All high risks resolved (RLS, API Proxy, Logging) |
+| 🟡 **MEDIUM** | **1** | Real Legal Copy (Real text needed) |
+| 🟢 **NICE TO HAVE** | **8** | Analytics, Deep Linking, Social Share |
 
 ---
 

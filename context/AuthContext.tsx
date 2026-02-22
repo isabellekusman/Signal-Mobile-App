@@ -57,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOut = async () => {
+        if (user) {
+            // Attempt to unregister token from Supabase (silent fallback)
+            const { unregisterPushNotificationsAsync } = require('../services/notifications');
+            await unregisterPushNotificationsAsync(user.id);
+        }
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);

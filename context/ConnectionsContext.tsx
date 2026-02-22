@@ -90,9 +90,9 @@ interface ConnectionsContextType {
     setTheme: (theme: 'light' | 'dark') => void;
     // User profile & onboarding
     userProfile: UserProfile;
-    setUserProfile: (profile: UserProfile) => void;
+    setUserProfile: (profile: UserProfile) => Promise<void>;
     hasCompletedOnboarding: boolean | null; // null = loading
-    completeOnboarding: (profile?: UserProfile) => void;
+    completeOnboarding: (profile?: UserProfile) => Promise<void>;
     // Subscriptions
     subscriptionTier: 'free' | 'seeker' | 'signal';
     trialExpiresAt: string | null;
@@ -303,26 +303,36 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const setUserProfile = (profile: UserProfile) => {
+    const setUserProfile = async (profile: UserProfile) => {
         setUserProfileState(profile);
         const keys = getKeys(currentUserId);
         if (keys.profile) {
-            AsyncStorage.setItem(keys.profile, JSON.stringify(profile)).catch(() => { });
+            try {
+                await AsyncStorage.setItem(keys.profile, JSON.stringify(profile));
+            } catch (err) {
+                logger.warn('AsyncStorage profile save error', { extra: { err } });
+            }
         }
         // Sync to Supabase
-        db.upsertProfile(profileToDBProfile(profile)).catch((err) => {
-            logger.warn('Profile sync error', { extra: { err } });
-        });
+        try {
+            await db.upsertProfile(profileToDBProfile(profile));
+        } catch (err) {
+            logger.warn('Profile cloud sync error', { extra: { err } });
+        }
     };
 
-    const completeOnboarding = (profile?: UserProfile) => {
+    const completeOnboarding = async (profile?: UserProfile) => {
         setHasCompletedOnboarding(true);
         const keys = getKeys(currentUserId);
         if (keys.onboarding) {
-            AsyncStorage.setItem(keys.onboarding, 'true').catch(() => { });
+            try {
+                await AsyncStorage.setItem(keys.onboarding, 'true');
+            } catch (err) {
+                logger.warn('AsyncStorage onboarding flag error', { extra: { err } });
+            }
         }
         if (profile) {
-            setUserProfile(profile);
+            await setUserProfile(profile);
         }
     };
 

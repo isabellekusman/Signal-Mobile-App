@@ -92,7 +92,7 @@ function IdentityHeader({
                     </View>
                 </View>
 
-                <TouchableOpacity style={s.editBtn} onPress={onToggleEdit}>
+                <TouchableOpacity style={s.editBtn} onPress={handleToggleEditIdentity}>
                     <Ionicons
                         name={isEditing ? 'checkmark-outline' : 'pencil-outline'}
                         size={15}
@@ -584,7 +584,33 @@ export default function MeScreen() {
     );
     const [newBoundary, setNewBoundary] = useState('');
 
-    const [isEditingContent, setIsEditingContent] = useState(false);
+    // ── Saving logic ──
+    const handleToggleEditIdentity = useCallback(async () => {
+        if (isEditingIdentity) {
+            // Save when toggling OFF
+            await setUserProfile({
+                ...userProfile,
+                name,
+                zodiac,
+                about: aboutMe,
+            });
+            logger.breadcrumb('User saved identity changes', 'ui.interaction');
+        }
+        setIsEditingIdentity(!isEditingIdentity);
+    }, [isEditingIdentity, userProfile, name, zodiac, aboutMe, setUserProfile]);
+
+    const handleToggleEditContent = useCallback(async () => {
+        if (isEditingContent) {
+            // Save when toggling OFF
+            await setUserProfile({
+                ...userProfile,
+                standards,
+                boundaries,
+            });
+            logger.breadcrumb('User saved profile content changes', 'ui.interaction');
+        }
+        setIsEditingContent(!isEditingContent);
+    }, [isEditingContent, userProfile, standards, boundaries, setUserProfile]);
 
     // ── Computed profile ──
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -614,15 +640,27 @@ export default function MeScreen() {
 
     const handleExport = useCallback(async () => {
         try {
-            const exportData = JSON.stringify(profile, null, 2);
+            const fullData = {
+                exportedAt: new Date().toISOString(),
+                user: {
+                    id: user?.id,
+                    email: user?.email,
+                    profile: userProfile,
+                },
+                connections: connections,
+                summary: profile,
+            };
+
+            const exportData = JSON.stringify(fullData, null, 2);
             await Share.share({
                 message: exportData,
-                title: 'Signal Profile Insights',
+                title: 'My Signal Data Export',
             });
+            logger.breadcrumb('User exported their data', 'ui.interaction');
         } catch (error) {
             logger.warn('Export failed', { extra: { error } });
         }
-    }, [profile]);
+    }, [profile, connections, userProfile, user]);
 
     // ── Content handlers ──
     const addStandard = () => {
@@ -709,7 +747,7 @@ export default function MeScreen() {
                         onChangeName={setName}
                         onChangeAbout={setAboutMe}
                         isEditing={isEditingIdentity}
-                        onToggleEdit={() => setIsEditingIdentity(!isEditingIdentity)}
+                        onToggleEdit={handleToggleEditIdentity}
                         onOpenZodiac={() => setShowZodiacPicker(true)}
                     />
 
@@ -766,7 +804,7 @@ export default function MeScreen() {
                         onRemoveStandard={removeStandard}
                         onRemoveBoundary={removeBoundary}
                         isEditing={isEditingContent}
-                        onToggleEdit={() => setIsEditingContent(!isEditingContent)}
+                        onToggleEdit={handleToggleEditContent}
                     />
 
                     {/* ── Subscription Section ── */}
@@ -801,40 +839,46 @@ export default function MeScreen() {
                         </View>
                     </View>
 
-                    {/* ── Legal Section ── */}
-                    <View style={{ marginTop: 40 }}>
+                    {/* ── Legal & Information ── */}
+                    <View style={{ marginTop: 40, marginBottom: 24 }}>
                         <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>LEGAL & SUPPORT</Text>
 
-                        <View style={{ backgroundColor: OFF_WHITE, borderRadius: 16, borderWidth: 1, borderColor: LIGHT_GRAY, overflow: 'hidden' }}>
+                        <View style={{ backgroundColor: OFF_WHITE, borderRadius: 16, borderWidth: 1, borderColor: '#F2F2F7', overflow: 'hidden' }}>
                             <TouchableOpacity
-                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: LIGHT_GRAY }}
-                                onPress={() => openLink('https://example.com/privacy')}
-                            >
-                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Privacy Policy</Text>
-                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: LIGHT_GRAY }}
+                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
                                 onPress={() => openLink('https://example.com/terms')}
                             >
-                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Terms of Service</Text>
+                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Terms of Service</Text>
                                 <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-                                onPress={() => handleExport()}
+                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
+                                onPress={() => openLink('https://example.com/privacy')}
                             >
-                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Export My Data (GDPR)</Text>
+                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Privacy Policy</Text>
+                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
+                                onPress={handleExport}
+                            >
+                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Export My Data (GDPR)</Text>
                                 <Ionicons name="download-outline" size={16} color={SOFT_GRAY} />
                             </TouchableOpacity>
+
+                            <View style={{ padding: 16, backgroundColor: '#FAFAFA' }}>
+                                <Text style={{ fontSize: 11, color: SOFT_GRAY, lineHeight: 16 }}>
+                                    Notice: Signal uses artificial intelligence to analyze relationship dynamics. AI-generated content can be inaccurate; use it as a tool for reflection, not as absolute fact.
+                                </Text>
+                            </View>
                         </View>
                     </View>
 
-                    {/* ── Account Section ── */}
-                    <View style={{ marginTop: 40, marginBottom: 60 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>ACCOUNT</Text>
+                    {/* ── Account Management ── */}
+                    <View style={{ marginBottom: 60 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>ACCOUNT MANAGEMENT</Text>
 
                         {user?.email && (
                             <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
@@ -916,14 +960,15 @@ export default function MeScreen() {
                     )}
 
                 </ScrollView>
-            </KeyboardAvoidingView>
+            </KeyboardAvoidingView >
 
             {/* Zodiac Picker Modal */}
-            <Modal
+            < Modal
                 visible={showZodiacPicker}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setShowZodiacPicker(false)}
+                onRequestClose={() => setShowZodiacPicker(false)
+                }
             >
                 <TouchableOpacity
                     style={s.modalOverlay}
@@ -949,8 +994,8 @@ export default function MeScreen() {
                         </ScrollView>
                     </View>
                 </TouchableOpacity>
-            </Modal>
-        </SafeAreaView>
+            </Modal >
+        </SafeAreaView >
     );
 }
 
