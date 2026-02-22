@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { logger } from './logger';
 
 /**
  * AI Service
@@ -38,15 +39,15 @@ export const aiService = {
 
             // 3) handle SDK-level error
             if (error) {
-                console.error("[AI Service] function error:", error);
-                console.error("[AI Service] error keys:", Object.keys(error));
+                logger.error(error, { tags: { service: 'ai', method: 'callProxy' }, extra: { feature } });
+                logger.breadcrumb('AI proxy error keys: ' + Object.keys(error).join(', '), 'ai');
                 if (error.context) {
                     try {
                         const body = await error.context.json();
-                        console.error("[AI Service] error body:", body);
+                        logger.error(new Error(body.message || body.error || error.message), { tags: { service: 'ai' }, extra: { body } });
                         throw new Error(body.message || body.error || error.message);
                     } catch (e) {
-                        console.error("[AI Service] could not parse error body");
+                        logger.warn('Could not parse AI error body', { extra: { feature } });
                     }
                 }
                 throw error;
@@ -61,7 +62,7 @@ export const aiService = {
             return JSON.stringify(data);
 
         } catch (err) {
-            console.error("[AI Service] callProxy error:", err);
+            logger.error(err, { tags: { service: 'ai', method: 'callProxy' } });
             throw err;
         }
     },

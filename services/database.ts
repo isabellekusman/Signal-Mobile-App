@@ -10,6 +10,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { logger } from './logger';
 
 // ─── Types (match Supabase schema) ──────────────────────────
 
@@ -58,7 +59,7 @@ async function getProfile(): Promise<DBProfile | null> {
         .maybeSingle();
 
     if (error) {
-        console.error('db.getProfile error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'getProfile' } });
         return null;
     }
     return data;
@@ -73,7 +74,7 @@ async function upsertProfile(profile: Partial<DBProfile>): Promise<boolean> {
         .upsert({ id: user.id, ...profile }, { onConflict: 'id' });
 
     if (error) {
-        console.error('db.upsertProfile error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'upsertProfile' } });
         return false;
     }
     return true;
@@ -92,7 +93,7 @@ async function getConnections(): Promise<DBConnection[]> {
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error('db.getConnections error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'getConnections' } });
         return [];
     }
     return data || [];
@@ -109,7 +110,7 @@ async function addConnection(connection: Omit<DBConnection, 'id' | 'user_id' | '
         .single();
 
     if (error) {
-        console.error('db.addConnection error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'addConnection' } });
         return null;
     }
     return data;
@@ -122,7 +123,7 @@ async function updateConnection(id: string, updates: Partial<DBConnection>): Pro
         .eq('id', id);
 
     if (error) {
-        console.error('db.updateConnection error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'updateConnection' } });
         return false;
     }
     return true;
@@ -135,7 +136,7 @@ async function deleteConnection(id: string): Promise<boolean> {
         .eq('id', id);
 
     if (error) {
-        console.error('db.deleteConnection error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'deleteConnection' } });
         return false;
     }
     return true;
@@ -163,7 +164,7 @@ async function getDailyUsageCount(feature?: string): Promise<number> {
     const { count, error } = await query;
 
     if (error) {
-        console.error('db.getDailyUsageCount error:', error);
+        logger.error(error, { tags: { service: 'database', method: 'getDailyUsageCount' } });
         return 0;
     }
     return count || 0;
@@ -184,7 +185,7 @@ async function deleteAccount(): Promise<boolean> {
             }
         });
         if (error) {
-            console.error('db.deleteAccount function error:', error);
+            logger.error(error, { tags: { service: 'database', method: 'deleteAccount' } });
             // Fallback to manual delete of what we can if function is not deployed
             const { error: connError } = await supabase.from('connections').delete().eq('user_id', session.user.id);
             const { error: profileError } = await supabase.from('profiles').delete().eq('id', session.user.id);
@@ -192,7 +193,7 @@ async function deleteAccount(): Promise<boolean> {
         }
         return true;
     } catch (err) {
-        console.error('db.deleteAccount catch:', err);
+        logger.error(err, { tags: { service: 'database', method: 'deleteAccount' } });
         return false;
     }
 }

@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { logger } from '../services/logger';
 
 // Required for expo-auth-session OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -102,13 +103,13 @@ export default function LoginScreen() {
                         });
 
                         if (sessionError) {
-                            console.error('[Auth] setSession error:', sessionError);
+                            logger.error(sessionError, { tags: { service: 'auth', method: 'setSession' } });
                             setError(`Session error: ${sessionError.message}`);
                         }
                     } else if (oauthError) {
                         setError(`Google Sign-in: ${oauthError}`);
                     } else {
-                        console.warn('[Auth] No tokens found in callback URL:', callbackUrl);
+                        logger.warn('No tokens found in callback URL', { extra: { callbackUrl } });
                         setError('Sign-in completed but no session was returned. Please check your Supabase configuration.');
                     }
                 } else if (result.type === 'cancel' || result.type === 'dismiss') {
@@ -118,7 +119,7 @@ export default function LoginScreen() {
                 }
             }
         } catch (err) {
-            console.error('Google sign-in error:', err);
+            logger.error(err, { tags: { service: 'auth', method: 'googleSignIn' } });
             setError('Google sign-in failed. Please try again.');
         } finally {
             setGoogleLoading(false);

@@ -1,4 +1,3 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -22,6 +21,7 @@ import Purchases from 'react-native-purchases';
 import { useAuth } from '../../context/AuthContext';
 import { useConnections } from '../../context/ConnectionsContext';
 import { db } from '../../services/database';
+import { logger } from '../../services/logger';
 import {
     computeObservedVsInterpreted,
     computeProfileSummary,
@@ -620,7 +620,7 @@ export default function MeScreen() {
                 title: 'Signal Profile Insights',
             });
         } catch (error) {
-            console.warn('Export failed:', error);
+            logger.warn('Export failed', { extra: { error } });
         }
     }, [profile]);
 
@@ -661,7 +661,7 @@ export default function MeScreen() {
                                 Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
                             }
                         } catch (err) {
-                            console.error(err);
+                            logger.error(err, { tags: { feature: 'account', method: 'deleteAccount' } });
                         } finally {
                             setIsRefreshing(false);
                         }
@@ -686,7 +686,7 @@ export default function MeScreen() {
     };
 
     const openLink = (url: string) => {
-        Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
+        Linking.openURL(url).catch(err => logger.error(err, { tags: { feature: 'me', method: 'openLink' } }));
     };
 
 

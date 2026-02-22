@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as Sentry from '@sentry/react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
@@ -12,7 +13,19 @@ import { ConnectionsProvider, useConnections } from '../context/ConnectionsConte
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import useSubscription from '../hooks/useSubscription';
 import { db } from '../services/database';
+import { logger } from '../services/logger';
 import { checkPremiumStatus, getOfferings, purchasePremium, setupSubscription } from '../services/subscription';
+
+// ─── Sentry Initialization ──────────────────────────────────
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+  // Set to 1.0 for dev, lower in production to manage volume
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+  // Only send events when a real DSN is configured
+  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  debug: __DEV__,
+  environment: __DEV__ ? 'development' : 'production',
+});
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -64,6 +77,15 @@ function InnerLayout() {
   const isConnected = useNetworkStatus();
   const isPro = useSubscription();
   const { theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
+
+  // ─── Identify user in Sentry ───
+  useEffect(() => {
+    if (session?.user) {
+      logger.identifyUser(session.user.id, session.user.email);
+    } else {
+      logger.clearUser();
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     // Only trigger if we've completed initial onboarding and haven't seen the sub welcome/expiry
@@ -138,7 +160,7 @@ function InnerLayout() {
         await db.upsertProfile({ has_seen_trial_expiry: true });
       }
     } catch (err) {
-      console.warn("Failed to mark paywall as seen:", err);
+      logger.warn('Failed to mark paywall as seen', { extra: { err } });
     }
     setShowPaywall(null);
   };
@@ -168,7 +190,7 @@ function InnerLayout() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <AuthProvider>
       <ConnectionsProvider>
@@ -177,3 +199,5 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import Purchases from "react-native-purchases";
+import { logger } from '../services/logger';
 
 /**
  * Returns true when the user has an active entitlement called "premium".
@@ -17,7 +18,7 @@ export default function useSubscription() {
                 const info = await Purchases.getCustomerInfo();
                 setIsPro(Boolean(info.entitlements.active?.premium));
             } catch (e) {
-                console.warn("getCustomerInfo error", e);
+                logger.warn('getCustomerInfo error', { extra: { e } });
             }
 
             // listen for updates (fires after a purchase)

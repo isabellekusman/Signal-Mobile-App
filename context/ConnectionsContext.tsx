@@ -2,6 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { db } from '../services/database';
+import { logger } from '../services/logger';
 import { useAuth } from './AuthContext';
 
 export interface Signal {
@@ -285,7 +286,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
                     }
                 }
             } catch (err) {
-                console.warn('[ConnectionsContext] Load error, using defaults:', err);
+                logger.warn('ConnectionsContext load error, using defaults', { extra: { err } });
                 setHasCompletedOnboarding(false);
             } finally {
                 setIsLoaded(true);
@@ -310,7 +311,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         }
         // Sync to Supabase
         db.upsertProfile(profileToDBProfile(profile)).catch((err) => {
-            console.warn('[ConnectionsContext] Profile sync error:', err);
+            logger.warn('Profile sync error', { extra: { err } });
         });
     };
 
@@ -335,7 +336,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         });
         // Sync to Supabase
         db.addConnection(localToDBConnection(connection)).catch((err) => {
-            console.warn('[ConnectionsContext] Connection add sync error:', err);
+            logger.warn('Connection add sync error', { extra: { err } });
         });
     };
 
@@ -359,7 +360,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
 
         if (Object.keys(dbUpdates).length > 0) {
             db.updateConnection(id, dbUpdates).catch((err) => {
-                console.warn('[ConnectionsContext] Connection update sync error:', err);
+                logger.warn('Connection update sync error', { extra: { err } });
             });
         }
     };
@@ -372,7 +373,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         });
         // Sync deletion to Supabase
         db.deleteConnection(id).catch((err) => {
-            console.warn('[ConnectionsContext] Connection delete sync error:', err);
+            logger.warn('Connection delete sync error', { extra: { err } });
         });
     };
 

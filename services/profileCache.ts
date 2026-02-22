@@ -12,6 +12,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Connection } from '../context/ConnectionsContext';
+import { logger } from './logger';
 import {
     computeObservedVsInterpreted,
     computeProfileSummary,
@@ -54,7 +55,7 @@ async function writeCache(summary: ProfileSummary, timeline: ProfileTimelineItem
         };
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     } catch (error) {
-        console.warn('Profile cache write failed:', error);
+        logger.warn('Profile cache write failed', { extra: { error } });
     }
 }
 

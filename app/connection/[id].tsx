@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
+import { logger } from '../../services/logger';
 
 import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
 
@@ -295,7 +296,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 }
             }
         } catch (error) {
-            console.error("Error picking image:", error);
+            logger.error(error, { tags: { feature: 'decoder', method: 'pickImage' } });
             alert("Could not load image: " + (error as any).message);
         }
     };
@@ -330,7 +331,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
             if (error.message === 'DAILY_LIMIT_REACHED') {
                 setShowPaywall('voluntary');
             } else {
-                console.error("Analysis Error:", error);
+                logger.error(error, { tags: { feature: 'decoder', method: 'handleScanText' } });
                 alert("Failed to analyze. Please try again.");
             }
         } finally {
@@ -556,7 +557,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
 
         } catch (error) {
-            console.error(error);
+            logger.error(error, { tags: { feature: 'stars', method: 'fetchForecast' } });
             // Fallback
             setForecast({
                 connectionTheme: "Cloudy Skies",
@@ -1540,7 +1541,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 },
             });
         } catch (error: any) {
-            console.error('Daily advice error:', error);
+            logger.error(error, { tags: { feature: 'dailyAdvice', method: 'fetchAdvice' } });
             setAdvice({
                 stateOfConnection: `Error: ${error.message || 'Unable to generate advice right now.'}`,
                 todaysMove: '',

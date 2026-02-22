@@ -1,6 +1,7 @@
 
 import { Platform } from 'react-native';
 import Purchases, { LOG_LEVEL, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import { logger } from './logger';
 
 const API_KEYS = {
     apple: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || 'goog_placeholder', // User will need to add these
@@ -21,7 +22,7 @@ export const setupSubscription = async (userId: string) => {
 
         console.log('[Subscription] RevenueCat initialized for user:', userId);
     } catch (e) {
-        console.error('[Subscription] Failed to initialize:', e);
+        logger.error(e, { tags: { service: 'subscription', method: 'setup' } });
     }
 };
 
@@ -32,7 +33,7 @@ export const getOfferings = async (): Promise<PurchasesOffering | null> => {
             return offerings.current;
         }
     } catch (e) {
-        console.error('[Subscription] Error fetching offerings:', e);
+        logger.error(e, { tags: { service: 'subscription', method: 'getOfferings' } });
     }
     return null;
 };
@@ -43,7 +44,7 @@ export const purchasePremium = async (pkg: PurchasesPackage) => {
         return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
     } catch (e: any) {
         if (!e.userCancelled) {
-            console.error('[Subscription] Purchase error:', e);
+            logger.error(e, { tags: { service: 'subscription', method: 'purchasePremium' } });
         }
         return false;
     }
@@ -54,7 +55,7 @@ export const checkPremiumStatus = async (): Promise<boolean> => {
         const customerInfo = await Purchases.getCustomerInfo();
         return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
     } catch (e) {
-        console.error('[Subscription] Check status error:', e);
+        logger.error(e, { tags: { service: 'subscription', method: 'checkPremiumStatus' } });
         return false;
     }
 };
@@ -64,7 +65,7 @@ export const restorePurchases = async (): Promise<boolean> => {
         const customerInfo = await Purchases.restorePurchases();
         return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
     } catch (e) {
-        console.error('[Subscription] Restore error:', e);
+        logger.error(e, { tags: { service: 'subscription', method: 'restorePurchases' } });
         return false;
     }
 };
