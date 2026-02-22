@@ -308,12 +308,13 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         Keyboard.dismiss();
         setLoading(true);
         try {
-            let resultString;
-            if (image) {
-                resultString = await aiService.decodeImageMessage(image.base64, image.mimeType, text, name);
-            } else {
-                resultString = await aiService.decodeMessage(text, name);
-            }
+            // Added a 30-second timeout for Decoder since screenshots take longer
+            const resultString = await Promise.race([
+                image
+                    ? aiService.decodeImageMessage(image.base64, image.mimeType, text, name)
+                    : aiService.decodeMessage(text, name),
+                new Promise<string>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 30000))
+            ]);
 
             const result = aiService.safeParseJSON(resultString);
 
@@ -544,19 +545,30 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
             // Check cache first
             const cached = await AsyncStorage.getItem(storageKey);
             if (cached) {
-                setForecast(JSON.parse(cached));
-                setLoading(false);
-                return;
+                const parsed = JSON.parse(cached);
+                // IF we have cached data but it's the "old" thin version (missing detailedAnalysis), 
+                // we skip the cache and force a fresh fetch with the new prompts.
+                if (parsed && parsed.detailedAnalysis) {
+                    setForecast(parsed);
+                    setLoading(false);
+                    return;
+                }
             }
 
-            // Fetch new if not cached
-            const resultString = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
+            // Fetch new if not cached or if cache was the old version
+            // Added a 25-second timeout (M-10)
+            const resultString = await Promise.race([
+                aiService.getStarsAlign(name, userZodiac, partnerZodiac),
+                new Promise<string>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 25000))
+            ]);
             const result = aiService.safeParseJSON(resultString);
 
             setForecast(result);
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
-
-        } catch (error) {
+        } catch (error: any) {
+            if (error.message === 'TIMEOUT') {
+                logger.warn('Stars alignment timed out', { tags: { feature: 'stars' } });
+            }
             logger.error(error, { tags: { feature: 'stars', method: 'fetchForecast' } });
             // Fallback
             setForecast({
