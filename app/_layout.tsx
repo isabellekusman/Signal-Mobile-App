@@ -12,8 +12,10 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ConnectionsProvider, useConnections } from '../context/ConnectionsContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import useSubscription from '../hooks/useSubscription';
+import { analytics } from '../services/analytics';
 import { db } from '../services/database';
 import { logger } from '../services/logger';
+import { registerForPushNotificationsAsync, schedulePersonalizedNotifications } from '../services/notifications';
 import { checkPremiumStatus, getOfferings, purchasePremium, setupSubscription } from '../services/subscription';
 
 // ─── Sentry Initialization ──────────────────────────────────
@@ -76,14 +78,28 @@ function InnerLayout() {
   const { session } = useAuth();
   const isConnected = useNetworkStatus();
   const isPro = useSubscription();
-  const { theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
+  const { connections, theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
 
-  // ─── Identify user in Sentry ───
+  // ─── Schedule Daily Local Notifications ───
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && connections) {
+      schedulePersonalizedNotifications(connections);
+    }
+  }, [connections, session?.user]);
+
+  // ─── Identify user in Sentry & Register Push ───
+  useEffect(() => {
+    analytics.init();
+    if (session?.user?.id) {
       logger.identifyUser(session.user.id, session.user.email);
+      analytics.identify(session.user.id, { email: session.user.email });
+      // Register for push notifications on login/startup
+      registerForPushNotificationsAsync(session.user.id).catch((err) => {
+        logger.warn('Failed to register push explicitly handling', { extra: { err } });
+      });
     } else {
       logger.clearUser();
+      analytics.reset();
     }
   }, [session?.user?.id]);
 

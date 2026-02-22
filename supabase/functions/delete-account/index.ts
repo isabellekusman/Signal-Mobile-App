@@ -1,5 +1,9 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as Sentry from 'npm:@sentry/deno';
+
+Sentry.init({
+    dsn: Deno.env.get('SENTRY_DSN'),
+});
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -43,17 +47,28 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
 
-        // 4. Delete User Data (Optional if cascaded, but good to be explicit)
-        // Note: In our schema, tables should ideally be set up with ON DELETE CASCADE
-        await supabaseAdmin.from('connections').delete().eq('user_id', user.id);
-        await supabaseAdmin.from('profiles').delete().eq('id', user.id);
-        await supabaseAdmin.from('ai_usage').delete().eq('user_id', user.id);
+        // 4. Soft Delete: Update profile with deleted_at timestamp
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', user.id);
 
-        // 5. Delete the User from Supabase Auth
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+        if (updateError) {
+            Sentry.captureException(updateError, { extra: { context: 'Error soft deleting profile' } });
+            return new Response(JSON.stringify({ error: 'Failed to update account status' }), {
+                status: 500,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
+        }
+
+        // 5. Suspend User (Ban them to prevent login during the 30-day grace period)
+        const { error: deleteError } = await supabaseAdmin.auth.admin.updateUserById(
+            user.id,
+            { ban_duration: '876000h' } // Banned for 100 years
+        );
 
         if (deleteError) {
-            console.error('Error deleting user:', deleteError);
+            Sentry.captureException(deleteError, { extra: { context: 'Error deleting user' } });
             return new Response(JSON.stringify({ error: 'Failed to delete account' }), {
                 status: 500,
                 headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
@@ -66,7 +81,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error) {
-        console.error('Delete Account Error:', error);
+        Sentry.captureException(error, { extra: { context: 'Delete Account Error' } });
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
             status: 500,
             headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }

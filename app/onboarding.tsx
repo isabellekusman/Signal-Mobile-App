@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
+    Alert,
     Animated,
     Dimensions,
     KeyboardAvoidingView,
@@ -68,7 +69,7 @@ const DEALBREAKER_OPTIONS = [
 
 // ─── STEP COMPONENTS ─────────────────────────────────────────────
 
-function WelcomeStep() {
+function WelcomeStep({ isOver13, toggleAge }: { isOver13: boolean, toggleAge: () => void }) {
     return (
         <View style={s.stepCenter}>
             <View style={s.welcomeIconWrap}>
@@ -85,6 +86,21 @@ function WelcomeStep() {
             <Text style={s.welcomeHint}>
                 This takes about 2 minutes. You can always update later.
             </Text>
+
+            <TouchableOpacity
+                style={s.ageCheckboxContainer}
+                onPress={toggleAge}
+                activeOpacity={0.8}
+            >
+                <Ionicons
+                    name={isOver13 ? 'checkbox' : 'square-outline'}
+                    size={24}
+                    color={isOver13 ? PINK : GRAY}
+                />
+                <Text style={s.ageCheckboxText}>
+                    I confirm that I am at least 13 years old.
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -339,6 +355,9 @@ export default function OnboardingScreen() {
     const [customBoundary, setCustomBoundary] = useState('');
     const [customDealbreaker, setCustomDealbreaker] = useState('');
 
+    // Age Gate
+    const [isOver13, setIsOver13] = useState(false);
+
     const addCustomItem = (value: string, list: string[], setter: (v: string[]) => void, clearInput: () => void) => {
         const trimmed = value.trim();
         if (trimmed.length > 0 && !list.includes(trimmed)) {
@@ -380,28 +399,42 @@ export default function OnboardingScreen() {
 
     const handleSkip = async () => {
         haptics.medium();
-        await completeOnboarding();
-        router.replace('/(tabs)');
+        try {
+            await completeOnboarding();
+            router.replace('/(tabs)');
+        } catch (error: any) {
+            Alert.alert(
+                "Saving Failed",
+                error.message || "We couldn't save your onboarding data right now. Please free up some storage or check your connection and try again."
+            );
+        }
     };
 
     const handleFinish = async () => {
         haptics.success();
-        await completeOnboarding({
-            name,
-            zodiac,
-            about: '',
-            standards,
-            boundaries,
-            attachmentStyle,
-            dealbreakers,
-            loveLanguage,
-        });
-        router.replace('/(tabs)');
+        try {
+            await completeOnboarding({
+                name,
+                zodiac,
+                about: '',
+                standards,
+                boundaries,
+                attachmentStyle,
+                dealbreakers,
+                loveLanguage,
+            });
+            router.replace('/(tabs)');
+        } catch (error: any) {
+            Alert.alert(
+                "Saving Failed",
+                error.message || "We couldn't save your onboarding data right now. Please free up some storage or check your connection and try again."
+            );
+        }
     };
 
     const renderStep = () => {
         switch (step) {
-            case 0: return <WelcomeStep />;
+            case 0: return <WelcomeStep isOver13={isOver13} toggleAge={() => setIsOver13(!isOver13)} />;
             case 1: return <NameStep name={name} onChangeName={setName} />;
             case 2: return <ZodiacStep zodiac={zodiac} onSelect={setZodiac} />;
             case 3: return <StandardsStep selected={standards} onToggle={(v) => toggleList(standards, v, setStandards)} customValue={customStandard} onChangeCustom={setCustomStandard} onAddCustom={() => addCustomItem(customStandard, standards, setStandards, () => setCustomStandard(''))} />;
@@ -468,7 +501,11 @@ export default function OnboardingScreen() {
                         ))}
                     </View>
 
-                    <TouchableOpacity style={s.nextBtn} onPress={handleNext}>
+                    <TouchableOpacity
+                        style={[s.nextBtn, isFirstStep && !isOver13 && { opacity: 0.5 }]}
+                        onPress={handleNext}
+                        disabled={isFirstStep && !isOver13}
+                    >
                         <Text style={s.nextBtnText}>
                             {isFirstStep ? 'BEGIN' : isLastStep ? 'FINISH' : 'NEXT'}
                         </Text>
@@ -565,6 +602,25 @@ const s = StyleSheet.create({
         color: SOFT_GRAY,
         textAlign: 'center',
         fontStyle: 'italic',
+        marginBottom: 32,
+    },
+    ageCheckboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: OFF_WHITE,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: LIGHT_GRAY,
+        gap: 12,
+        width: '100%',
+    },
+    ageCheckboxText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: DARK,
+        flex: 1,
     },
 
     // Steps

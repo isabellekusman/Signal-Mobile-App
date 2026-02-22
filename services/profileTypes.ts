@@ -55,7 +55,6 @@ export interface Tendency {
 
 export type RegulationLabel =
     | 'monitoring'
-    | 'clarifying'
     | 'accommodating'
     | 'distancing'
     | 'overinterpreting'

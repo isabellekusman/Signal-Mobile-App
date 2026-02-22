@@ -12,15 +12,15 @@ export const ENTITLEMENT_ID = 'premium';
 
 export const setupSubscription = async (userId: string) => {
     try {
-        Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+        Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
 
         if (Platform.OS === 'ios') {
-            await Purchases.configure({ apiKey: API_KEYS.apple, appUserId: userId });
+            await Purchases.configure({ apiKey: API_KEYS.apple, appUserID: userId });
         } else {
-            await Purchases.configure({ apiKey: API_KEYS.google, appUserId: userId });
+            await Purchases.configure({ apiKey: API_KEYS.google, appUserID: userId });
         }
 
-        console.log('[Subscription] RevenueCat initialized for user:', userId);
+        logger.breadcrumb(`RevenueCat initialized for user: ${userId}`, 'subscription');
     } catch (e) {
         logger.error(e, { tags: { service: 'subscription', method: 'setup' } });
     }

@@ -1,6 +1,6 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,7 @@ const BOUNDARY_SUGGESTIONS = [
 export default function SettingsScreen() {
     const { userProfile } = useConnections();
     const { signOut, user } = useAuth();
+    const router = useRouter();
     const [standards, setStandards] = useState(userProfile.standards);
     const [newStandard, setNewStandard] = useState('');
     const [name, setName] = useState(userProfile.name || '');
@@ -269,10 +270,28 @@ export default function SettingsScreen() {
                         </View>
                     </View>
 
+                    {/* LEGAL */}
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionTitle}>LEGAL</Text>
+
+                        <TouchableOpacity
+                            style={styles.legalButton}
+                            onPress={() => router.push('/privacy')}
+                        >
+                            <Ionicons name="document-text-outline" size={18} color="#8E8E93" />
+                            <Text style={styles.legalButtonText}>PRIVACY POLICY</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.legalButton}
+                            onPress={() => router.push('/terms')}
+                        >
+                            <Ionicons name="document-text-outline" size={18} color="#8E8E93" />
+                            <Text style={styles.legalButtonText}>TERMS OF SERVICE</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* DATA / BACKUP (Minimal) */}
-                    <TouchableOpacity style={styles.backupLink}>
-                        <Text style={styles.backupText}>DATA & BACKUP</Text>
-                    </TouchableOpacity>
 
                     {/* Account Actions */}
                     <View style={styles.sectionContainer}>
@@ -522,6 +541,24 @@ const styles = StyleSheet.create({
         color: '#8E8E93',
         marginBottom: 20,
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    legalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#F9FAFB',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F2F2F7',
+        marginBottom: 12,
+    },
+    legalButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#8E8E93',
+        letterSpacing: 1,
     },
     signOutButton: {
         flexDirection: 'row',

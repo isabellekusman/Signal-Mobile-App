@@ -46,7 +46,7 @@ export default function LoginScreen() {
             // In production build: signalmobile://auth/callback
             const redirectUrl = AuthSession.makeRedirectUri();
 
-            console.log('[Auth] Redirect URL:', redirectUrl);
+            logger.breadcrumb(`[Auth] Redirect URL: ${redirectUrl}`, 'auth');
 
             const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -72,7 +72,7 @@ export default function LoginScreen() {
 
                 if (result.type === 'success' && result.url) {
                     const callbackUrl = result.url;
-                    console.log('[Auth] Callback URL received:', callbackUrl);
+                    logger.breadcrumb(`[Auth] Callback URL received`, 'auth');
 
                     let accessToken: string | null = null;
                     let refreshToken: string | null = null;
@@ -113,8 +113,8 @@ export default function LoginScreen() {
                         setError('Sign-in completed but no session was returned. Please check your Supabase configuration.');
                     }
                 } else if (result.type === 'cancel' || result.type === 'dismiss') {
-                    console.log('[Auth] User cancelled Google sign-in');
-                } else if (result.type === 'error') {
+                    logger.breadcrumb('[Auth] User cancelled Google sign-in', 'auth');
+                } else {
                     setError('The login browser failed to open. Please try again.');
                 }
             }

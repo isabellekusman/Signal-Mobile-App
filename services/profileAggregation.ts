@@ -264,10 +264,6 @@ export function computeRegulationStyle(data: ExtractedData): RegulationStyle {
             score: data.recentDailyLogs.length * 1 + data.starsLogs.length * 1.5,
         },
         {
-            label: 'clarifying',
-            score: data.clarityLogs.length * 1.5 + data.decoderLogs.length * 2,
-        },
-        {
             label: 'accommodating',
             score: data.recentDailyLogs.filter((l) => l.energyExchange === 'I carried it').length * 2,
         },
@@ -297,7 +293,6 @@ export function computeRegulationStyle(data: ExtractedData): RegulationStyle {
 
     const descriptions: Record<RegulationLabel, string> = {
         monitoring: 'You regulate by tracking — observing patterns and checking in regularly.',
-        clarifying: 'You regulate by seeking clarity — understanding dynamics before deciding.',
         accommodating: 'You regulate by adapting — carrying effort to maintain stability.',
         distancing: 'You regulate by creating space — stepping back when things feel heavy.',
         overinterpreting: 'You regulate by analyzing — decoding meaning to manage uncertainty.',

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { Signal, useConnections } from '../context/ConnectionsContext';
+import { Connection, Signal, useConnections } from '../context/ConnectionsContext';
 
 // Options
 const ZODIAC_SIGNS = ["ARIES", "TAURUS", "GEMINI", "CANCER", "LEO", "VIRGO", "LIBRA", "SCORPIO", "SAGITTARIUS", "CAPRICORN", "AQUARIUS", "PISCES"];
@@ -108,8 +108,8 @@ export default function AddConnectionScreen() {
                 signals: signals,
             });
         } else {
-            const newConnection = {
-                id: Date.now().toString(),
+            const newConnection: Connection = {
+                id: crypto.randomUUID(),
                 name: name,
                 tag: finalType.toUpperCase(),
                 zodiac: zodiac,

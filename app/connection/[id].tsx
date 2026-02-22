@@ -71,7 +71,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
             haptics.success();
             setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: result, sender: 'ai' }]);
         } catch (error) {
-            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "I couldn't parse that right now. Try again?", sender: 'ai' }]);
+            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "Connection lost or timed out. Send another message to try again.", sender: 'ai' }]);
         } finally {
             setLoading(false);
         }
@@ -250,6 +250,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         replySuggestion: string;
     } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
     const scanAnim = useRef(new Animated.Value(0)).current;
 
@@ -317,6 +318,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         haptics.medium();
         Keyboard.dismiss();
         setLoading(true);
+        setError(null);
         try {
             // Added a 30-second timeout for Decoder since screenshots take longer
             const resultString = await Promise.race([
@@ -339,12 +341,12 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
             });
             haptics.success();
             setIsAnalysisOpen(true);
-        } catch (error: any) {
-            if (error.message === 'DAILY_LIMIT_REACHED') {
+        } catch (err: any) {
+            if (err.message === 'DAILY_LIMIT_REACHED') {
                 setShowPaywall('voluntary');
             } else {
-                logger.error(error, { tags: { feature: 'decoder', method: 'handleScanText' } });
-                alert("Failed to analyze. Please try again.");
+                logger.error(err, { tags: { feature: 'decoder', method: 'handleScanText' } });
+                setError("Connection lost or timed out.");
             }
         } finally {
             setLoading(false);
@@ -429,12 +431,16 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                     )}
                 </View>
 
+                {error && (
+                    <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginTop: 12, marginBottom: -12, fontWeight: '600' }}>{error}</Text>
+                )}
+
                 <TouchableOpacity
-                    style={[styles.scanButton, (loading || (!text.trim() && !image)) && { opacity: 0.5 }]}
+                    style={[styles.scanButton, (loading || (!text.trim() && !image)) && { opacity: 0.5 }, error ? { backgroundColor: '#1C1C1E', borderColor: '#1C1C1E' } : null]}
                     onPress={handleScanText}
                     disabled={loading || (!text.trim() && !image)}
                 >
-                    <Text style={styles.scanButtonText}>{loading ? 'SCANNING...' : 'SCAN SIGNAL'}</Text>
+                    <Text style={[styles.scanButtonText, error ? { color: '#FFFFFF' } : null]}>{loading ? 'SCANNING...' : (error ? 'TAP TO RETRY' : 'SCAN SIGNAL')}</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.disclaimerText}>
@@ -533,7 +539,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
-const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZodiac: string, partnerZodiac: string }) => {
+const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string }) => {
     const [forecast, setForecast] = useState<{
         connectionTheme?: string;
         dailyForecast: string;
@@ -547,14 +553,16 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
         }
     } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<boolean>(false);
     const [isDetailedAnalysisOpen, setIsDetailedAnalysisOpen] = useState(false);
 
     const fetchForecast = async () => {
         haptics.light();
         const today = new Date().toISOString().split('T')[0];
-        const storageKey = `stars_${name.replace(/\s/g, '')}_${today}`;
+        const storageKey = `stars_${connectionId}_${today}`;
 
         setLoading(true);
+        setError(false);
         try {
             // Check cache first
             const cached = await AsyncStorage.getItem(storageKey);
@@ -580,23 +588,12 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
             setForecast(result);
             haptics.success();
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
-        } catch (error: any) {
-            if (error.message === 'TIMEOUT') {
+        } catch (err: any) {
+            if (err.message === 'TIMEOUT') {
                 logger.warn('Stars alignment timed out', { tags: { feature: 'stars' } });
             }
-            logger.error(error, { tags: { feature: 'stars', method: 'fetchForecast' } });
-            // Fallback
-            setForecast({
-                connectionTheme: "Cloudy Skies",
-                dailyForecast: "The cosmos are cloudy right now. Check back later.",
-                cosmicStrategy: "Focus on your own center.",
-                detailedAnalysis: {
-                    userBubble: "Uncertainty.",
-                    partnerBubble: "Uncertainty.",
-                    pushPullDynamics: "Signals are mixed.",
-                    cosmicStrategyDepth: "Wait for the clouds to clear."
-                }
-            });
+            logger.error(err, { tags: { feature: 'stars', method: 'fetchForecast' } });
+            setError(true);
         } finally {
             setLoading(false);
         }
@@ -629,12 +626,12 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
 
                 {/* Connection Theme Headline */}
                 <Text style={styles.connectionThemeText}>
-                    {forecast?.connectionTheme || "Aligning the Cosmos..."}
+                    {error ? "Cloudy Skies" : (forecast?.connectionTheme || "Aligning the Cosmos...")}
                 </Text>
 
                 {/* Main Forecast Text */}
                 <Text style={styles.forecastText}>
-                    {forecast?.dailyForecast || (loading ? "Aligning your cosmic energies..." : `See how the ${userZodiac} and ${partnerZodiac} energies collide today.`)}
+                    {error ? "The cosmos are cloudy right now. Connection lost or timed out." : (forecast?.dailyForecast || (loading ? "Aligning your cosmic energies..." : `See how the ${userZodiac} and ${partnerZodiac} energies collide today.`))}
                 </Text>
 
                 {/* Cosmic Strategy (Short) */}
@@ -644,17 +641,19 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                             <Text style={[styles.strategyLabel, { color: '#ec4899' }]}>COSMIC STRATEGY</Text>
                         </View>
                         <Text style={[styles.strategyText, { color: '#1C1C1E' }]}>
-                            {forecast?.cosmicStrategy || "..."}
+                            {error ? "Focus on your own center." : (forecast?.cosmicStrategy || "...")}
                         </Text>
                     </View>
                 </View>
 
                 {/* Decode The Cosmos Button */}
                 <TouchableOpacity
-                    style={[styles.scanButton, { marginTop: 24, backgroundColor: '#ec4899' }]}
+                    style={[styles.scanButton, { marginTop: 24, backgroundColor: error ? '#1C1C1E' : '#ec4899' }]}
                     onPress={() => {
                         haptics.selection();
-                        if (!forecast) {
+                        if (error) {
+                            fetchForecast();
+                        } else if (!forecast) {
                             fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
                         } else {
                             setIsDetailedAnalysisOpen(true);
@@ -662,7 +661,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                     }}
                     disabled={loading}
                 >
-                    <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : 'DECODE THE COSMOS'}</Text>
+                    <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : (error ? 'TAP TO RETRY' : 'DECODE THE COSMOS')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -769,7 +768,7 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
             setResult(checkInResult);
             haptics.success();
         } catch (error) {
-            setResult("Couldn't get an objective read right now.");
+            setResult("Connection lost or timed out. Close this modal and tap the button to try again.");
         } finally {
             setLoading(false);
         }
@@ -1365,15 +1364,30 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
             setIsSubmitting(true);
             haptics.success();
             setTimeout(() => {
-                onComplete(answers);
+                try {
+                    onComplete(answers);
+                } catch (error: any) {
+                    setIsSubmitting(false);
+                    Alert.alert(
+                        "Saving Failed",
+                        error.message || "We couldn't save your context right now. Please free up some storage or check your connection and try again."
+                    );
+                }
             }, 600);
         }
     };
 
     const handleSkip = () => {
         haptics.selection();
-        // Skip marks onboarding as completed permanently — never show again
-        onComplete({ skipped: true });
+        try {
+            // Skip marks onboarding as completed permanently — never show again
+            onComplete({ skipped: true });
+        } catch (error: any) {
+            Alert.alert(
+                "Saving Failed",
+                error.message || "We couldn't save your preference right now. Please free up some storage or check your connection and try again."
+            );
+        }
     };
 
     const handleSelection = (val: string) => {
@@ -1501,6 +1515,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
         watchFor: string;
     } | null>(null);
     const [loadingAdvice, setLoadingAdvice] = useState(false);
+    const [adviceError, setAdviceError] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<SavedLog | null>(null);
 
     const savedLogs = connection.savedLogs || [];
@@ -1512,6 +1527,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
 
     const fetchAdvice = async () => {
         setLoadingAdvice(true);
+        setAdviceError(null);
         try {
             // Build context from all available data
             let context = '';
@@ -1580,11 +1596,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
             });
         } catch (error: any) {
             logger.error(error, { tags: { feature: 'dailyAdvice', method: 'fetchAdvice' } });
-            setAdvice({
-                stateOfConnection: `Error: ${error.message || 'Unable to generate advice right now.'}`,
-                todaysMove: '',
-                watchFor: '',
-            });
+            setAdviceError("Connection lost or timed out.");
         } finally {
             setLoadingAdvice(false);
         }
@@ -1679,6 +1691,13 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 {loadingAdvice ? (
                     <View style={{ paddingVertical: 32, alignItems: 'center' }}>
                         <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Generating your daily briefing...</Text>
+                    </View>
+                ) : adviceError ? (
+                    <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                        <Text style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{adviceError}</Text>
+                        <TouchableOpacity style={{ paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#FDF2F8', borderRadius: 8 }} onPress={fetchAdvice}>
+                            <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '700' }}>TAP TO RETRY</Text>
+                        </TouchableOpacity>
                     </View>
                 ) : advice ? (
                     <View style={{ gap: 16 }}>
@@ -2148,10 +2167,17 @@ export default function ConnectionDetailScreen() {
 
     const handleOnboardingComplete = (data: any) => {
         if (connection) {
-            updateConnection(connection.id, {
-                onboardingCompleted: true,
-                onboardingContext: data
-            });
+            try {
+                updateConnection(connection.id, {
+                    onboardingCompleted: true,
+                    onboardingContext: data
+                });
+            } catch (error: any) {
+                Alert.alert(
+                    "Saving Failed",
+                    "We couldn't save your data right now. Please try again."
+                );
+            }
         }
     };
 
@@ -2313,6 +2339,7 @@ export default function ConnectionDetailScreen() {
 
                     {activeSection === 'UNDERSTAND' && activeTool === 'STARS' && (
                         <StarsContent
+                            connectionId={connectionId}
                             name={Array.isArray(name) ? name[0] : name}
                             userZodiac="Capricorn"
                             partnerZodiac={zodiac}

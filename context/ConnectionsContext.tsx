@@ -299,7 +299,12 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     const persistConnections = (updated: Connection[]) => {
         const keys = getKeys(currentUserId);
         if (keys.connections) {
-            AsyncStorage.setItem(keys.connections, JSON.stringify(updated)).catch(() => { });
+            try {
+                AsyncStorage.setItem(keys.connections, JSON.stringify(updated)).catch(() => { });
+            } catch (err: any) {
+                logger.warn('AsyncStorage connection save error', { extra: { err } });
+                throw new Error('Storage is full or inaccessible. Please free up space.');
+            }
         }
     };
 
@@ -309,31 +314,29 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         if (keys.profile) {
             try {
                 await AsyncStorage.setItem(keys.profile, JSON.stringify(profile));
-            } catch (err) {
+            } catch (err: any) {
                 logger.warn('AsyncStorage profile save error', { extra: { err } });
+                throw new Error('Storage is full or inaccessible. Please free up space.');
             }
         }
         // Sync to Supabase
-        try {
-            await db.upsertProfile(profileToDBProfile(profile));
-        } catch (err) {
-            logger.warn('Profile cloud sync error', { extra: { err } });
-        }
+        await db.upsertProfile(profileToDBProfile(profile));
     };
 
     const completeOnboarding = async (profile?: UserProfile) => {
-        setHasCompletedOnboarding(true);
         const keys = getKeys(currentUserId);
         if (keys.onboarding) {
             try {
                 await AsyncStorage.setItem(keys.onboarding, 'true');
-            } catch (err) {
+            } catch (err: any) {
                 logger.warn('AsyncStorage onboarding flag error', { extra: { err } });
+                throw new Error('Failed to save onboarding flag: ' + err.message);
             }
         }
         if (profile) {
             await setUserProfile(profile);
         }
+        setHasCompletedOnboarding(true);
     };
 
     // ─── Connection CRUD (local + cloud) ────────────────────────

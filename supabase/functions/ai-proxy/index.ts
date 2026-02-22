@@ -10,6 +10,11 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as Sentry from 'npm:@sentry/deno';
+
+Sentry.init({
+    dsn: Deno.env.get('SENTRY_DSN'),
+});
 
 // Rate limits per feature per day
 const RATE_LIMITS: Record<string, { free: number; seeker: number; signal: number }> = {
@@ -180,7 +185,7 @@ Deno.serve(async (req) => {
         console.log('[AI Proxy] Feature:', feature);
 
         if (!feature || !SYSTEM_PROMPTS[feature]) {
-            console.error('[AI Proxy] Invalid feature:', feature);
+            Sentry.captureMessage(`[AI Proxy] Invalid feature: ${feature}`);
             throw new Error('Invalid feature requested');
         }
 
@@ -216,7 +221,7 @@ Deno.serve(async (req) => {
             .gte('created_at', todayStart.toISOString());
 
         if (usageError) {
-            console.error('[AI Proxy] Usage Check Error:', usageError.message);
+            Sentry.captureException(usageError, { extra: { context: '[AI Proxy] Usage Check Error' } });
         }
 
         const currentUsage = usageCount ?? 0;
@@ -232,7 +237,7 @@ Deno.serve(async (req) => {
                 .single();
 
             if (profileError) {
-                console.error('[AI Proxy] Profile Check Error:', profileError.message);
+                Sentry.captureException(profileError, { extra: { context: '[AI Proxy] Profile Check Error' } });
             }
 
             const tier = profile?.subscription_tier ?? 'free';
@@ -304,7 +309,7 @@ Deno.serve(async (req) => {
         const data = await geminiResponse.json();
 
         if (!geminiResponse.ok) {
-            console.error('[Gemini API Error]', JSON.stringify(data));
+            Sentry.captureMessage(`[Gemini API Error] ${JSON.stringify(data)}`);
             return new Response(JSON.stringify({
                 error: 'GEMINI_ERROR',
                 message: data.error?.message || 'Gemini API failed'
@@ -342,7 +347,7 @@ Deno.serve(async (req) => {
             feature,
             tokens_used: result.length + (prompt?.length || 0)
         }).then(({ error }) => {
-            if (error) console.error('[AI Proxy] Usage Log Error:', error.message);
+            if (error) Sentry.captureException(error, { extra: { context: '[AI Proxy] Usage Log Error' } });
         });
 
         return new Response(JSON.stringify({ result }), {
@@ -351,7 +356,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error: any) {
-        console.error('[AI Proxy] Global Catch:', error.message);
+        Sentry.captureException(error, { extra: { context: '[AI Proxy] Global Catch' } });
         return new Response(JSON.stringify({
             error: 'INTERNAL_SERVER_ERROR',
             message: error.message,

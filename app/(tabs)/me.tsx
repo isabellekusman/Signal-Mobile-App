@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -918,6 +919,33 @@ export default function MeScreen() {
                         <View style={{ marginTop: 10, marginBottom: 60, padding: 20, backgroundColor: '#F3F4F6', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#D1D5DB' }}>
                             <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>DEVELOPER TOOLS</Text>
                             <View style={{ gap: 8 }}>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
+                                    onPress={async () => {
+                                        const { status } = await Notifications.getPermissionsAsync();
+                                        if (status !== 'granted') {
+                                            const { status: reqStatus } = await Notifications.requestPermissionsAsync();
+                                            if (reqStatus !== 'granted') {
+                                                Alert.alert("Permission Required", "Please enable notifications in your phone settings.");
+                                                return;
+                                            }
+                                        }
+
+                                        await Notifications.scheduleNotificationAsync({
+                                            content: {
+                                                title: 'You & Sam',
+                                                body: "You and Sam have been in sync lately. Check in on today's signal.",
+                                            },
+                                            trigger: {
+                                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                                                seconds: 2
+                                            },
+                                        });
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>TEST PUSH NOTIFICATION</Text>
+                                </TouchableOpacity>
+
                                 <TouchableOpacity
                                     style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
                                     onPress={async () => {
