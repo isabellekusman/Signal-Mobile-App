@@ -65,30 +65,15 @@ function InnerLayout() {
     }
   }, [hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
-  const markSubscriptionSeen = async () => {
-    try {
-      if (!hasSeenSubWelcome) {
-        // First time welcome: set trial and mark seen
-        const trialDate = new Date();
-        trialDate.setDate(trialDate.getDate() + 7);
-        await db.upsertProfile({
-          has_seen_sub_welcome: true,
-          trial_expires_at: trialDate.toISOString(),
-          subscription_tier: 'signal'
-        } as any);
-      } else if (!isTrialActive && !hasSeenTrialExpiry) {
-        // Trial expired: mark seen
-        await db.upsertProfile({ has_seen_trial_expiry: true } as any);
-      }
-    } catch (err) {
-      console.error("Failed to update subscription seen status:", err);
-    }
-  };
+
 
   const handleSubscribe = async (tier: 'seeker' | 'signal') => {
     try {
-      await markSubscriptionSeen();
-      await db.upsertProfile({ subscription_tier: tier });
+      await db.upsertProfile({
+        subscription_tier: tier,
+        has_seen_sub_welcome: true,
+        has_seen_trial_expiry: !isTrialActive // Mark trial expiry seen if they subscribe after it ends
+      });
       setShowPaywall(null);
       alert(`Success! You are now subscribed to ${tier.charAt(0).toUpperCase() + tier.slice(1)}.`);
     } catch (err) {
@@ -96,8 +81,32 @@ function InnerLayout() {
     }
   };
 
+  const handleStartTrial = async () => {
+    try {
+      const trialDate = new Date();
+      trialDate.setDate(trialDate.getDate() + 7);
+      await db.upsertProfile({
+        has_seen_sub_welcome: true,
+        trial_expires_at: trialDate.toISOString(),
+        subscription_tier: 'signal'
+      });
+      setShowPaywall(null);
+      alert("Your 7-day free trial has started! Enjoy full access to Signal.");
+    } catch (err) {
+      alert("Failed to start trial. Please try again.");
+    }
+  };
+
   const handleClose = async () => {
-    await markSubscriptionSeen();
+    try {
+      if (!hasSeenSubWelcome) {
+        await db.upsertProfile({ has_seen_sub_welcome: true });
+      } else if (!isTrialActive && !hasSeenTrialExpiry) {
+        await db.upsertProfile({ has_seen_trial_expiry: true });
+      }
+    } catch (err) {
+      console.warn("Failed to mark paywall as seen:", err);
+    }
     setShowPaywall(null);
   };
 
@@ -116,7 +125,9 @@ function InnerLayout() {
         visible={paywallMode !== null}
         onClose={handleClose}
         onSubscribe={handleSubscribe}
+        onStartTrial={handleStartTrial}
         showCloseButton={paywallMode === 'voluntary'}
+        isTrialActive={isTrialActive}
       />
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

@@ -15,13 +15,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Rate limits per feature per day
-const RATE_LIMITS: Record<string, { free: number; premium: number }> = {
-    clarity: { free: 10, premium: 100 },
-    decoder: { free: 5, premium: 50 },
-    stars: { free: 5, premium: 50 },
-    dynamic: { free: 10, premium: 100 },
-    daily_advice: { free: 5, premium: 50 },
-    objective: { free: 5, premium: 50 },
+const RATE_LIMITS: Record<string, { free: number; seeker: number; signal: number }> = {
+    clarity: { free: 10, seeker: 25, signal: 9999 },
+    decoder: { free: 5, seeker: 25, signal: 9999 },
+    stars: { free: 5, seeker: 25, signal: 9999 },
+    dynamic: { free: 10, seeker: 25, signal: 9999 },
+    daily_advice: { free: 5, seeker: 25, signal: 9999 },
+    objective: { free: 5, seeker: 25, signal: 9999 },
 };
 
 // System prompts
@@ -159,9 +159,9 @@ Deno.serve(async (req) => {
 
         let limit = 3; // Default Free
         if (effectiveTier === 'signal') {
-            limit = 999999; // Unlimited
+            limit = RATE_LIMITS[feature]?.signal ?? 9999;
         } else if (effectiveTier === 'seeker') {
-            limit = 25;
+            limit = RATE_LIMITS[feature]?.seeker ?? 25;
         }
 
         if ((usageCount ?? 0) >= limit) {

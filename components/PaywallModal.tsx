@@ -18,7 +18,9 @@ interface PaywallModalProps {
     visible: boolean;
     onClose: () => void;
     onSubscribe: (tier: 'seeker' | 'signal') => void;
+    onStartTrial: () => void;
     showCloseButton?: boolean;
+    isTrialActive?: boolean;
 }
 
 const PINK = '#ec4899';
@@ -28,7 +30,9 @@ const WHITE = '#FFFFFF';
 const DARK = '#1C1C1E';
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
-export default function PaywallModal({ visible, onClose, onSubscribe, showCloseButton = true }: PaywallModalProps) {
+export default function PaywallModal({ visible, onClose, onSubscribe, onStartTrial, showCloseButton = true, isTrialActive = true }: PaywallModalProps) {
+    const isExpired = !isTrialActive;
+
     return (
         <Modal
             visible={visible}
@@ -46,9 +50,11 @@ export default function PaywallModal({ visible, onClose, onSubscribe, showCloseB
                 )}
 
                 <View style={[s.content, !showCloseButton && { paddingTop: 60 }]}>
-                    <Text style={s.title}>Clarity Awaits</Text>
+                    <Text style={s.title}>{isExpired ? 'Your Free Tier is Up' : 'Clarity Awaits'}</Text>
                     <Text style={s.subtitle}>
-                        Choose your level of insight and unlock full behavioral decoding for every connection.
+                        {isExpired
+                            ? 'Your evaluation period has ended. Choose a plan to maintain full access to behavioral analysis.'
+                            : 'Choose your level of insight and unlock full behavioral decoding for every connection.'}
                     </Text>
 
                     {/* Tier: The Seeker */}
@@ -79,13 +85,17 @@ export default function PaywallModal({ visible, onClose, onSubscribe, showCloseB
                         <Ionicons name="chevron-forward" size={20} color={PINK} />
                     </TouchableOpacity>
 
-                    <View style={s.trialInfo}>
-                        <Text style={s.trialText}>Includes a 1-week free trial for all new subscribers.</Text>
-                    </View>
+                    {!isExpired && (
+                        <>
+                            <View style={s.trialInfo}>
+                                <Text style={s.trialText}>Includes a 1-week free trial for all new subscribers.</Text>
+                            </View>
 
-                    <TouchableOpacity style={s.primaryButton} onPress={() => onSubscribe('signal')}>
-                        <Text style={s.primaryButtonText}>Start 7-Day Free Trial</Text>
-                    </TouchableOpacity>
+                            <TouchableOpacity style={s.primaryButton} onPress={onStartTrial}>
+                                <Text style={s.primaryButtonText}>Start 7-Day Free Trial</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
 
                     <Text style={s.footer}>
                         Cancel anytime in your App Store settings.

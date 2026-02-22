@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS profiles (
     attachment_style TEXT[] DEFAULT '{}',
     dealbreakers TEXT[] DEFAULT '{}',
     love_language TEXT DEFAULT '',
+    subscription_tier TEXT DEFAULT 'free' CHECK (subscription_tier IN ('free', 'seeker', 'signal')),
+    trial_expires_at TIMESTAMPTZ,
+    has_seen_sub_welcome BOOLEAN DEFAULT false,
+    has_seen_trial_expiry BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
