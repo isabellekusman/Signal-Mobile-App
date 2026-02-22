@@ -92,7 +92,7 @@ function IdentityHeader({
                     </View>
                 </View>
 
-                <TouchableOpacity style={s.editBtn} onPress={handleToggleEditIdentity}>
+                <TouchableOpacity style={s.editBtn} onPress={onToggleEdit}>
                     <Ionicons
                         name={isEditing ? 'checkmark-outline' : 'pencil-outline'}
                         size={15}
@@ -564,7 +564,7 @@ function ContractSection({
 // ═══════════════════════════════════════════════════════════════════
 
 export default function MeScreen() {
-    const { connections, userProfile, subscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
+    const { connections, userProfile, setUserProfile, subscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
     const { signOut, user } = useAuth();
 
     // ── Identity ──
@@ -583,6 +583,8 @@ export default function MeScreen() {
         userProfile.boundaries
     );
     const [newBoundary, setNewBoundary] = useState('');
+
+    const [isEditingContent, setIsEditingContent] = useState(false);
 
     // ── Saving logic ──
     const handleToggleEditIdentity = useCallback(async () => {
