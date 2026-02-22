@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -564,6 +565,7 @@ function ContractSection({
 // ═══════════════════════════════════════════════════════════════════
 
 export default function MeScreen() {
+    const router = useRouter();
     const { connections, userProfile, setUserProfile, subscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
     const { signOut, user } = useAuth();
 
@@ -848,7 +850,7 @@ export default function MeScreen() {
                         <View style={{ backgroundColor: OFF_WHITE, borderRadius: 16, borderWidth: 1, borderColor: '#F2F2F7', overflow: 'hidden' }}>
                             <TouchableOpacity
                                 style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
-                                onPress={() => openLink('https://example.com/terms')}
+                                onPress={() => router.push('/terms')}
                             >
                                 <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Terms of Service</Text>
                                 <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
@@ -856,7 +858,7 @@ export default function MeScreen() {
 
                             <TouchableOpacity
                                 style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
-                                onPress={() => openLink('https://example.com/privacy')}
+                                onPress={() => router.push('/privacy')}
                             >
                                 <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Privacy Policy</Text>
                                 <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
