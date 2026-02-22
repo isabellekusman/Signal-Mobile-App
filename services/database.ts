@@ -172,16 +172,22 @@ async function getDailyUsageCount(feature?: string): Promise<number> {
 // ─── Account Operations ─────────────────────────────────────
 
 async function deleteAccount(): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
 
     try {
-        const { error } = await supabase.functions.invoke('delete-account');
+        const { error } = await supabase.functions.invoke('delete-account', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+            }
+        });
         if (error) {
             console.error('db.deleteAccount function error:', error);
             // Fallback to manual delete of what we can if function is not deployed
-            const { error: connError } = await supabase.from('connections').delete().eq('user_id', user.id);
-            const { error: profileError } = await supabase.from('profiles').delete().eq('id', user.id);
+            const { error: connError } = await supabase.from('connections').delete().eq('user_id', session.user.id);
+            const { error: profileError } = await supabase.from('profiles').delete().eq('id', session.user.id);
             return !connError && !profileError;
         }
         return true;

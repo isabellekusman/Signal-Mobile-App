@@ -50,37 +50,20 @@
 ## 🔲 TODO — Requires Your Action
 
 ### 1. Set Up Supabase Project (Crucial)
-If you haven't already:
-1. Go to [supabase.com](https://supabase.com) → Create a project
-2. Go to **Settings → API** and copy:
-   - Project URL → put in `.env` as `EXPO_PUBLIC_SUPABASE_URL`
-   - Anon key → put in `.env` as `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-3. Go to **SQL Editor** → paste and run `supabase/migrations/001_initial_schema.sql`
+- ✅ Project created and URL/Key added to `.env`
+- ✅ SQL schema migrated via SQL Editor
 
-### 2. Deploy Edge Functions
-You MUST deploy these for AI and account deletion to work in production:
-```bash
-# Install Supabase CLI if not done
-npm install -g supabase
+### 2. Deploy Edge Functions (Completed)
+- ✅ Supabase CLI installed
+- ✅ Logged in and linked to project
+- ✅ GEMINI_API_KEY set as server secret
+- ✅ `ai-proxy` and `delete-account` functions deployed
 
-# Login
-supabase login
-
-# Link to your project
-supabase link --project-ref YOUR_PROJECT_REF
-
-# Set the Gemini API key as a server secret
-supabase secrets set GEMINI_API_KEY=your-key-here
-
-# Deploy both functions
-supabase functions deploy ai-proxy
-supabase functions deploy delete-account
-```
-
-### 3. Rotate and Secure Gemini API Key
-1. Go to Google Cloud Console → API Keys → Rotate/regenerate your key.
-2. Once the `ai-proxy` is deployed, **PERMANENTLY REMOVE** `EXPO_PUBLIC_GEMINI_API_KEY` from your `.env` file.
-   - *Note: This ensures the key is never bundled into your app again.*
+### 3. Rotate and Secure Gemini API Key (Completed)
+- ✅ Gemini API key secured on server
+- ✅ `EXPO_PUBLIC_GEMINI_API_KEY` permanently removed from client `.env`
+- ✅ Fallback code removed from `aiService.ts`
+- ✅ `services/gemini.ts` deleted from client bundle
 
 ### 4. Enable Auth Providers (Optional)
 In Supabase Dashboard → Authentication → Providers:
