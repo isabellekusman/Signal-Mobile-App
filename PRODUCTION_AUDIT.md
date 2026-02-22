@@ -18,7 +18,7 @@ The app now features real **Subscription Integration (RevenueCat)**, **Offline R
 | :--- | :--- | :--- |
 | 🔴 **BLOCKERS** | **0** | All cleared (Auth, DB, Security, Payments) |
 | 🟠 **HIGH RISK** | **0** | All high risks resolved (RLS, API Proxy, Logging) |
-| 🟡 **MEDIUM** | **1** | Real Legal Copy (Real text needed) |
+| 🟡 **MEDIUM** | **0** | All medium risks resolved |
 | 🟢 **NICE TO HAVE** | **8** | Analytics, Deep Linking, Social Share |
 
 ---
