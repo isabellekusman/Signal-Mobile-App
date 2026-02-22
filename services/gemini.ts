@@ -14,7 +14,7 @@ if (API_KEY) {
     console.error("Gemini Service: No API Key found!");
 }
 
-export const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+export const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
 export async function generateContent(prompt: string | Array<string | any>) {
     try {

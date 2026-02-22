@@ -1,5 +1,20 @@
 import { supabase } from "../lib/supabase";
-import { generateContent } from "./gemini"; // Keep for dev fallback
+import { generateContent } from "./gemini";
+
+// Prompts for development fallback (when Edge Functions are not yet deployed)
+const FALLBACK_PROMPTS: Record<string, string> = {
+    clarity: `You are a grounded, perceptive, emotionally intelligent friend. Help the user see relationship dynamics clearly. Prioritize clarity over comfort.`,
+
+    decoder: `Analyze text/thread. You MUST return ONLY a JSON object with this structure: { "tone": "string", "effort": "string", "powerDynamics": "string", "subtext": "string", "motivation": "string", "risks": [], "replySuggestion": "string" }. Do not add any conversational text before or after the JSON.`,
+
+    stars: `Relationship astrologer. Return ONLY a JSON object: { "connectionTheme": "string", "dailyForecast": "string", "planetaryTransits": "string", "cosmicStrategy": "string", "detailedAnalysis": { "userBubble": "string", "partnerBubble": "string", "pushPullDynamics": "string", "cosmicStrategyDepth": "string" } }`,
+
+    dynamic: `Evaluate vibe check and provide objective behavioral analysis.`,
+
+    daily_advice: `Relationship advisor. Return ONLY a JSON object: { "stateOfConnection": "string", "todaysMove": "string", "watchFor": "string" }. Ensure it is valid JSON with no conversational text.`,
+
+    objective: `Objective evaluation of connection signals.`
+};
 
 /**
  * AI Service
@@ -18,25 +33,26 @@ export const aiService = {
             });
 
             if (error) {
-                console.error(`[AI Proxy Error] ${feature}:`, error);
-
-                // Fallback to direct call in dev if configured
+                // If in dev and we have a fallback, use warn instead of error to avoid LogBox popup
                 if (__DEV__ && process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-                    console.warn(`[AI Fallback] Falling back to direct Gemini call for ${feature}`);
+                    console.warn(`[AI Proxy Error] ${feature} (Falling back):`, error);
                     return await this.fallbackDirectCall(feature, prompt, context, image);
                 }
 
-                // Check for specific error status (like 429 Limit Reached)
-                if (error.status === 429) {
-                    throw new Error('DAILY_LIMIT_REACHED');
-                }
-
+                console.error(`[AI Proxy Error] ${feature}:`, error);
+                if (error.status === 429) throw new Error('DAILY_LIMIT_REACHED');
                 throw new Error(error.message || 'AI request failed');
             }
 
             return data.result;
         } catch (err) {
             console.error(`[AI Service Catch] ${feature}:`, err);
+
+            // Even if the invoke itself throws (network error, function not found), try fallback in dev
+            if (__DEV__ && process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+                console.warn(`[AI Fallback] Falling back from catch for ${feature}`);
+                return await this.fallbackDirectCall(feature, prompt, context, image);
+            }
             throw err;
         }
     },
@@ -45,7 +61,9 @@ export const aiService = {
      * Fallback for development if Edge Function isn't deployed yet
      */
     async fallbackDirectCall(feature: string, prompt: string, context?: string, image?: { data: string, mimeType: string }): Promise<string> {
-        const fullPrompt = `${context || ''}\n\n${prompt}`;
+        const systemPrompt = FALLBACK_PROMPTS[feature] || '';
+        const fullPrompt = `System: ${systemPrompt}\n\nContext: ${context || ''}\n\nUser: ${prompt}`;
+
         if (image) {
             const imagePart = {
                 inlineData: {
@@ -113,5 +131,33 @@ export const aiService = {
     async getDailyAdvice(name: string, tag: string, zodiac: string, context: string) {
         const prompt = `Connection Name: ${name}\nConnection Type: ${tag}\nZodiac Sign: ${zodiac}\nToday's Date: ${new Date().toDateString()}\n\nContext & History:\n${context}`;
         return await this.callProxy('daily_advice', prompt);
+    },
+
+    /**
+     * Extracts JSON from a string that might contain other text
+     */
+    safeParseJSON(text: string) {
+        try {
+            // Try direct parse first
+            return JSON.parse(text.trim());
+        } catch (e) {
+            // Try to find JSON between triple backticks
+            const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (match && match[1]) {
+                try {
+                    return JSON.parse(match[1].trim());
+                } catch (e2) { /* continue */ }
+            }
+
+            // Fallback: search for first '{' and last '}'
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start !== -1 && end !== -1 && end > start) {
+                try {
+                    return JSON.parse(text.substring(start, end + 1));
+                } catch (e3) { /* continue */ }
+            }
+            throw new Error("Could not parse AI response as JSON");
+        }
     }
 };

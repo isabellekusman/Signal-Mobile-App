@@ -314,8 +314,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 resultString = await aiService.decodeMessage(text, name);
             }
 
-            let jsonString = resultString.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(jsonString);
+            const result = aiService.safeParseJSON(resultString);
 
             setAnalysis({
                 tone: result.tone || "Unclear",
@@ -551,8 +550,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
 
             // Fetch new if not cached
             const resultString = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
-            let jsonString = resultString.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(jsonString);
+            const result = aiService.safeParseJSON(resultString);
 
             setForecast(result);
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
@@ -1529,8 +1527,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 connection.zodiac,
                 context || 'No prior data available yet.'
             );
-            let jsonString = result.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsed = JSON.parse(jsonString);
+            const parsed = aiService.safeParseJSON(result);
             setAdvice(parsed);
 
             // Cache the advice on the connection so it persists for the day
