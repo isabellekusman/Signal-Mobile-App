@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 
@@ -52,83 +52,89 @@ export default function ReflectScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <View style={styles.container}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <ScrollView
+                        contentContainerStyle={styles.container}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                    >
 
-                    {/* Page Header */}
-                    <View style={styles.header}>
-                        <Text style={styles.pageTitle}>Reflect</Text>
-                        <Text style={styles.pageSubtitle}>EMOTIONAL PROCESSING</Text>
-                        <View style={styles.separator} />
-                    </View>
+                        {/* Page Header */}
+                        <View style={styles.header}>
+                            <Text style={styles.pageTitle}>Reflect</Text>
+                            <Text style={styles.pageSubtitle}>EMOTIONAL PROCESSING</Text>
+                            <View style={styles.separator} />
+                        </View>
 
-                    {/* Optional Connection Attachment */}
-                    <View style={styles.attachSection}>
-                        <Text style={styles.attachLabel}>ATTACH TO A CONNECTION</Text>
-                        <Text style={styles.attachHint}>
-                            Optionally link this reflection to someone specific.
-                        </Text>
+                        {/* Optional Connection Attachment */}
+                        <View style={styles.attachSection}>
+                            <Text style={styles.attachLabel}>ATTACH TO A CONNECTION</Text>
+                            <Text style={styles.attachHint}>
+                                Optionally link this reflection to someone specific.
+                            </Text>
 
-                        {attachedConnection ? (
-                            <View style={styles.attachedChip}>
-                                <View style={styles.attachedAvatar}>
-                                    {attachedConnection.icon ? (
-                                        <Ionicons name={attachedConnection.icon as any} size={16} color="#ec4899" />
-                                    ) : (
-                                        <Text style={styles.attachedInitials}>
-                                            {attachedConnection.name.substring(0, 1).toUpperCase()}
-                                        </Text>
-                                    )}
+                            {attachedConnection ? (
+                                <View style={styles.attachedChip}>
+                                    <View style={styles.attachedAvatar}>
+                                        {attachedConnection.icon ? (
+                                            <Ionicons name={attachedConnection.icon as any} size={16} color="#ec4899" />
+                                        ) : (
+                                            <Text style={styles.attachedInitials}>
+                                                {attachedConnection.name.substring(0, 1).toUpperCase()}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <Text style={styles.attachedName}>{attachedConnection.name}</Text>
+                                    <TouchableOpacity onPress={() => setAttachedConnectionId(null)}>
+                                        <Ionicons name="close-circle" size={18} color="#C7C7CC" />
+                                    </TouchableOpacity>
                                 </View>
-                                <Text style={styles.attachedName}>{attachedConnection.name}</Text>
-                                <TouchableOpacity onPress={() => setAttachedConnectionId(null)}>
-                                    <Ionicons name="close-circle" size={18} color="#C7C7CC" />
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.attachButton}
+                                    onPress={() => setShowConnectionPicker(true)}
+                                >
+                                    <Ionicons name="add-outline" size={18} color="#ec4899" />
+                                    <Text style={styles.attachButtonText}>SELECT CONNECTION</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Main Card — Self-Alignment Check-In */}
+                        <View style={styles.card}>
+                            <View style={styles.cardContent}>
+                                <Text style={styles.cardTitle}>Objective Check-In</Text>
+                                <Text style={styles.cardSubtitle}>CALIBRATE YOUR STATE AGAINST YOUR STANDARDS.</Text>
+
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        placeholder="I feel like I'm asking for too much because..."
+                                        placeholderTextColor="#D1D1D6"
+                                        multiline
+                                        textAlignVertical="top"
+                                        selectionColor="#000000"
+                                        value={reflection}
+                                        onChangeText={setReflection}
+                                    />
+                                </View>
+
+                                <TouchableOpacity
+                                    style={[styles.realignButton, !reflection.trim() && { opacity: 0.5 }]}
+                                    onPress={handleRealign}
+                                    disabled={loading || !reflection.trim()}
+                                >
+                                    {loading ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.realignButtonText}>REALIGN ME</Text>
+                                    )}
                                 </TouchableOpacity>
                             </View>
-                        ) : (
-                            <TouchableOpacity
-                                style={styles.attachButton}
-                                onPress={() => setShowConnectionPicker(true)}
-                            >
-                                <Ionicons name="add-outline" size={18} color="#ec4899" />
-                                <Text style={styles.attachButtonText}>SELECT CONNECTION</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-
-                    {/* Main Card — Self-Alignment Check-In */}
-                    <View style={styles.card}>
-                        <View style={styles.cardContent}>
-                            <Text style={styles.cardTitle}>Objective Check-In</Text>
-                            <Text style={styles.cardSubtitle}>CALIBRATE YOUR STATE AGAINST YOUR STANDARDS.</Text>
-
-                            <View style={styles.inputContainer}>
-                                <TextInput
-                                    style={styles.textInput}
-                                    placeholder="I feel like I'm asking for too much because..."
-                                    placeholderTextColor="#D1D1D6"
-                                    multiline
-                                    textAlignVertical="top"
-                                    selectionColor="#000000"
-                                    value={reflection}
-                                    onChangeText={setReflection}
-                                />
-                            </View>
-
-                            <TouchableOpacity
-                                style={[styles.realignButton, !reflection.trim() && { opacity: 0.5 }]}
-                                onPress={handleRealign}
-                                disabled={loading || !reflection.trim()}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.realignButtonText}>REALIGN ME</Text>
-                                )}
-                            </TouchableOpacity>
                         </View>
-                    </View>
 
-                </View>
+                    </ScrollView>
+                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
 
             {/* Insight Modal */}
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
 
     // Main Card
     card: {
-        flex: 1,
+        minHeight: 450,
         backgroundColor: '#FFFFFF',
         borderRadius: 32,
         padding: 4,
@@ -336,7 +342,6 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     cardContent: {
-        flex: 1,
         padding: 24,
         alignItems: 'center',
         justifyContent: 'center',
@@ -360,7 +365,7 @@ const styles = StyleSheet.create({
     },
     inputContainer: {
         width: '100%',
-        flex: 1,
+        minHeight: 220,
         backgroundColor: '#FAFAFA',
         borderRadius: 24,
         padding: 20,
