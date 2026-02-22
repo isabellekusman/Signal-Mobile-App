@@ -71,9 +71,11 @@ In Supabase Dashboard → Authentication → Providers:
 - Optionally enable **Google** and **Apple** sign-in
 
 ### 5. Real Subscription Integration (B-6)
-- [ ] Sign up for [RevenueCat](https://www.revenuecat.com/)
-- [ ] Install `react-native-purchases`
-- [ ] Replace the mock logic in `app/_layout.tsx` with real RevenueCat calls.
+- ✅ Signed up for [RevenueCat](https://www.revenuecat.com/)
+- ✅ Installed `react-native-purchases`
+- ✅ Replaced the mock logic in `app/_layout.tsx` with real RevenueCat calls.
+- ✅ Created `services/subscription.ts` for lifecycle management.
+- 🔲 **Action Required:** Add your RevenueCat Public API Keys to `.env`.
 
 ### 6. Final Polish
 - [ ] Add a "Tap to Retry" button for failed AI requests (Offline Handling)

@@ -2,13 +2,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Button, Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Purchases from 'react-native-purchases';
 import { useConnections } from '../../context/ConnectionsContext';
+import useSubscription from '../../hooks/useSubscription';
 import { fontSize as fs, verticalScale } from '../../utils/responsive';
 
 export default function HomeScreen() {
     const router = useRouter();
     const { connections, theme } = useConnections();
+    const isPro = useSubscription();
     const activeConnections = connections.filter(c => c.status === 'active');
 
     // Find the most recently active connection (by lastActive or by dailyLogs)
@@ -130,8 +133,74 @@ export default function HomeScreen() {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.pageTitle}>Home</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.pageTitle}>Home</Text>
+                        {isPro && (
+                            <View style={styles.proBadge}>
+                                <Ionicons name="checkmark-circle" size={14} color="#ec4899" />
+                                <Text style={styles.proBadgeText}>PRO ACCESS</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={styles.sectionLabel}>CONTINUE WHERE YOU LEFT OFF</Text>
+
+
+                    {__DEV__ && (
+                        <View style={{ marginTop: 20, gap: 10 }}>
+                            <Button
+                                title="Check Entitlements (Debug)"
+                                onPress={async () => {
+                                    try {
+                                        const info = await Purchases.getCustomerInfo();
+                                        const active = Object.keys(info.entitlements.active);
+                                        const all = Object.keys(info.entitlements.all);
+                                        alert(`Active: ${active.join(', ') || 'None'}\n\nAll Configured: ${all.join(', ') || 'None'}`);
+                                    } catch (e) {
+                                        alert("Error fetching info");
+                                    }
+                                }}
+                            />
+                            <Button
+                                title="Subscribe (Debug)"
+                                onPress={async () => {
+                                    try {
+                                        const offerings = await Purchases.getOfferings();
+                                        const pkg = offerings.current?.monthly;
+
+                                        if (!pkg) {
+                                            alert("No package found");
+                                            return;
+                                        }
+
+                                        const purchase = await Purchases.purchasePackage(pkg);
+
+                                        const activeEntitlements = Object.keys(purchase.customerInfo.entitlements.active);
+                                        alert(`PURCHASE SUCCESS 🎉\n\nActive Entitlements: ${activeEntitlements.join(', ') || 'None'}`);
+                                        console.log("CUSTOMER INFO:", purchase.customerInfo);
+                                    } catch (e: any) {
+                                        if (e.userCancelled) {
+                                            alert("User cancelled");
+                                        } else {
+                                            console.log("PURCHASE ERROR", e);
+                                            alert("Purchase failed — check console");
+                                        }
+                                    }
+                                }}
+                            />
+                            <Button
+                                title="Restore Purchases"
+                                onPress={async () => {
+                                    try {
+                                        const info = await Purchases.restorePurchases();
+                                        const active = Object.keys(info.entitlements.active);
+                                        alert(`Restored. Active: ${active.join(', ') || 'None'}`);
+                                    } catch (e) {
+                                        alert("Restore failed");
+                                    }
+                                }}
+                            />
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.headerDivider} />
@@ -494,5 +563,22 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
+    },
+    proBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FDF2F8',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#FCE7F3',
+    },
+    proBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#ec4899',
+        letterSpacing: 0.5,
     },
 });

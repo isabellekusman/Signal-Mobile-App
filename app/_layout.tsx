@@ -5,10 +5,14 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
+import OfflineBanner from '../components/OfflineBanner';
 import PaywallModal from '../components/PaywallModal';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ConnectionsProvider, useConnections } from '../context/ConnectionsContext';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import useSubscription from '../hooks/useSubscription';
 import { db } from '../services/database';
+import { checkPremiumStatus, getOfferings, purchasePremium, setupSubscription } from '../services/subscription';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -56,6 +60,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function InnerLayout() {
+  const { session } = useAuth();
+  const isConnected = useNetworkStatus();
+  const isPro = useSubscription();
   const { theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
 
   useEffect(() => {
@@ -65,36 +72,62 @@ function InnerLayout() {
     }
   }, [hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
+  // ─── RevenueCat Initialization ───
+  useEffect(() => {
+    if (session?.user?.id) {
+      setupSubscription(session.user.id).then(() => {
+        // After setup, check if they are already premium
+        checkPremiumStatus().then(isPremium => {
+          if (isPremium) {
+            // Updated premium status logic can go here
+          }
+        });
+      });
+    }
+  }, [session?.user?.id]);
+
 
 
   const handleSubscribe = async (tier: 'seeker' | 'signal') => {
     try {
-      await db.upsertProfile({
-        subscription_tier: tier,
-        has_seen_sub_welcome: true,
-        has_seen_trial_expiry: !isTrialActive // Mark trial expiry seen if they subscribe after it ends
-      });
-      setShowPaywall(null);
-      alert(`Success! You are now subscribed to ${tier.charAt(0).toUpperCase() + tier.slice(1)}.`);
-    } catch (err) {
-      alert("Subscription failed. Please try again.");
+      const offerings = await getOfferings();
+      if (!offerings) {
+        throw new Error("No products available from store.");
+      }
+
+      // Find the package that matches the tier
+      // Usually packages are named 'seeker_monthly' or similar in RevenueCat
+      const pkg = offerings.availablePackages.find(p =>
+        p.product.identifier.includes(tier) || p.identifier.toLowerCase().includes(tier)
+      );
+
+      if (!pkg) {
+        throw new Error(`Package for ${tier} not found.`);
+      }
+
+      const success = await purchasePremium(pkg);
+
+      if (success) {
+        await db.upsertProfile({
+          subscription_tier: tier,
+          has_seen_sub_welcome: true,
+          has_seen_trial_expiry: true
+        });
+        setShowPaywall(null);
+        alert(`Success! You are now subscribed to ${tier.charAt(0).toUpperCase() + tier.slice(1)}.`);
+      } else {
+        // If purchasePremium returns false, it might have been cancelled or failed
+      }
+    } catch (err: any) {
+      alert(err.message || "Subscription failed. Please try again.");
     }
   };
 
   const handleStartTrial = async () => {
-    try {
-      const trialDate = new Date();
-      trialDate.setDate(trialDate.getDate() + 7);
-      await db.upsertProfile({
-        has_seen_sub_welcome: true,
-        trial_expires_at: trialDate.toISOString(),
-        subscription_tier: 'signal'
-      });
-      setShowPaywall(null);
-      alert("Your 7-day free trial has started! Enjoy full access to Signal.");
-    } catch (err) {
-      alert("Failed to start trial. Please try again.");
-    }
+    // In RevenueCat, the trial is usually just a package with a free trial period.
+    // Buying any package for the first time triggers the trial.
+    // For simplicity, we'll suggest they pick a plan.
+    alert("Please select a plan to start your 7-day free trial.");
   };
 
   const handleClose = async () => {
@@ -112,6 +145,7 @@ function InnerLayout() {
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+      <OfflineBanner isConnected={isConnected} />
       <AuthGate>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" options={{ headerShown: false, gestureEnabled: false }} />
@@ -122,7 +156,7 @@ function InnerLayout() {
         </Stack>
       </AuthGate>
       <PaywallModal
-        visible={paywallMode !== null}
+        visible={paywallMode !== null && !isPro}
         onClose={handleClose}
         onSubscribe={handleSubscribe}
         onStartTrial={handleStartTrial}
