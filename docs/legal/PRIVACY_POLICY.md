@@ -59,4 +59,4 @@ We may update this policy from time to time. We will notify you of any changes b
 
 ## 8. Contact Us
 
-If you have questions about this Privacy Policy, please contact us at: [Insert Contact Email]
+If you have questions about this Privacy Policy, please contact us at: support@getsignal.app

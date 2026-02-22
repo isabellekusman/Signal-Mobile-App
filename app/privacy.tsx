@@ -72,6 +72,11 @@ export default function PrivacyScreen() {
                 <Text style={s.listItem}>• Access & Portability: You can export your data at any time via the "Me" screen in the App.</Text>
                 <Text style={s.listItem}>• Deletion: You can permanently delete your account and all associated data via the App settings.</Text>
 
+                <Text style={s.sectionHeader}>6. Contact Us</Text>
+                <Text style={s.body}>
+                    If you have questions about this Privacy Policy, please contact us at: support@getsignal.app
+                </Text>
+
                 <View style={{ height: 60 }} />
             </ScrollView>
         </SafeAreaView>

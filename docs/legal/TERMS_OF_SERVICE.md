@@ -39,7 +39,7 @@ Signal is an AI-powered relationship analysis tool. It provides behavioral decod
 
 ## 7. Governing Law
 
-These terms are governed by the laws of [Insert State/Country].
+These terms are governed by the laws of New York, United States.
 
 ## 8. Modifications
 
@@ -47,4 +47,4 @@ We may update these terms at any time. Continued use of the App constitutes acce
 
 ## 9. Contact
 
-For support or questions: [Insert Contact Email]
+For support or questions: support@getsignal.app
