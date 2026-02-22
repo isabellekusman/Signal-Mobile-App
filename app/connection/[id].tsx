@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
+import { haptics } from '../../services/haptics';
 import { logger } from '../../services/logger';
 
 import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
@@ -48,9 +49,10 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
     };
 
     const handleSend = () => {
-        if (!input.trim()) return;
-
-        const userMessage = { id: Date.now().toString(), text: input, sender: 'user' as const };
+        if (!input.trim() && selectedThemes.length === 0) return;
+        haptics.light();
+        const userText = input.trim() || selectedThemes.join(', ');
+        const userMessage = { id: Date.now().toString(), text: userText, sender: 'user' as const };
         const newHistory = [...messages, userMessage];
         setMessages(newHistory);
         setInput('');
@@ -66,6 +68,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 
             const result = await aiService.getClarityInsight(userText, `Target: ${name}${themeContext}`, historyText);
 
+            haptics.success();
             setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: result, sender: 'ai' }]);
         } catch (error) {
             setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "I couldn't parse that right now. Try again?", sender: 'ai' }]);
@@ -75,6 +78,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
     };
 
     const toggleTheme = (theme: string) => {
+        haptics.selection();
         setSelectedThemes(prev =>
             prev.includes(theme) ? prev.filter(t => t !== theme) : [...prev, theme]
         );
@@ -82,6 +86,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 
     const handleSave = () => {
         if (messages.length > 0) {
+            haptics.success();
             const conn = connections.find(c => c.id === connectionId);
             const aiMessages = messages.filter(m => m.sender === 'ai');
             const lastAI = aiMessages[aiMessages.length - 1];
@@ -270,6 +275,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
     }, [loading]);
 
     const pickImage = async () => {
+        haptics.selection();
         try {
             // Request permissions first
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -301,10 +307,14 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         }
     };
 
-    const removeImage = () => setImage(null);
+    const removeImage = () => {
+        haptics.selection();
+        setImage(null);
+    }
 
     const handleScanText = async () => {
         if (!text.trim() && !image) return;
+        haptics.medium();
         Keyboard.dismiss();
         setLoading(true);
         try {
@@ -327,6 +337,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 risks: result.risks || [],
                 replySuggestion: result.replySuggestion || "No specific suggestion."
             });
+            haptics.success();
             setIsAnalysisOpen(true);
         } catch (error: any) {
             if (error.message === 'DAILY_LIMIT_REACHED') {
@@ -347,6 +358,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
 
     const handleSaveDecoder = () => {
         if (analysis) {
+            haptics.success();
             const conn = connections.find(c => c.id === connectionId);
             const newLog: SavedLog = {
                 id: Date.now().toString(),
@@ -363,6 +375,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
     };
 
     const closeAnalysis = () => {
+        haptics.selection();
         setIsAnalysisOpen(false);
         setAnalysis(null);
         setText('');
@@ -537,6 +550,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
     const [isDetailedAnalysisOpen, setIsDetailedAnalysisOpen] = useState(false);
 
     const fetchForecast = async () => {
+        haptics.light();
         const today = new Date().toISOString().split('T')[0];
         const storageKey = `stars_${name.replace(/\s/g, '')}_${today}`;
 
@@ -564,6 +578,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
             const result = aiService.safeParseJSON(resultString);
 
             setForecast(result);
+            haptics.success();
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
         } catch (error: any) {
             if (error.message === 'TIMEOUT') {
@@ -638,6 +653,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                 <TouchableOpacity
                     style={[styles.scanButton, { marginTop: 24, backgroundColor: '#ec4899' }]}
                     onPress={() => {
+                        haptics.selection();
                         if (!forecast) {
                             fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
                         } else {
@@ -663,7 +679,7 @@ const StarsContent = ({ name, userZodiac, partnerZodiac }: { name: string, userZ
                     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
                         {/* Header */}
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
-                            <TouchableOpacity onPress={() => setIsDetailedAnalysisOpen(false)}>
+                            <TouchableOpacity onPress={() => { haptics.selection(); setIsDetailedAnalysisOpen(false); }}>
                                 <Ionicons name="close-circle" size={32} color="#E5E5EA" />
                             </TouchableOpacity>
                         </View>
@@ -745,11 +761,13 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
     const [modalVisible, setModalVisible] = useState(false);
 
     const handleCheckIn = async () => {
+        haptics.light();
         setLoading(true);
         setModalVisible(true);
         try {
             const checkInResult = await aiService.getObjectiveCheckIn(signals);
             setResult(checkInResult);
+            haptics.success();
         } catch (error) {
             setResult("Couldn't get an objective read right now.");
         } finally {
@@ -768,13 +786,13 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
                 visible={modalVisible}
                 transparent={true}
                 animationType="slide"
-                onRequestClose={() => setModalVisible(false)}
+                onRequestClose={() => { haptics.selection(); setModalVisible(false); }}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <TouchableOpacity
                             style={styles.closeButton}
-                            onPress={() => setModalVisible(false)}
+                            onPress={() => { haptics.selection(); setModalVisible(false); }}
                         >
                             <Ionicons name="close" size={24} color="#1C1C1E" />
                         </TouchableOpacity>
@@ -789,7 +807,7 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
                         </ScrollView>
 
                         {!loading && (
-                            <TouchableOpacity style={styles.resetButton} onPress={() => setModalVisible(false)}>
+                            <TouchableOpacity style={styles.resetButton} onPress={() => { haptics.selection(); setModalVisible(false); }}>
                                 <Text style={styles.resetButtonText}>CLOSE</Text>
                             </TouchableOpacity>
                         )}
@@ -807,6 +825,7 @@ const SimpleSlider = ({ value, onValueChange }: { value: number, onValueChange: 
 
     const updateSlider = (e: any) => {
         if (width === 0) return;
+        haptics.selection();
         const x = e.nativeEvent.locationX;
         const pct = Math.max(0, Math.min(100, (x / width) * 100));
         onValueChange(Math.round(pct));
@@ -869,12 +888,14 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
 
     const handleSaveLog = async () => {
         if (!energy || !direction || !emotionState) {
+            haptics.error();
             alert('Please complete the core signals (Energy, Direction, Emotion) to log.');
             return;
         }
 
         Keyboard.dismiss();
         setLoading(true);
+        haptics.light();
 
         const newLog: DailyLog = {
             id: Date.now().toString(),
@@ -895,6 +916,7 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
         setTimeout(() => {
             const updatedLogs = [newLog, ...(connection.dailyLogs || [])];
             updateConnection(connection.id, { dailyLogs: updatedLogs });
+            haptics.success();
 
             // Reset
             setEnergy('');
@@ -912,6 +934,7 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
     };
 
     const toggleEffort = (tag: string) => {
+        haptics.selection();
         if (effort.includes(tag)) {
             setEffort(prev => prev.filter(t => t !== tag));
         } else {
@@ -932,7 +955,7 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
                             <TouchableOpacity
                                 key={opt}
                                 style={[styles.radioOption, energy === opt && styles.radioOptionSelected]}
-                                onPress={() => setEnergy(opt as any)}
+                                onPress={() => { haptics.selection(); setEnergy(opt as any); }}
                             >
                                 <Text style={[styles.radioText, energy === opt && styles.radioTextSelected]}>{opt}</Text>
                             </TouchableOpacity>
@@ -960,7 +983,7 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
                             <TouchableOpacity
                                 key={opt}
                                 style={[styles.radioOption, direction === opt && styles.radioOptionSelected]}
-                                onPress={() => setDirection(opt as any)}
+                                onPress={() => { haptics.selection(); setDirection(opt as any); }}
                             >
                                 <Text style={[styles.radioText, direction === opt && styles.radioTextSelected]}>{opt}</Text>
                             </TouchableOpacity>
@@ -1035,7 +1058,7 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
                                     emotionState === opt && styles.radioOptionSelected,
                                     { flexBasis: '48%', marginBottom: 8, paddingHorizontal: 12 }
                                 ]}
-                                onPress={() => setEmotionState(opt as any)}
+                                onPress={() => { haptics.selection(); setEmotionState(opt as any); }}
                             >
                                 <Text style={[styles.radioText, emotionState === opt && styles.radioTextSelected]}>{opt}</Text>
                             </TouchableOpacity>
@@ -1334,11 +1357,13 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
         if (!answers[currentQuestion.id]?.trim() && currentQuestion.id !== 'anythingElse') return;
 
         Keyboard.dismiss();
+        haptics.selection();
 
         if (step < questions.length - 1) {
             setStep(step + 1);
         } else {
             setIsSubmitting(true);
+            haptics.success();
             setTimeout(() => {
                 onComplete(answers);
             }, 600);
@@ -1346,6 +1371,7 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
     };
 
     const handleSkip = () => {
+        haptics.selection();
         // Skip marks onboarding as completed permanently — never show again
         onComplete({ skipped: true });
     };

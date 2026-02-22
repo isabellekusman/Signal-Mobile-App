@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
+import { haptics } from '../../services/haptics';
 
 export default function ReflectScreen() {
     const { connections, setShowPaywall } = useConnections();
@@ -22,6 +23,7 @@ export default function ReflectScreen() {
 
     const handleRealign = async () => {
         if (!reflection.trim()) return;
+        haptics.light();
         setLoading(true);
         try {
             const standardsStr = Array.isArray(attachedConnection?.onboardingContext?.standards)
@@ -34,6 +36,7 @@ export default function ReflectScreen() {
 
             const result = await aiService.getClarityInsight(reflection, context);
             setInsight(result);
+            haptics.success();
             setShowInsight(true);
         } catch (error: any) {
             if (error.message === 'DAILY_LIMIT_REACHED') {

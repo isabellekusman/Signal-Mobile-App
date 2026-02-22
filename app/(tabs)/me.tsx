@@ -22,6 +22,7 @@ import Purchases from 'react-native-purchases';
 import { useAuth } from '../../context/AuthContext';
 import { useConnections } from '../../context/ConnectionsContext';
 import { db } from '../../services/database';
+import { haptics } from '../../services/haptics';
 import { logger } from '../../services/logger';
 import {
     computeObservedVsInterpreted,
@@ -591,6 +592,7 @@ export default function MeScreen() {
     // ── Saving logic ──
     const handleToggleEditIdentity = useCallback(async () => {
         if (isEditingIdentity) {
+            haptics.medium();
             // Save when toggling OFF
             await setUserProfile({
                 ...userProfile,
@@ -601,10 +603,12 @@ export default function MeScreen() {
             logger.breadcrumb('User saved identity changes', 'ui.interaction');
         }
         setIsEditingIdentity(!isEditingIdentity);
+        haptics.light();
     }, [isEditingIdentity, userProfile, name, zodiac, aboutMe, setUserProfile]);
 
     const handleToggleEditContent = useCallback(async () => {
         if (isEditingContent) {
+            haptics.medium();
             // Save when toggling OFF
             await setUserProfile({
                 ...userProfile,
@@ -614,6 +618,7 @@ export default function MeScreen() {
             logger.breadcrumb('User saved profile content changes', 'ui.interaction');
         }
         setIsEditingContent(!isEditingContent);
+        haptics.light();
     }, [isEditingContent, userProfile, standards, boundaries, setUserProfile]);
 
     // ── Computed profile ──

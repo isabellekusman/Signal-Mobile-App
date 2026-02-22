@@ -16,6 +16,7 @@ import {
     View,
 } from 'react-native';
 import { useConnections } from '../context/ConnectionsContext';
+import { haptics } from '../services/haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -362,6 +363,7 @@ export default function OnboardingScreen() {
     };
 
     const handleNext = () => {
+        haptics.light();
         if (step < TOTAL_STEPS - 1) {
             animateTransition(step + 1);
         } else {
@@ -370,17 +372,20 @@ export default function OnboardingScreen() {
     };
 
     const handleBack = () => {
+        haptics.selection();
         if (step > 0) {
             animateTransition(step - 1);
         }
     };
 
     const handleSkip = async () => {
+        haptics.medium();
         await completeOnboarding();
         router.replace('/(tabs)');
     };
 
     const handleFinish = async () => {
+        haptics.success();
         await completeOnboarding({
             name,
             zodiac,
