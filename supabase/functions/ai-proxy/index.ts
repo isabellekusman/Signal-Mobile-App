@@ -13,12 +13,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Rate limits per feature per day
 const RATE_LIMITS: Record<string, { free: number; seeker: number; signal: number }> = {
-    clarity: { free: 10, seeker: 25, signal: 9999 },
-    decoder: { free: 5, seeker: 25, signal: 9999 },
-    stars: { free: 5, seeker: 25, signal: 9999 },
-    dynamic: { free: 10, seeker: 25, signal: 9999 },
-    daily_advice: { free: 5, seeker: 25, signal: 9999 },
-    objective: { free: 5, seeker: 25, signal: 9999 },
+    clarity: { free: 50, seeker: 100, signal: 9999 },
+    decoder: { free: 50, seeker: 100, signal: 9999 },
+    stars: { free: 50, seeker: 100, signal: 9999 },
+    dynamic: { free: 50, seeker: 100, signal: 9999 },
+    daily_advice: { free: 50, seeker: 100, signal: 9999 },
+    objective: { free: 50, seeker: 100, signal: 9999 },
 };
 
 // System prompts
@@ -63,19 +63,25 @@ Deno.serve(async (req) => {
         }
 
         // 3. Parse Body
-        const { feature, prompt, context, image } = await req.json();
+        console.log('[AI Proxy] Step 3: Parsing body');
+        const body = await req.json();
+        const { feature, prompt, context, image } = body;
+        console.log('[AI Proxy] Feature:', feature);
 
         if (!feature || !SYSTEM_PROMPTS[feature]) {
+            console.error('[AI Proxy] Invalid feature:', feature);
             throw new Error('Invalid feature requested');
         }
 
         // 4. Rate Limiting Check (Service Role for Bypass)
+        console.log('[AI Proxy] Step 4: Rate limiting check');
         const serviceSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
         // Simplified usage check for stability
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
+        console.log('[AI Proxy] Querying usage for user:', user.id);
         const { count: usageCount, error: usageError } = await serviceSupabase
             .from('ai_usage')
             .select('*', { count: 'exact', head: true })
@@ -84,16 +90,15 @@ Deno.serve(async (req) => {
             .gte('created_at', todayStart.toISOString());
 
         if (usageError) {
-            console.error('[Usage Check Error]', usageError.message);
-            // We'll allow the request to proceed if usage check fails to avoid blocking the user 
-            // unless it's a critical production environment where we must enforce limits.
+            console.error('[AI Proxy] Usage Check Error:', usageError.message);
         }
 
         const currentUsage = usageCount ?? 0;
+        console.log('[AI Proxy] Current usage:', currentUsage);
         const limit = RATE_LIMITS[feature]?.free ?? 5;
 
         if (currentUsage >= limit) {
-            // Check if user is premium
+            console.log('[AI Proxy] Limit reached, checking profile tier');
             const { data: profile, error: profileError } = await serviceSupabase
                 .from('profiles')
                 .select('subscription_tier')
@@ -101,13 +106,15 @@ Deno.serve(async (req) => {
                 .single();
 
             if (profileError) {
-                console.error('[Profile Check Error]', profileError.message);
+                console.error('[AI Proxy] Profile Check Error:', profileError.message);
             }
 
             const tier = profile?.subscription_tier ?? 'free';
             const tierLimit = RATE_LIMITS[feature]?.[tier as 'free' | 'seeker' | 'signal'] ?? limit;
+            console.log(`[AI Proxy] User Tier: ${tier}, Limit: ${tierLimit}`);
 
             if (currentUsage >= tierLimit) {
+                console.warn('[AI Proxy] Hard limit reached for user');
                 return new Response(JSON.stringify({
                     error: 'LIMIT_REACHED',
                     message: `You have reached your daily limit for ${feature}.`,
@@ -121,18 +128,19 @@ Deno.serve(async (req) => {
         }
 
         // 5. Call Gemini
+        console.log('[AI Proxy] Step 5: Calling Gemini');
         if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
 
         const systemPrompt = SYSTEM_PROMPTS[feature];
 
         // Prepare contents for Gemini multimodal API
-        // Use 'any' to avoid TS errors with inlineData
         const parts: any[] = [
             { text: `${systemPrompt}\n\nContext:\n${context || 'None'}\n\nPrompt:\n${prompt}` }
         ];
 
         // Add image part if provided
         if (image && image.data && image.mimeType) {
+            console.log('[AI Proxy] Including image in request');
             parts.push({
                 inlineData: {
                     mimeType: image.mimeType,
@@ -144,11 +152,22 @@ Deno.serve(async (req) => {
         const modelId = 'gemini-2.0-flash';
 
         const geminiResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts }] }),
+                body: JSON.stringify({
+                    contents: [{ parts }],
+                    generationConfig: {
+                        response_mime_type: (feature === 'stars' || feature === 'daily_advice' || feature === 'decoder') ? "application/json" : "text/plain"
+                    },
+                    safetySettings: [
+                        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    ]
+                }),
             }
         );
 
@@ -156,12 +175,24 @@ Deno.serve(async (req) => {
 
         if (!geminiResponse.ok) {
             console.error('[Gemini API Error]', JSON.stringify(data));
-            throw new Error(`Gemini Error: ${data.error?.message || JSON.stringify(data)}`);
+            return new Response(JSON.stringify({
+                error: 'GEMINI_ERROR',
+                message: data.error?.message || 'Gemini API failed'
+            }), {
+                status: 502,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
         // Handle potential safety blocks or empty responses
         if (data.promptFeedback?.blockReason) {
-            throw new Error(`AI Safety Block: ${data.promptFeedback.blockReason}`);
+            return new Response(JSON.stringify({
+                error: 'SAFETY_BLOCK',
+                message: `The request was blocked for safety: ${data.promptFeedback.blockReason}`
+            }), {
+                status: 400,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
         }
 
         const candidate = data?.candidates?.[0];
@@ -175,16 +206,14 @@ Deno.serve(async (req) => {
             throw new Error(`AI failed to generate response. Reason: ${candidate.finishReason}`);
         }
 
-        // 6. Log Usage (Async)
-        try {
-            await serviceSupabase.from('ai_usage').insert({
-                user_id: user.id,
-                feature,
-                tokens_used: result.length + (prompt?.length || 0)
-            });
-        } catch (logError) {
-            console.error('Failed to log usage:', logError);
-        }
+        // 6. Log Usage (Fire and forget, don't await to avoid blocking)
+        serviceSupabase.from('ai_usage').insert({
+            user_id: user.id,
+            feature,
+            tokens_used: result.length + (prompt?.length || 0)
+        }).then(({ error }) => {
+            if (error) console.error('[AI Proxy] Usage Log Error:', error.message);
+        });
 
         return new Response(JSON.stringify({ result }), {
             status: 200,
@@ -192,13 +221,13 @@ Deno.serve(async (req) => {
         });
 
     } catch (error: any) {
-        console.error('Proxy Error:', error.message);
+        console.error('[AI Proxy] Global Catch:', error.message);
         return new Response(JSON.stringify({
-            error: error.message,
-            stack: error.stack,
-            details: error.cause || 'No additional details'
+            error: 'INTERNAL_SERVER_ERROR',
+            message: error.message,
+            details: error.stack
         }), {
-            status: error.message.includes('Unauthorized') ? 401 : 500,
+            status: 500,
             headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
         });
     }

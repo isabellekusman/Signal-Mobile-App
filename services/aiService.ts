@@ -39,6 +39,16 @@ export const aiService = {
             // 3) handle SDK-level error
             if (error) {
                 console.error("[AI Service] function error:", error);
+                console.error("[AI Service] error keys:", Object.keys(error));
+                if (error.context) {
+                    try {
+                        const body = await error.context.json();
+                        console.error("[AI Service] error body:", body);
+                        throw new Error(body.message || body.error || error.message);
+                    } catch (e) {
+                        console.error("[AI Service] could not parse error body");
+                    }
+                }
                 throw error;
             }
 
@@ -104,7 +114,7 @@ export const aiService = {
             }
 
             const start = text.indexOf('{');
-            const end = text.lastIndexAt('}');
+            const end = text.lastIndexOf('}');
             if (start !== -1 && end !== -1 && end > start) {
                 try {
                     return JSON.parse(text.substring(start, end + 1));

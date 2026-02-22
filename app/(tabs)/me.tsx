@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     SafeAreaView,
@@ -15,10 +16,12 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
+import Purchases from 'react-native-purchases';
 import { useAuth } from '../../context/AuthContext';
 import { useConnections } from '../../context/ConnectionsContext';
+import { db } from '../../services/database';
 import {
     computeObservedVsInterpreted,
     computeProfileSummary,
@@ -638,6 +641,54 @@ export default function MeScreen() {
     };
     const removeBoundary = (i: number) => setBoundaries(boundaries.filter((_, idx) => idx !== i));
 
+    const handleDeleteAccount = async () => {
+        Alert.alert(
+            'Delete Account',
+            'This will permanently delete your account and all your data from our servers. This action cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Permanently',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setIsRefreshing(true);
+                        try {
+                            const success = await db.deleteAccount();
+                            if (success) {
+                                await AsyncStorage.clear();
+                                await signOut();
+                            } else {
+                                Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        } finally {
+                            setIsRefreshing(false);
+                        }
+                    }
+                },
+            ]
+        );
+    };
+
+    const handleSignOut = async () => {
+        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Sign Out',
+                style: 'destructive',
+                onPress: async () => {
+                    await AsyncStorage.clear();
+                    await signOut();
+                }
+            },
+        ]);
+    };
+
+    const openLink = (url: string) => {
+        Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
+    };
+
 
 
     return (
@@ -750,20 +801,51 @@ export default function MeScreen() {
                         </View>
                     </View>
 
+                    {/* ── Legal Section ── */}
+                    <View style={{ marginTop: 40 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>LEGAL & SUPPORT</Text>
+
+                        <View style={{ backgroundColor: OFF_WHITE, borderRadius: 16, borderWidth: 1, borderColor: LIGHT_GRAY, overflow: 'hidden' }}>
+                            <TouchableOpacity
+                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: LIGHT_GRAY }}
+                                onPress={() => openLink('https://example.com/privacy')}
+                            >
+                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Privacy Policy</Text>
+                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: LIGHT_GRAY }}
+                                onPress={() => openLink('https://example.com/terms')}
+                            >
+                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Terms of Service</Text>
+                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                                onPress={() => handleExport()}
+                            >
+                                <Text style={{ fontSize: 13, color: MID_DARK, fontWeight: '500' }}>Export My Data (GDPR)</Text>
+                                <Ionicons name="download-outline" size={16} color={SOFT_GRAY} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     {/* ── Account Section ── */}
                     <View style={{ marginTop: 40, marginBottom: 60 }}>
                         <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>ACCOUNT</Text>
 
                         {user?.email && (
-                            <Text style={{ fontSize: 13, color: GRAY, marginBottom: 16, fontFamily: SERIF }}>{user.email}</Text>
+                            <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
+                                <Text style={{ fontSize: 11, color: SOFT_GRAY, fontWeight: '600', marginBottom: 2 }}>SIGNED IN AS</Text>
+                                <Text style={{ fontSize: 13, color: DARK, fontFamily: SERIF }}>{user.email}</Text>
+                            </View>
                         )}
 
                         <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: OFF_WHITE, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: LIGHT_GRAY, marginBottom: 12 }}
-                            onPress={() => Alert.alert('Sign Out', 'Are you sure?', [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Sign Out', style: 'destructive', onPress: async () => { await AsyncStorage.clear(); await signOut(); } },
-                            ])}
+                            onPress={handleSignOut}
                         >
                             <Ionicons name="log-out-outline" size={18} color={GRAY} />
                             <Text style={{ fontSize: 12, fontWeight: '700', color: GRAY, letterSpacing: 1 }}>SIGN OUT</Text>
@@ -771,15 +853,67 @@ export default function MeScreen() {
 
                         <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF2F2', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA' }}
-                            onPress={() => Alert.alert('Delete Account', 'This will permanently delete your account and all data. This cannot be undone.', [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Delete Account', style: 'destructive', onPress: async () => { await AsyncStorage.clear(); await signOut(); } },
-                            ])}
+                            onPress={handleDeleteAccount}
                         >
                             <Ionicons name="trash-outline" size={18} color="#EF4444" />
                             <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444', letterSpacing: 1 }}>DELETE ACCOUNT</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* ── Developer Section (Hidden in Prod) ── */}
+                    {__DEV__ && (
+                        <View style={{ marginTop: 10, marginBottom: 60, padding: 20, backgroundColor: '#F3F4F6', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#D1D5DB' }}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>DEVELOPER TOOLS</Text>
+                            <View style={{ gap: 8 }}>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
+                                    onPress={async () => {
+                                        try {
+                                            const info = await Purchases.getCustomerInfo();
+                                            const active = Object.keys(info.entitlements.active);
+                                            const all = Object.keys(info.entitlements.all);
+                                            alert(`Active: ${active.join(', ') || 'None'}\n\nAll Configured: ${all.join(', ') || 'None'}`);
+                                        } catch (e) {
+                                            alert("Error fetching info");
+                                        }
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>CHECK ENTITLEMENTS</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
+                                    onPress={async () => {
+                                        try {
+                                            const offerings = await Purchases.getOfferings();
+                                            const pkg = offerings.current?.monthly;
+                                            if (!pkg) { alert("No package found"); return; }
+                                            const purchase = await Purchases.purchasePackage(pkg);
+                                            alert(`SUCCESS: ${Object.keys(purchase.customerInfo.entitlements.active).join(', ')}`);
+                                        } catch (e: any) {
+                                            alert(e.userCancelled ? "Cancelled" : "Failed");
+                                        }
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>TEST PURCHASE (SANDBOX)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
+                                    onPress={async () => {
+                                        try {
+                                            const info = await Purchases.restorePurchases();
+                                            alert(`Restored: ${Object.keys(info.entitlements.active).join(', ')}`);
+                                        } catch (e) {
+                                            alert("Restore failed");
+                                        }
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>RESTORE PURCHASES</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
 
                 </ScrollView>
             </KeyboardAvoidingView>

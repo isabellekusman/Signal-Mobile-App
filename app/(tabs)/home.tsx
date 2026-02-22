@@ -1,9 +1,9 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+// Refresh trigger: 2026-02-22T12:51:00
 import React from 'react';
-import { Button, Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Purchases from 'react-native-purchases';
+import { Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import useSubscription from '../../hooks/useSubscription';
 import { fontSize as fs, verticalScale } from '../../utils/responsive';
@@ -144,63 +144,6 @@ export default function HomeScreen() {
                     </View>
                     <Text style={styles.sectionLabel}>CONTINUE WHERE YOU LEFT OFF</Text>
 
-
-                    {__DEV__ && (
-                        <View style={{ marginTop: 20, gap: 10 }}>
-                            <Button
-                                title="Check Entitlements (Debug)"
-                                onPress={async () => {
-                                    try {
-                                        const info = await Purchases.getCustomerInfo();
-                                        const active = Object.keys(info.entitlements.active);
-                                        const all = Object.keys(info.entitlements.all);
-                                        alert(`Active: ${active.join(', ') || 'None'}\n\nAll Configured: ${all.join(', ') || 'None'}`);
-                                    } catch (e) {
-                                        alert("Error fetching info");
-                                    }
-                                }}
-                            />
-                            <Button
-                                title="Subscribe (Debug)"
-                                onPress={async () => {
-                                    try {
-                                        const offerings = await Purchases.getOfferings();
-                                        const pkg = offerings.current?.monthly;
-
-                                        if (!pkg) {
-                                            alert("No package found");
-                                            return;
-                                        }
-
-                                        const purchase = await Purchases.purchasePackage(pkg);
-
-                                        const activeEntitlements = Object.keys(purchase.customerInfo.entitlements.active);
-                                        alert(`PURCHASE SUCCESS 🎉\n\nActive Entitlements: ${activeEntitlements.join(', ') || 'None'}`);
-                                        console.log("CUSTOMER INFO:", purchase.customerInfo);
-                                    } catch (e: any) {
-                                        if (e.userCancelled) {
-                                            alert("User cancelled");
-                                        } else {
-                                            console.log("PURCHASE ERROR", e);
-                                            alert("Purchase failed — check console");
-                                        }
-                                    }
-                                }}
-                            />
-                            <Button
-                                title="Restore Purchases"
-                                onPress={async () => {
-                                    try {
-                                        const info = await Purchases.restorePurchases();
-                                        const active = Object.keys(info.entitlements.active);
-                                        alert(`Restored. Active: ${active.join(', ') || 'None'}`);
-                                    } catch (e) {
-                                        alert("Restore failed");
-                                    }
-                                }}
-                            />
-                        </View>
-                    )}
                 </View>
 
                 <View style={styles.headerDivider} />

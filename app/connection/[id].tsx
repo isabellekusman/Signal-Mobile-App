@@ -1539,10 +1539,10 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                     watchFor: parsed.watchFor || '',
                 },
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Daily advice error:', error);
             setAdvice({
-                stateOfConnection: 'Unable to generate advice right now. Try again later.',
+                stateOfConnection: `Error: ${error.message || 'Unable to generate advice right now.'}`,
                 todaysMove: '',
                 watchFor: '',
             });
