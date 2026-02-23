@@ -46,8 +46,8 @@ const OFF_WHITE = '#F9FAFB';
 const WHITE = '#FFFFFF';
 const PINK_TINT = '#FDF2F8';
 const PINK_BORDER = '#FCE7F3';
-const CONTRACT_BG = '#FAFAF5'; // warm off-white to distinguish user-authored
-const CONTRACT_BORDER = '#EDE9E0';
+const CONTRACT_BG = WHITE; // Use white instead of beige
+const CONTRACT_BORDER = LIGHT_GRAY;
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 const SERIF_ITALIC = Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif';
 
@@ -1479,7 +1479,7 @@ const s = StyleSheet.create({
     contractTitle: {
         fontSize: 10,
         fontWeight: '800',
-        color: DARK,
+        color: PINK,
         letterSpacing: 2.5,
         marginBottom: 4,
     },
