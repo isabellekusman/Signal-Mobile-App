@@ -17,6 +17,7 @@ export interface SavedLog {
     title: string;
     summary: string;
     fullContent: string;
+    isHidden?: boolean;
 }
 
 export interface Connection {

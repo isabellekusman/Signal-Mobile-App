@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
@@ -84,9 +84,9 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
         );
     };
 
-    const handleSave = () => {
+    const handleCloseChat = (isExplicitSave: boolean = false) => {
         if (messages.length > 0) {
-            haptics.success();
+            if (isExplicitSave) haptics.success();
             const conn = connections.find(c => c.id === connectionId);
             const aiMessages = messages.filter(m => m.sender === 'ai');
             const lastAI = aiMessages[aiMessages.length - 1];
@@ -95,13 +95,18 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
                 date: new Date().toISOString(),
                 source: 'clarity',
                 title: `Clarity: ${selectedThemes.length > 0 ? selectedThemes.join(', ') : 'General'}`,
-                summary: lastAI ? lastAI.text.substring(0, 120) + '...' : 'Chat saved.',
+                summary: lastAI ? lastAI.text.substring(0, 120) + '...' : 'Chat context.',
                 fullContent: messages.map(m => `${m.sender === 'user' ? 'You' : 'Signal'}: ${m.text}`).join('\n\n'),
+                isHidden: !isExplicitSave,
             };
             const existing = conn?.savedLogs || [];
             updateConnection(connectionId, { savedLogs: [newLog, ...existing] });
         }
         setIsChatOpen(false);
+        setMessages([]);
+        setInput('');
+        setInitialInput('');
+        setSelectedThemes([]);
     };
 
     return (
@@ -159,7 +164,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
                 visible={isChatOpen}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={() => setIsChatOpen(false)}
+                onRequestClose={() => handleCloseChat(false)}
             >
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                     <KeyboardAvoidingView
@@ -169,11 +174,11 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
                     >
                         {/* Chat Header */}
                         <View style={styles.chatHeader}>
-                            <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatHeaderLeft}>
+                            <TouchableOpacity onPress={() => handleCloseChat(false)} style={styles.chatHeaderLeft}>
                                 <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
                             </TouchableOpacity>
                             <Text style={styles.chatHeaderTitle}>{name}</Text>
-                            <TouchableOpacity onPress={handleSave}>
+                            <TouchableOpacity onPress={() => handleCloseChat(true)}>
                                 <Text style={styles.chatHeaderSave}>SAVE</Text>
                             </TouchableOpacity>
                         </View>
@@ -358,9 +363,11 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         outputRange: [0, verticalScale(220)],
     });
 
-    const handleSaveDecoder = () => {
+    const handleCloseAnalysis = (isExplicitSave: boolean = false) => {
         if (analysis) {
-            haptics.success();
+            if (isExplicitSave) haptics.success();
+            else haptics.selection();
+
             const conn = connections.find(c => c.id === connectionId);
             const newLog: SavedLog = {
                 id: Date.now().toString(),
@@ -369,15 +376,11 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 title: `Decode: ${analysis.tone}`,
                 summary: analysis.subtext.substring(0, 120) + '...',
                 fullContent: `Tone: ${analysis.tone}\nEffort: ${analysis.effort}\nPower Dynamics: ${analysis.powerDynamics}\nSubtext: ${analysis.subtext}\nMotivation: ${analysis.motivation}\nRisks: ${(analysis.risks || []).join(', ')}\nSuggested Reply: ${analysis.replySuggestion}`,
+                isHidden: !isExplicitSave,
             };
             const existing = conn?.savedLogs || [];
             updateConnection(connectionId, { savedLogs: [newLog, ...existing] });
-            closeAnalysis();
         }
-    };
-
-    const closeAnalysis = () => {
-        haptics.selection();
         setIsAnalysisOpen(false);
         setAnalysis(null);
         setText('');
@@ -453,13 +456,13 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                 visible={isAnalysisOpen}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={closeAnalysis}
+                onRequestClose={() => handleCloseAnalysis(false)}
             >
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
                         {/* Header */}
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
-                            <TouchableOpacity onPress={closeAnalysis}>
+                            <TouchableOpacity onPress={() => handleCloseAnalysis(false)}>
                                 <Ionicons name="close-circle" size={32} color="#E5E5EA" />
                             </TouchableOpacity>
                         </View>
@@ -523,7 +526,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                                 {/* Save to Profile Button */}
                                 <TouchableOpacity
                                     style={{ backgroundColor: '#1C1C1E', paddingVertical: 16, borderRadius: 28, alignItems: 'center', marginTop: 8 }}
-                                    onPress={handleSaveDecoder}
+                                    onPress={() => handleCloseAnalysis(true)}
                                 >
                                     <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>SAVE TO PROFILE</Text>
                                 </TouchableOpacity>
@@ -1518,7 +1521,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
     const [adviceError, setAdviceError] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<SavedLog | null>(null);
 
-    const savedLogs = connection.savedLogs || [];
+    const savedLogs = (connection.savedLogs || []).filter(l => !l.isHidden);
     const dailyLogs = connection.dailyLogs || [];
     const onboarding = connection.onboardingContext;
 
@@ -1568,11 +1571,17 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                     context += `- Energy: ${log.energyExchange}, Direction: ${log.direction}, Emotion: ${log.structured_emotion_state}, Clarity: ${log.clarity}/100\n`;
                 });
             }
-            if (savedLogs.length > 0) {
-                const recentSaved = savedLogs.slice(0, 3);
+            const allSavedLogs = connection.savedLogs || [];
+            if (allSavedLogs.length > 0) {
+                const recentSaved = allSavedLogs.slice(0, 3);
                 context += '\nRecent analysis logs:\n';
                 recentSaved.forEach(log => {
-                    context += `- [${log.source.toUpperCase()}] ${log.title}: ${log.summary}\n`;
+                    if (log.isHidden) {
+                        // Hidden logs might contain raw chat context. We include a bit more context.
+                        context += `- [CLARITY CONTEXT] ${log.summary}\n`;
+                    } else {
+                        context += `- [${log.source.toUpperCase()}] ${log.title}: ${log.summary}\n`;
+                    }
                 });
             }
 

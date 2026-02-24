@@ -2,12 +2,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { useConnections } from '../../context/ConnectionsContext';
+import { SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
 
 export default function ReflectScreen() {
-    const { connections, setShowPaywall } = useConnections();
+    const { connections, setShowPaywall, updateConnection } = useConnections();
     const activeConnections = connections.filter(c => c.status === 'active');
 
     const [attachedConnectionId, setAttachedConnectionId] = useState<string | null>(null);
@@ -38,6 +38,23 @@ export default function ReflectScreen() {
             setInsight(result);
             haptics.success();
             setShowInsight(true);
+
+            if (attachedConnectionId && result) {
+                const conn = connections.find(c => c.id === attachedConnectionId);
+                if (conn) {
+                    const newLog: SavedLog = {
+                        id: Date.now().toString(),
+                        date: new Date().toISOString(),
+                        source: 'clarity',
+                        title: `Reflect Check-In`,
+                        summary: `Reflection: ${reflection.substring(0, 50)}...`,
+                        fullContent: `Reflection:\n${reflection}\n\nInsight:\n${result}`,
+                        isHidden: true,
+                    };
+                    const existing = conn.savedLogs || [];
+                    updateConnection(attachedConnectionId, { savedLogs: [newLog, ...existing] });
+                }
+            }
         } catch (error: any) {
             if (error.message === 'DAILY_LIMIT_REACHED') {
                 setShowPaywall('voluntary');
