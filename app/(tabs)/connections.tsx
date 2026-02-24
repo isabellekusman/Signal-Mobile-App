@@ -74,6 +74,7 @@ export default function ConnectionsScreen() {
         <SafeAreaView style={[styles.safeArea, isDark && styles.safeAreaDark]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#1C1C1E" : "#FFFFFF"} />
             <ScrollView
+                style={styles.scrollView}
                 contentContainerStyle={styles.container}
                 showsVerticalScrollIndicator={false}
                 stickyHeaderIndices={[0]}
@@ -207,6 +208,10 @@ const styles = StyleSheet.create({
     container: {
         paddingHorizontal: 20,
         paddingBottom: 20,
+        flexGrow: 1,
+    },
+    scrollView: {
+        flex: 1,
     },
     headerRow: {
         flexDirection: 'column',
