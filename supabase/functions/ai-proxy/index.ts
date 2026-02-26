@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
             }
         }
 
-        // 5. Call Gemini
+        // 5. Call Gemini (with 1 retry for transient 500/503 errors)
         console.log('[AI Proxy] Step 5: Calling Gemini');
         if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
 
@@ -282,33 +282,48 @@ Deno.serve(async (req) => {
         }
 
         const modelId = 'gemini-2.0-flash';
+        const geminiPayload = JSON.stringify({
+            system_instruction: {
+                parts: [{ text: systemPrompt }]
+            },
+            contents: [{ parts }],
+            generationConfig: {
+                response_mime_type: (feature === 'stars' || feature === 'daily_advice' || feature === 'decoder') ? "application/json" : "text/plain"
+            },
+            safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+            ]
+        });
 
-        const geminiResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    system_instruction: {
-                        parts: [{ text: systemPrompt }]
-                    },
-                    contents: [{ parts }],
-                    generationConfig: {
-                        response_mime_type: (feature === 'stars' || feature === 'daily_advice' || feature === 'decoder') ? "application/json" : "text/plain"
-                    },
-                    safetySettings: [
-                        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                    ]
-                }),
+        let geminiResponse: Response | null = null;
+        let data: any = null;
+        const MAX_GEMINI_RETRIES = 1;
+
+        for (let geminiAttempt = 0; geminiAttempt <= MAX_GEMINI_RETRIES; geminiAttempt++) {
+            geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: geminiPayload,
+                }
+            );
+
+            data = await geminiResponse.json();
+
+            // Retry on transient server errors (500, 503)
+            if (!geminiResponse.ok && (geminiResponse.status === 500 || geminiResponse.status === 503) && geminiAttempt < MAX_GEMINI_RETRIES) {
+                console.warn(`[AI Proxy] Gemini returned ${geminiResponse.status}, retrying in 2s... (attempt ${geminiAttempt + 1})`);
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
             }
-        );
+            break; // success or non-retryable error
+        }
 
-        const data = await geminiResponse.json();
-
-        if (!geminiResponse.ok) {
+        if (!geminiResponse!.ok) {
             Sentry.captureMessage(`[Gemini API Error] ${JSON.stringify(data)}`);
             return new Response(JSON.stringify({
                 error: 'GEMINI_ERROR',

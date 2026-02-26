@@ -325,13 +325,9 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
         setLoading(true);
         setError(null);
         try {
-            // Added a 30-second timeout for Decoder since screenshots take longer
-            const resultString = await Promise.race([
-                image
-                    ? aiService.decodeImageMessage(image.base64, image.mimeType, text, name)
-                    : aiService.decodeMessage(text, name),
-                new Promise<string>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 30000))
-            ]);
+            const resultString = await (image
+                ? aiService.decodeImageMessage(image.base64, image.mimeType, text, name)
+                : aiService.decodeMessage(text, name));
 
             const result = aiService.safeParseJSON(resultString);
 
@@ -580,12 +576,7 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
                 }
             }
 
-            // Fetch new if not cached or if cache was the old version
-            // Added a 25-second timeout (M-10)
-            const resultString = await Promise.race([
-                aiService.getStarsAlign(name, userZodiac, partnerZodiac),
-                new Promise<string>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 25000))
-            ]);
+            const resultString = await aiService.getStarsAlign(name, userZodiac, partnerZodiac);
             const result = aiService.safeParseJSON(resultString);
 
             setForecast(result);

@@ -17,14 +17,23 @@ export const aiService = {
         context?: string,
         image?: { data: string; mimeType: string }
     ): Promise<string> {
-        const MAX_RETRIES = 1;
+        const MAX_RETRIES = 2;
 
         const executeRequest = async (attempt: number): Promise<string> => {
             try {
-                // 1) ensure there's a logged-in user
+                // 1) ensure there's a logged-in user (getUser forces server-side validation
+                //    and auto-refreshes expired tokens, unlike getSession which reads cache)
+                let activeToken: string | undefined;
                 const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token) {
-                    throw new Error("User not authenticated");
+                activeToken = session?.access_token;
+
+                if (!activeToken) {
+                    // Session not in cache — try refreshing explicitly
+                    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                    activeToken = refreshData?.session?.access_token;
+                    if (refreshError || !activeToken) {
+                        throw new Error("User not authenticated");
+                    }
                 }
 
                 // 2) invoke the edge function with the user's token and a timeout
@@ -34,12 +43,12 @@ export const aiService = {
 
                 // We wrap the invoke in a timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
+                const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout (must outlast edge function limit)
 
                 const { data, error } = await supabase.functions.invoke("ai-proxy", {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${session.access_token}`,
+                        Authorization: `Bearer ${activeToken}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify(payload),
@@ -50,9 +59,21 @@ export const aiService = {
 
                 // 3) handle SDK-level error
                 if (error) {
-                    // If it's a transient error or rate limit, we might want to retry, but usually rate limits shouldn't be retried
-                    if (attempt < MAX_RETRIES && (error.message?.includes('timeout') || error.message?.includes('network'))) {
-                        logger.warn(`AI request failed, retrying... (Attempt ${attempt + 1})`, { extra: { error: error.message } });
+                    // Retry on transient errors (timeout, network, 502/503 from edge function)
+                    const errMsg = error.message || '';
+                    const isTransient = errMsg.includes('timeout') ||
+                        errMsg.includes('network') ||
+                        errMsg.includes('502') ||
+                        errMsg.includes('503') ||
+                        errMsg.includes('GEMINI_ERROR') ||
+                        errMsg.includes('FunctionsHttpError') ||
+                        errMsg.includes('Failed to fetch') ||
+                        errMsg.includes('INTERNAL_SERVER_ERROR');
+
+                    if (attempt < MAX_RETRIES && isTransient) {
+                        const delay = (attempt + 1) * 1500; // progressive backoff: 1.5s, 3s
+                        logger.warn(`AI request failed, retrying in ${delay}ms... (Attempt ${attempt + 1})`, { extra: { error: errMsg } });
+                        await new Promise(r => setTimeout(r, delay));
                         return executeRequest(attempt + 1);
                     }
 
@@ -85,8 +106,10 @@ export const aiService = {
                     throw new Error("Request timed out. Please try again.");
                 }
 
-                if (attempt < MAX_RETRIES && !err.message?.includes('authenticated')) {
-                    logger.warn(`AI catch-block retry... (Attempt ${attempt + 1})`, { extra: { err: err.message } });
+                if (attempt < MAX_RETRIES && !err.message?.includes('authenticated') && !err.message?.includes('LIMIT_REACHED')) {
+                    const delay = (attempt + 1) * 1500;
+                    logger.warn(`AI catch-block retry in ${delay}ms... (Attempt ${attempt + 1})`, { extra: { err: err.message } });
+                    await new Promise(r => setTimeout(r, delay));
                     return executeRequest(attempt + 1);
                 }
 
