@@ -1,21 +1,25 @@
 {
-    "cli": {
-        "version": ">= 14.7.0",
-        "promptToConfigurePushNotifications": false
+  "cli": {
+    "version": ">= 14.7.0",
+    "promptToConfigurePushNotifications": false,
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     },
-    "build": {
-        "development": {
-            "developmentClient": true,
-            "distribution": "internal"
-        },
-        "preview": {
-            "distribution": "internal"
-        },
-        "production": {
-            "autoIncrement": true
-        }
+    "preview": {
+      "distribution": "internal"
     },
-    "submit": {
-        "production": {}
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
+  },
+  "submit": {
+    "production": {}
+  }
 }

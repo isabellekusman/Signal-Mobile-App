@@ -5,6 +5,15 @@ import React, { useEffect, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { Connection, Signal, useConnections } from '../context/ConnectionsContext';
 
+// Portable UUID v4 generator (crypto.randomUUID is NOT available in Hermes/JSC)
+function generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
 // Options
 const ZODIAC_SIGNS = ["ARIES", "TAURUS", "GEMINI", "CANCER", "LEO", "VIRGO", "LIBRA", "SCORPIO", "SAGITTARIUS", "CAPRICORN", "AQUARIUS", "PISCES"];
 const RELATIONSHIP_TYPES = ["CRUSH", "SITUATIONSHIP", "RELATIONSHIP", "FRIENDS", "EX", "OTHER"];
@@ -109,7 +118,7 @@ export default function AddConnectionScreen() {
             });
         } else {
             const newConnection: Connection = {
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 name: name,
                 tag: finalType.toUpperCase(),
                 zodiac: zodiac,
@@ -296,6 +305,28 @@ export default function AddConnectionScreen() {
 
                     {isEditing && (
                         <View style={styles.manageSection}>
+                            {(() => {
+                                const conn = connections.find(c => c.id === params.id);
+                                const needsBackground = !conn?.onboardingContext || conn.onboardingContext.skipped || Object.keys(conn.onboardingContext).length === 0;
+                                if (needsBackground) {
+                                    return (
+                                        <View style={{ marginBottom: 24 }}>
+                                            <Text style={styles.label}>BACKGROUND INFO</Text>
+                                            <TouchableOpacity
+                                                style={[styles.manageButton, { paddingVertical: 16 }]}
+                                                onPress={() => {
+                                                    updateConnection(params.id as string, { onboardingCompleted: false });
+                                                    router.back();
+                                                }}
+                                            >
+                                                <Ionicons name="document-text-outline" size={18} color="#1C1C1E" />
+                                                <Text style={styles.manageButtonText}>COMPLETE BACKGROUND QUIZ</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                }
+                                return null;
+                            })()}
                             <Text style={styles.label}>MANAGE CONNECTION</Text>
                             <View style={styles.manageRow}>
                                 <TouchableOpacity style={styles.manageButton} onPress={handleArchive}>
