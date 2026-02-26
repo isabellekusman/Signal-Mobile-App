@@ -3,11 +3,11 @@ import * as Sentry from '@sentry/react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import OfflineBanner from '../components/OfflineBanner';
 import PaywallModal from '../components/PaywallModal';
+import PulseLoader from '../components/PulseLoader';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ConnectionsProvider, useConnections } from '../context/ConnectionsContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -64,11 +64,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [session, authLoading, hasCompletedOnboarding, segments, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
   if (authLoading || hasCompletedOnboarding === null) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#ec4899" />
-      </View>
-    );
+    return <PulseLoader />;
   }
 
   return <>{children}</>;
