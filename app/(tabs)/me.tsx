@@ -34,6 +34,7 @@ import {
 import {
     ProfileSummary,
 } from '../../services/profileTypes';
+import { isRevenueCatConfigured } from '../../services/subscription';
 
 // ─── Palette ─────────────────────────────────────────────────────
 const PINK = '#ec4899';
@@ -841,10 +842,10 @@ export default function MeScreen() {
 
                             <Text style={{ fontSize: 12, color: GRAY, lineHeight: 18 }}>
                                 {subscriptionTier === 'free'
-                                    ? "Unlock unlimited decodes and priority AI analysis by upgrading your plan."
+                                    ? "3 daily uses per feature after your trial ends"
                                     : subscriptionTier === 'seeker'
-                                        ? "You have 25 daily decodes and full analysis access."
-                                        : "You have unlimited access to every Signal tool and decode."}
+                                        ? "15 daily uses per feature + full access to all tools"
+                                        : "Unlimited access + deeper, expanded AI analysis on every feature"}
                             </Text>
                         </View>
                     </View>
@@ -950,6 +951,7 @@ export default function MeScreen() {
                                     style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
                                     onPress={async () => {
                                         try {
+                                            if (!isRevenueCatConfigured()) { alert('RevenueCat not configured'); return; }
                                             const info = await Purchases.getCustomerInfo();
                                             const active = Object.keys(info.entitlements.active);
                                             const all = Object.keys(info.entitlements.all);
@@ -966,6 +968,7 @@ export default function MeScreen() {
                                     style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
                                     onPress={async () => {
                                         try {
+                                            if (!isRevenueCatConfigured()) { alert('RevenueCat not configured'); return; }
                                             const offerings = await Purchases.getOfferings();
                                             const pkg = offerings.current?.monthly;
                                             if (!pkg) { alert("No package found"); return; }
@@ -983,6 +986,7 @@ export default function MeScreen() {
                                     style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
                                     onPress={async () => {
                                         try {
+                                            if (!isRevenueCatConfigured()) { alert('RevenueCat not configured'); return; }
                                             const info = await Purchases.restorePurchases();
                                             alert(`Restored: ${Object.keys(info.entitlements.active).join(', ')}`);
                                         } catch (e) {

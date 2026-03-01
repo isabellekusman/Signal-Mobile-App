@@ -96,6 +96,7 @@ interface ConnectionsContextType {
     completeOnboarding: (profile?: UserProfile) => Promise<void>;
     // Subscriptions
     subscriptionTier: 'free' | 'seeker' | 'signal';
+    setSubscriptionTier: (tier: 'free' | 'seeker' | 'signal') => void;
     trialExpiresAt: string | null;
     isTrialActive: boolean;
     paywallMode: 'voluntary' | 'forced' | null;
@@ -397,7 +398,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
             theme, setTheme,
             userProfile, setUserProfile,
             hasCompletedOnboarding, completeOnboarding,
-            subscriptionTier, trialExpiresAt, isTrialActive,
+            subscriptionTier, setSubscriptionTier, trialExpiresAt, isTrialActive,
             setShowPaywall: setPaywallMode,
             paywallMode,
             hasSeenSubWelcome,

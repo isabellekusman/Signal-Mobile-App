@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import UpgradeNudge, { LockedFeatureCard } from '../../components/UpgradeNudge';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
@@ -25,7 +26,7 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 const ClarityContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
-    const { updateConnection, connections } = useConnections();
+    const { updateConnection, connections, subscriptionTier } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
     const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
@@ -210,6 +211,9 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
                                     <Text style={[styles.messageText, styles.aiMessageText]}>Analyzing...</Text>
                                 </View>
                             )}
+                            {!loading && messages.length > 0 && (
+                                <UpgradeNudge feature="clarity" currentTier={subscriptionTier} targetTier="signal" />
+                            )}
                         </ScrollView>
 
                         {/* Chat Input */}
@@ -242,7 +246,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 // Content Component for the "Decoder" tab
 // Content Component for the "Decoder" tab
 const DecoderContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
-    const { updateConnection, connections, setShowPaywall } = useConnections();
+    const { updateConnection, connections, setShowPaywall, subscriptionTier } = useConnections();
     const [text, setText] = useState('');
     const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
     const [analysis, setAnalysis] = useState<{
@@ -526,6 +530,8 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                                 >
                                     <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>SAVE TO PROFILE</Text>
                                 </TouchableOpacity>
+
+                                <UpgradeNudge feature="decoder" currentTier={subscriptionTier} targetTier="signal" />
                             </View>
                         )}
                     </ScrollView>
@@ -539,6 +545,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string }) => {
+    const { subscriptionTier } = useConnections();
     const [forecast, setForecast] = useState<{
         connectionTheme?: string;
         dailyForecast: string;
@@ -549,11 +556,24 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
             partnerBubble: string;
             pushPullDynamics: string;
             cosmicStrategyDepth: string;
-        }
+        };
+        extendedNarrative?: string;
     } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<boolean>(false);
     const [isDetailedAnalysisOpen, setIsDetailedAnalysisOpen] = useState(false);
+
+    // Stars Align is gated for free users
+    if (subscriptionTier === 'free') {
+        return (
+            <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
+                <LockedFeatureCard
+                    title="Stars Align"
+                    description="Stars Align is available on Seeker and above. Get personalized astrological readings with your subscription."
+                />
+            </View>
+        );
+    }
 
     const fetchForecast = async () => {
         haptics.light();
@@ -659,6 +679,7 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
                 </TouchableOpacity>
             </View>
 
+            <UpgradeNudge feature="stars" currentTier={subscriptionTier} targetTier="signal" />
             <Text style={styles.starsFooterDisclaimer}>* ASTROLOGY DESCRIBES TENDENCIES, NOT EFFORT.</Text>
 
             {/* Detailed Analysis Modal */}
@@ -1499,10 +1520,143 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
 
 
 // ──────────────────────────────────────────────────
+// PATTERN INSIGHTS CARD — Signal Tier Only
+// ──────────────────────────────────────────────────
+const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
+    const [synthesis, setSynthesis] = useState<{
+        timeframe: string;
+        themes: string[];
+        emotionalPattern: string;
+        behavioralPattern: string;
+        insight: string;
+        reflectionPrompt: string;
+    } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const dailyLogs = connection.dailyLogs || [];
+
+    const fetchSynthesis = async () => {
+        if (dailyLogs.length === 0) return;
+        setLoading(true);
+        setError(null);
+        try {
+            // Get last 30 days of logs
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const recentLogs = dailyLogs.filter(log => new Date(log.date) >= thirtyDaysAgo);
+
+            if (recentLogs.length < 2) {
+                setError('Need at least 2 check-in entries to find patterns. Keep logging!');
+                return;
+            }
+
+            const resultString = await aiService.getLogSynthesis(recentLogs, connection.name);
+            const result = aiService.safeParseJSON(resultString);
+            setSynthesis(result);
+        } catch (err: any) {
+            logger.error(err, { tags: { feature: 'log_synthesis', method: 'fetchSynthesis' } });
+            setError('Connection lost or timed out.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (dailyLogs.length === 0) {
+        return (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <Text style={{ color: '#8E8E93', fontSize: 13, textAlign: 'center' }}>
+                    Start logging daily check-ins in the Dynamic tab to unlock pattern insights.
+                </Text>
+            </View>
+        );
+    }
+
+    if (!synthesis && !loading && !error) {
+        return (
+            <TouchableOpacity
+                style={{
+                    backgroundColor: '#1C1C1E',
+                    paddingVertical: 14,
+                    borderRadius: 24,
+                    alignItems: 'center',
+                }}
+                onPress={fetchSynthesis}
+            >
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
+                    GENERATE PATTERN INSIGHTS
+                </Text>
+            </TouchableOpacity>
+        );
+    }
+
+    if (loading) {
+        return (
+            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Analyzing your patterns...</Text>
+            </View>
+        );
+    }
+
+    if (error) {
+        return (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{error}</Text>
+                <TouchableOpacity style={{ paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#FDF2F8', borderRadius: 8 }} onPress={fetchSynthesis}>
+                    <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '700' }}>TAP TO RETRY</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ gap: 16 }}>
+            {/* Themes */}
+            {synthesis?.themes && synthesis.themes.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {synthesis.themes.map((theme, i) => (
+                        <View key={i} style={{ backgroundColor: '#FDF2F8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                            <Text style={{ color: '#ec4899', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>{theme}</Text>
+                        </View>
+                    ))}
+                </View>
+            )}
+
+            {/* Emotional Pattern */}
+            <View style={{ backgroundColor: '#F9FAFB', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#F2F2F7' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#ec4899', marginBottom: 8 }}>EMOTIONAL PATTERNS</Text>
+                <Text style={{ fontSize: 14, lineHeight: 22, color: '#1C1C1E' }}>{synthesis?.emotionalPattern}</Text>
+            </View>
+
+            {/* Behavioral Pattern */}
+            <View style={{ backgroundColor: '#F9FAFB', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#F2F2F7' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#1C1C1E', marginBottom: 8 }}>BEHAVIORAL PATTERNS</Text>
+                <Text style={{ fontSize: 14, lineHeight: 22, color: '#1C1C1E' }}>{synthesis?.behavioralPattern}</Text>
+            </View>
+
+            {/* Insight */}
+            <View style={{ backgroundColor: '#FDF2F8', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#FCE7F3' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#ec4899', marginBottom: 8 }}>KEY INSIGHT</Text>
+                <Text style={{ fontSize: 14, lineHeight: 22, color: '#1C1C1E' }}>{synthesis?.insight}</Text>
+            </View>
+
+            {/* Reflection Prompt */}
+            {synthesis?.reflectionPrompt && (
+                <View style={{ backgroundColor: '#FFFFFF', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#1C1C1E' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#8E8E93', marginBottom: 8 }}>REFLECT ON THIS</Text>
+                    <Text style={{ fontSize: 15, lineHeight: 24, color: '#1C1C1E', fontStyle: 'italic' }}>"{synthesis.reflectionPrompt}"</Text>
+                </View>
+            )}
+        </View>
+    );
+};
+
+
+// ──────────────────────────────────────────────────
 // PROFILE CONTENT — All-encompassing analysis page
 // ──────────────────────────────────────────────────
 const ProfileContent = ({ connection }: { connection: Connection }) => {
-    const { updateConnection } = useConnections();
+    const { updateConnection, subscriptionTier, setShowPaywall } = useConnections();
     const [advice, setAdvice] = useState<{
         stateOfConnection: string;
         todaysMove: string;
@@ -1717,6 +1871,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                                 <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
                             </View>
                         ) : null}
+                        <UpgradeNudge feature="daily_advice" currentTier={subscriptionTier} targetTier="signal" />
                     </View>
                 ) : null}
             </View>
@@ -1793,6 +1948,24 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                     </View>
                 </View>
             )}
+
+            {/* Monthly/Weekly Patterns — Signal Tier Feature */}
+            <View style={profileStyles.logsSection}>
+                <Text style={profileStyles.sectionTitle}>
+                    {dailyLogs.length >= 30 ? 'MONTHLY PATTERNS' : 'WEEKLY PATTERNS'}
+                </Text>
+                <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                    AI-powered synthesis of your check-in entries
+                </Text>
+                {subscriptionTier === 'signal' ? (
+                    <PatternInsightsCard connection={connection} />
+                ) : (
+                    <LockedFeatureCard
+                        title="Unlock Pattern Insights"
+                        description="See what your entries reveal over time. Available on Signal."
+                    />
+                )}
+            </View>
 
             {/* Log Detail Modal — Structured UI by source type */}
             <Modal

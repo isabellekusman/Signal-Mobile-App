@@ -65,8 +65,8 @@ export default function PaywallModal({ visible, onClose, onSubscribe, onStartTri
                         <View style={s.tierInfo}>
                             <Text style={s.tierName}>THE SEEKER</Text>
                             <Text style={s.tierPrice}>$9.99 / month</Text>
-                            <Text style={s.tierBenefit}>25 Daily Decodes</Text>
-                            <Text style={s.tierBenefit}>Full Analysis Access</Text>
+                            <Text style={s.tierBenefit}>15 daily uses per feature</Text>
+                            <Text style={s.tierBenefit}>Full access to all tools</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={PINK} />
                     </TouchableOpacity>
@@ -79,8 +79,8 @@ export default function PaywallModal({ visible, onClose, onSubscribe, onStartTri
                         <View style={s.tierInfo}>
                             <Text style={s.tierName}>THE SIGNAL</Text>
                             <Text style={s.tierPrice}>$19.99 / month</Text>
-                            <Text style={s.tierBenefit}>Unlimited Decodes</Text>
-                            <Text style={s.tierBenefit}>Priority Access</Text>
+                            <Text style={s.tierBenefit}>Unlimited access</Text>
+                            <Text style={s.tierBenefit}>Deeper, expanded AI analysis</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={PINK} />
                     </TouchableOpacity>

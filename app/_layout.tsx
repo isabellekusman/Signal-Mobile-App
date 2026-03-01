@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import * as Sentry from '@sentry/react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import OfflineBanner from '../components/OfflineBanner';
@@ -16,7 +16,7 @@ import { analytics } from '../services/analytics';
 import { db } from '../services/database';
 import { logger } from '../services/logger';
 import { registerForPushNotificationsAsync, schedulePersonalizedNotifications } from '../services/notifications';
-import { checkPremiumStatus, getOfferings, purchasePremium, setupSubscription } from '../services/subscription';
+import { checkPremiumStatus, getOfferings, isRevenueCatConfigured, purchasePremium, setupSubscription } from '../services/subscription';
 
 // ─── Sentry Initialization ──────────────────────────────────
 Sentry.init({
@@ -75,6 +75,7 @@ function InnerLayout() {
   const isConnected = useNetworkStatus();
   const isPro = useSubscription();
   const { connections, theme, paywallMode, setShowPaywall, hasSeenSubWelcome, hasSeenTrialExpiry, isTrialActive, hasCompletedOnboarding } = useConnections();
+  const [revenueCatReady, setRevenueCatReady] = useState(false);
 
   // ─── Schedule Daily Local Notifications ───
   useEffect(() => {
@@ -99,21 +100,25 @@ function InnerLayout() {
     }
   }, [session?.user?.id]);
 
-  useEffect(() => {
-    // Only trigger if we've completed initial onboarding and haven't seen the sub welcome/expiry
-    if (hasCompletedOnboarding && (!hasSeenSubWelcome || (!isTrialActive && !hasSeenTrialExpiry))) {
-      setShowPaywall('forced');
-    }
-  }, [hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
-
-  // ─── RevenueCat Initialization ───
+  // ─── RevenueCat Initialization (must come BEFORE paywall logic) ───
   useEffect(() => {
     if (session?.user?.id) {
       setupSubscription(session.user.id).then(() => {
-        checkPremiumStatus();
+        if (isRevenueCatConfigured()) {
+          checkPremiumStatus();
+        }
+        setRevenueCatReady(true);
       });
     }
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    // Only trigger after RevenueCat is ready, actually configured, and onboarding is complete
+    if (!revenueCatReady || !isRevenueCatConfigured()) return;
+    if (hasCompletedOnboarding && (!hasSeenSubWelcome || (!isTrialActive && !hasSeenTrialExpiry))) {
+      setShowPaywall('forced');
+    }
+  }, [revenueCatReady, hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
 
 
@@ -153,10 +158,30 @@ function InnerLayout() {
   };
 
   const handleStartTrial = async () => {
-    // In RevenueCat, the trial is usually just a package with a free trial period.
-    // Buying any package for the first time triggers the trial.
-    // For simplicity, we'll suggest they pick a plan.
-    alert("Please select a plan to start your 7-day free trial.");
+    // In RevenueCat, the trial is just a package whose product has a free-trial
+    // period configured in App Store Connect.  We purchase the first (cheapest)
+    // available package — the store handles the trial automatically.
+    try {
+      const offerings = await getOfferings();
+      if (!offerings || offerings.availablePackages.length === 0) {
+        alert("No plans are available right now. Please try again later.");
+        return;
+      }
+      // Default to the first package (usually the cheapest / seeker tier)
+      const pkg = offerings.availablePackages[0];
+      const success = await purchasePremium(pkg);
+      if (success) {
+        await db.upsertProfile({
+          subscription_tier: 'seeker',
+          has_seen_sub_welcome: true,
+          has_seen_trial_expiry: true,
+        });
+        setShowPaywall(null);
+        alert("Welcome! Your 7-day free trial has started.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Could not start the trial. Please try again.");
+    }
   };
 
   const handleClose = async () => {
@@ -185,7 +210,7 @@ function InnerLayout() {
         </Stack>
       </AuthGate>
       <PaywallModal
-        visible={paywallMode !== null && !isPro}
+        visible={revenueCatReady && isRevenueCatConfigured() && paywallMode !== null && !isPro}
         onClose={handleClose}
         onSubscribe={handleSubscribe}
         onStartTrial={handleStartTrial}

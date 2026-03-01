@@ -59,6 +59,25 @@ export const aiService = {
 
                 // 3) handle SDK-level error
                 if (error) {
+                    // Check for FEATURE_GATED or LIMIT_REACHED in the error context
+                    if (error.context) {
+                        try {
+                            const body = await error.context.json();
+                            if (body.error === 'FEATURE_GATED') {
+                                const gatedError = new Error('FEATURE_GATED');
+                                (gatedError as any).gate = body.gate;
+                                (gatedError as any).gateMessage = body.message;
+                                throw gatedError;
+                            }
+                            if (body.error === 'LIMIT_REACHED') {
+                                throw new Error('DAILY_LIMIT_REACHED');
+                            }
+                        } catch (e: any) {
+                            if (e.message === 'FEATURE_GATED' || e.message === 'DAILY_LIMIT_REACHED') throw e;
+                            // ignore parse error, fall through to generic handling
+                        }
+                    }
+
                     // Retry on transient errors (timeout, network, 502/503 from edge function)
                     const errMsg = error.message || '';
                     const isTransient = errMsg.includes('timeout') ||
@@ -106,7 +125,7 @@ export const aiService = {
                     throw new Error("Request timed out. Please try again.");
                 }
 
-                if (attempt < MAX_RETRIES && !err.message?.includes('authenticated') && !err.message?.includes('LIMIT_REACHED')) {
+                if (attempt < MAX_RETRIES && !err.message?.includes('authenticated') && !err.message?.includes('LIMIT_REACHED') && !err.message?.includes('FEATURE_GATED')) {
                     const delay = (attempt + 1) * 1500;
                     logger.warn(`AI catch-block retry in ${delay}ms... (Attempt ${attempt + 1})`, { extra: { err: err.message } });
                     await new Promise(r => setTimeout(r, delay));
@@ -155,6 +174,11 @@ export const aiService = {
     async getDailyAdvice(name: string, tag: string, zodiac: string, context: string) {
         const prompt = `Connection Name: ${name}\nConnection Type: ${tag}\nZodiac Sign: ${zodiac}\nToday's Date: ${new Date().toDateString()}\n\nContext & History:\n${context}`;
         return await this.callProxy('daily_advice', prompt);
+    },
+
+    async getLogSynthesis(logs: any[], connectionName: string) {
+        const prompt = `Connection: ${connectionName}\n\nDaily Check-in Entries (${logs.length} entries):\n${JSON.stringify(logs, null, 1)}`;
+        return await this.callProxy('log_synthesis', prompt);
     },
 
     safeParseJSON(text: string) {
