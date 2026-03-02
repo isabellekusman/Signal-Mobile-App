@@ -1858,6 +1858,8 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     } | null>(null);
     const [loadingAdvice, setLoadingAdvice] = useState(false);
     const [adviceError, setAdviceError] = useState<string | null>(null);
+    const [isMoveExpanded, setIsMoveExpanded] = useState(false);
+    const [isWatchForExpanded, setIsWatchForExpanded] = useState(false);
 
     const savedLogs = (connection.savedLogs || []).filter(l => !l.isHidden);
     const dailyLogs = connection.dailyLogs || [];
@@ -2022,7 +2024,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                         </TouchableOpacity>
                     </View>
                 ) : advice ? (
-                    <View style={{ gap: 16 }}>
+                    <View style={{ gap: 12 }}>
                         <View style={profileStyles.adviceBlock}>
                             <Text style={profileStyles.adviceLabel}>STATE OF THE CONNECTION</Text>
                             <Text style={profileStyles.adviceText}>{advice.stateOfConnection}</Text>
@@ -2031,14 +2033,38 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                             <>
                                 {advice.todaysMove ? (
                                     <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
-                                        <Text style={[profileStyles.adviceLabel, { color: '#ec4899' }]}>TODAY'S MOVE</Text>
-                                        <Text style={profileStyles.adviceText}>{advice.todaysMove}</Text>
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            onPress={() => {
+                                                haptics.selection();
+                                                setIsMoveExpanded(!isMoveExpanded);
+                                            }}
+                                            style={profileStyles.adviceHeaderRow}
+                                        >
+                                            <Text style={[profileStyles.adviceLabel, { color: '#ec4899', marginBottom: 0 }]}>TODAY'S MOVE</Text>
+                                            <Ionicons name={isMoveExpanded ? "chevron-up" : "chevron-down"} size={14} color="#ec4899" />
+                                        </TouchableOpacity>
+                                        {isMoveExpanded && (
+                                            <Text style={[profileStyles.adviceText, { marginTop: 8 }]}>{advice.todaysMove}</Text>
+                                        )}
                                     </View>
                                 ) : null}
                                 {advice.watchFor ? (
                                     <View style={[profileStyles.adviceBlock, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                        <Text style={[profileStyles.adviceLabel, { color: '#8E8E93' }]}>WATCH FOR</Text>
-                                        <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            onPress={() => {
+                                                haptics.selection();
+                                                setIsWatchForExpanded(!isWatchForExpanded);
+                                            }}
+                                            style={profileStyles.adviceHeaderRow}
+                                        >
+                                            <Text style={[profileStyles.adviceLabel, { color: '#8E8E93', marginBottom: 0 }]}>WATCH FOR</Text>
+                                            <Ionicons name={isWatchForExpanded ? "chevron-up" : "chevron-down"} size={14} color="#8E8E93" />
+                                        </TouchableOpacity>
+                                        {isWatchForExpanded && (
+                                            <Text style={[profileStyles.adviceText, { marginTop: 8 }]}>{advice.watchFor}</Text>
+                                        )}
                                     </View>
                                 ) : null}
                             </>
@@ -2226,6 +2252,11 @@ const profileStyles = StyleSheet.create({
         padding: spacing(16),
         borderWidth: 1,
         borderColor: '#F2F2F7',
+    },
+    adviceHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     adviceLabel: {
         fontSize: fs(10),
