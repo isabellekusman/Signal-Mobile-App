@@ -5,6 +5,7 @@ import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Saf
 import { SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
+import { fontSize as fs, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
 export default function ReflectScreen() {
     const { connections, setShowPaywall, updateConnection, subscriptionTier } = useConnections();
@@ -174,12 +175,12 @@ export default function ReflectScreen() {
                         <Text style={styles.modalTitle}>Clarity Insight</Text>
                         <Text style={styles.modalSubtitle}>A GROUNDED VIEW ON YOUR REFLECTION.</Text>
 
-                        <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={{ maxHeight: verticalScale(400) }} showsVerticalScrollIndicator={false}>
                             <Text style={styles.insightText}>{insight}</Text>
                         </ScrollView>
 
                         <TouchableOpacity
-                            style={[styles.realignButton, { marginTop: 20 }]}
+                            style={[styles.realignButton, { marginTop: spacing(20) }]}
                             onPress={() => setShowInsight(false)}
                         >
                             <Text style={styles.realignButtonText}>DONE</Text>
@@ -204,7 +205,7 @@ export default function ReflectScreen() {
                         <Text style={styles.modalTitle}>Attach to Connection</Text>
                         <Text style={styles.modalSubtitle}>Link this reflection to someone.</Text>
 
-                        <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={{ maxHeight: verticalScale(300) }} showsVerticalScrollIndicator={false}>
                             {activeConnections.length === 0 ? (
                                 <Text style={styles.modalEmptyText}>No active connections yet.</Text>
                             ) : (
@@ -253,31 +254,31 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingTop: Platform.OS === 'android' ? 40 : 0,
+        paddingTop: Platform.OS === 'android' ? verticalScale(40) : 0,
     },
     container: {
         flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingBottom: 16,
+        paddingHorizontal: screenPadding,
+        paddingBottom: spacing(16),
     },
     header: {
-        marginTop: 20,
-        marginBottom: 14,
-        paddingHorizontal: 10,
+        marginTop: spacing(20),
+        marginBottom: spacing(14),
+        paddingHorizontal: spacing(10),
     },
     pageTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 36,
+        fontSize: fs(36),
         color: '#1C1C1E',
-        marginBottom: 6,
+        marginBottom: spacing(6),
     },
     pageSubtitle: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '800',
         color: '#8E8E93',
         letterSpacing: 2,
         textTransform: 'uppercase',
-        marginBottom: 12,
+        marginBottom: spacing(12),
     },
     separator: {
         height: 1,
@@ -287,35 +288,35 @@ const styles = StyleSheet.create({
 
     // Attach Section
     attachSection: {
-        marginBottom: 10,
-        paddingHorizontal: 10,
+        marginBottom: spacing(10),
+        paddingHorizontal: spacing(10),
     },
     attachLabel: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '700',
         color: '#A0A0A5',
         letterSpacing: 1.2,
-        marginBottom: 3,
+        marginBottom: spacing(3),
     },
     attachHint: {
-        fontSize: 11,
+        fontSize: fs(11),
         color: '#C7C7CC',
-        marginBottom: 10,
+        marginBottom: spacing(10),
     },
     attachButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        gap: spacing(5),
         backgroundColor: 'rgba(236, 72, 153, 0.06)',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 10,
+        paddingVertical: spacing(8),
+        paddingHorizontal: spacing(12),
+        borderRadius: spacing(10),
         borderWidth: 1,
         borderColor: 'rgba(236, 72, 153, 0.25)',
         alignSelf: 'flex-start',
     },
     attachButtonText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
         color: '#ec4899',
         letterSpacing: 0.5,
@@ -323,40 +324,40 @@ const styles = StyleSheet.create({
     attachedChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: spacing(10),
         backgroundColor: '#FDF2F8',
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 14,
+        paddingVertical: spacing(10),
+        paddingHorizontal: spacing(14),
+        borderRadius: spacing(14),
         borderWidth: 1,
         borderColor: '#FCE7F3',
         alignSelf: 'flex-start',
     },
     attachedAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: spacing(28),
+        height: spacing(28),
+        borderRadius: spacing(14),
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
     },
     attachedInitials: {
-        fontSize: 12,
+        fontSize: fs(12),
         fontWeight: '700',
         color: '#ec4899',
     },
     attachedName: {
-        fontSize: 13,
+        fontSize: fs(13),
         fontWeight: '700',
         color: '#1C1C1E',
     },
 
     // Main Card
     card: {
-        minHeight: 450,
+        minHeight: verticalScale(450),
         backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        padding: 4,
+        borderRadius: spacing(32),
+        padding: spacing(4),
         borderWidth: 1,
         borderColor: '#F2F2F7',
         shadowColor: '#000',
@@ -366,48 +367,48 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     cardContent: {
-        padding: 24,
+        padding: spacing(24),
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 28,
+        fontSize: fs(28),
         color: '#1C1C1E',
-        marginBottom: 12,
+        marginBottom: spacing(12),
         textAlign: 'center',
     },
     cardSubtitle: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '700',
         color: '#1C1C1E',
         letterSpacing: 1,
         textTransform: 'uppercase',
-        marginBottom: 24,
+        marginBottom: spacing(24),
         textAlign: 'center',
         fontStyle: 'italic',
     },
     inputContainer: {
         width: '100%',
-        minHeight: 220,
+        minHeight: verticalScale(220),
         backgroundColor: '#FAFAFA',
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 20,
+        borderRadius: spacing(24),
+        padding: spacing(20),
+        marginBottom: spacing(20),
         borderWidth: 1,
         borderColor: '#F2F2F7',
     },
     textInput: {
         flex: 1,
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 18,
+        fontSize: fs(18),
         color: '#1C1C1E',
-        lineHeight: 20,
+        lineHeight: spacing(20),
     },
     realignButton: {
         backgroundColor: '#1C1C1E',
-        height: 56,
-        borderRadius: 28,
+        height: verticalScale(56),
+        borderRadius: verticalScale(28),
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
     },
     realignButtonText: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
@@ -431,12 +432,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: spacing(24),
     },
     modalContent: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 28,
-        padding: 28,
+        borderRadius: spacing(28),
+        padding: spacing(28),
         width: '100%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
@@ -446,69 +447,69 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 22,
+        fontSize: fs(22),
         color: '#1C1C1E',
-        marginBottom: 6,
+        marginBottom: spacing(6),
     },
     modalSubtitle: {
-        fontSize: 12,
+        fontSize: fs(12),
         color: '#8E8E93',
-        marginBottom: 20,
+        marginBottom: spacing(20),
     },
     modalItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        paddingVertical: 14,
+        gap: spacing(12),
+        paddingVertical: spacing(14),
         borderBottomWidth: 1,
         borderBottomColor: '#F2F2F7',
     },
     modalItemAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: spacing(40),
+        height: spacing(40),
+        borderRadius: spacing(20),
         backgroundColor: '#FDF2F8',
         justifyContent: 'center',
         alignItems: 'center',
     },
     modalItemInitials: {
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '700',
         color: '#ec4899',
     },
     modalItemName: {
-        fontSize: 15,
+        fontSize: fs(15),
         fontWeight: '700',
         color: '#1C1C1E',
     },
     modalItemTag: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '600',
         color: '#8E8E93',
         letterSpacing: 0.5,
         textTransform: 'uppercase',
     },
     modalEmptyText: {
-        fontSize: 13,
+        fontSize: fs(13),
         color: '#C7C7CC',
         textAlign: 'center',
-        paddingVertical: 20,
+        paddingVertical: spacing(20),
     },
     modalDismiss: {
-        marginTop: 16,
-        paddingVertical: 12,
+        marginTop: spacing(16),
+        paddingVertical: spacing(12),
         alignItems: 'center',
     },
     modalDismissText: {
-        fontSize: 11,
+        fontSize: fs(11),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1,
     },
     insightText: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 16,
+        fontSize: fs(16),
         color: '#1C1C1E',
-        lineHeight: 24,
+        lineHeight: spacing(24),
     },
 });

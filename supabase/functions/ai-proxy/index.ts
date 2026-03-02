@@ -319,7 +319,7 @@ const INJECTION_PATTERNS = [
     /developer mode/i
 ];
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
     // 1. Handle CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: CORS_HEADERS });

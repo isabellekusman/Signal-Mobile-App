@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Defs, Rect, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import { fontSize as fs, spacing, verticalScale } from '../utils/responsive';
 
 interface LockedFeatureCardProps {
     featureName: string;
@@ -51,7 +52,7 @@ const LockedFeatureCard: React.FC<LockedFeatureCardProps> = ({
 
                 {/* Content Overlay (Centered on the fade) */}
                 <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-                    <Ionicons name="lock-closed" size={20} color="#8E8E93" />
+                    <Ionicons name="lock-closed" size={spacing(20)} color="#8E8E93" />
                     <Text style={styles.lockLabel}>
                         Unlock {featureName} — {tierLabel} & above
                     </Text>
@@ -72,14 +73,12 @@ const LockedFeatureCard: React.FC<LockedFeatureCardProps> = ({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: spacing(20),
+        padding: spacing(20),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginBottom: 20,
+        marginBottom: spacing(20),
         overflow: 'hidden',
-        // Subtle shadow to match "Today's Briefing" if it had any, 
-        // but based on code it's just border. Adding very subtle one for "premium" feel.
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03,
@@ -87,25 +86,25 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     previewContainer: {
-        height: 110, // Sufficient for ~2.5-3 lines of text
+        height: verticalScale(110),
         position: 'relative',
     },
     previewText: {
-        fontSize: 14,
-        lineHeight: 22,
+        fontSize: fs(14),
+        lineHeight: spacing(22),
         color: '#1C1C1E',
-        opacity: 0.2, // Very faded preview
+        opacity: 0.2,
     },
     overlay: {
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingBottom: 4,
+        paddingBottom: spacing(4),
     },
     lockLabel: {
-        fontSize: 12,
+        fontSize: fs(12),
         color: '#8E8E93',
-        marginTop: 6,
-        marginBottom: 14,
+        marginTop: spacing(6),
+        marginBottom: spacing(14),
         fontWeight: '500',
         letterSpacing: 0.2,
     },
@@ -113,17 +112,17 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#1C1C1E',
-        borderRadius: 20,
-        paddingVertical: 6,
-        paddingHorizontal: 16,
+        borderRadius: verticalScale(20),
+        paddingVertical: spacing(6),
+        paddingHorizontal: spacing(16),
         width: '100%',
-        maxWidth: 160,
+        maxWidth: spacing(160),
         alignItems: 'center',
     },
     pillButtonText: {
-        fontSize: 11,
+        fontSize: fs(11),
         color: '#1C1C1E',
-        fontWeight: '400', // Lighter weight as requested
+        fontWeight: '400',
         letterSpacing: 0.5,
     },
 });

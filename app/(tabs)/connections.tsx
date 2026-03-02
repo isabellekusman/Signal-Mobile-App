@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ConnectionCard from '../../components/ConnectionCard';
 import { Connection, useConnections } from '../../context/ConnectionsContext';
-import { fontSize as fs, scale, verticalScale } from '../../utils/responsive';
+import { fontSize as fs, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
 export default function ConnectionsScreen() {
     const router = useRouter();
@@ -200,14 +200,14 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingTop: Platform.OS === 'android' ? 40 : 0,
+        paddingTop: Platform.OS === 'android' ? verticalScale(40) : 0,
     },
     safeAreaDark: {
         backgroundColor: '#1C1C1E',
     },
     container: {
-        paddingHorizontal: 20,
-        paddingBottom: 20,
+        paddingHorizontal: screenPadding,
+        paddingBottom: spacing(20),
         flexGrow: 1,
     },
     scrollView: {
@@ -227,15 +227,15 @@ const styles = StyleSheet.create({
     toggleContainer: {
         flexDirection: 'row',
         backgroundColor: '#F2F2F7',
-        borderRadius: scale(20),
-        padding: scale(2),
+        borderRadius: spacing(20),
+        padding: spacing(2),
         marginTop: verticalScale(24),
         alignSelf: 'flex-start',
     },
     toggleButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 20,
-        borderRadius: 18,
+        paddingVertical: spacing(6),
+        paddingHorizontal: spacing(20),
+        borderRadius: spacing(18),
         alignItems: 'center',
     },
     toggleButtonActive: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     toggleText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
         letterSpacing: 0.5,
     },
@@ -274,23 +274,23 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#F2F2F7',
         width: '100%',
-        marginBottom: 32,
+        marginBottom: spacing(32),
     },
     cardsList: {
         flexDirection: 'column',
-        marginBottom: 32,
+        marginBottom: spacing(32),
     },
     emptyText: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#8E8E93',
         fontStyle: 'italic',
         textAlign: 'center',
-        marginTop: 20,
+        marginTop: spacing(20),
     },
     addButton: {
         backgroundColor: '#1C1C1E',
-        height: 56,
-        borderRadius: 28,
+        height: spacing(56),
+        borderRadius: spacing(28),
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     },
     addButtonText: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
@@ -312,12 +312,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: spacing(24),
     },
     modalContent: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        padding: 32,
+        borderRadius: spacing(32),
+        padding: spacing(32),
         width: '100%',
         alignItems: 'center',
         shadowColor: '#000',
@@ -329,34 +329,34 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         position: 'absolute',
-        top: 24,
-        right: 24,
+        top: spacing(24),
+        right: spacing(24),
         zIndex: 1,
     },
     modalTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 28,
+        fontSize: fs(28),
         color: '#1C1C1E',
-        marginBottom: 16,
+        marginBottom: spacing(16),
         textAlign: 'center',
-        marginTop: 10,
+        marginTop: spacing(10),
     },
     modalSubtitle: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#8E8E93',
         textAlign: 'center',
-        marginBottom: 32,
-        lineHeight: 20,
+        marginBottom: spacing(32),
+        lineHeight: spacing(20),
     },
     deleteTargetContainer: {
         backgroundColor: '#F2F2F7',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 12,
-        marginBottom: 32,
+        paddingHorizontal: spacing(16),
+        paddingVertical: spacing(8),
+        borderRadius: spacing(12),
+        marginBottom: spacing(32),
     },
     deleteTargetName: {
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '700',
         color: '#1C1C1E',
         textTransform: 'uppercase',
@@ -365,13 +365,13 @@ const styles = StyleSheet.create({
     deleteConfirmButton: {
         backgroundColor: '#1C1C1E',
         width: '100%',
-        paddingVertical: 18,
-        borderRadius: 30,
+        paddingVertical: spacing(18),
+        borderRadius: spacing(30),
         alignItems: 'center',
     },
     deleteConfirmText: {
         color: '#FFFFFF',
-        fontSize: 12,
+        fontSize: fs(12),
         fontWeight: '700',
         letterSpacing: 1,
         textTransform: 'uppercase',

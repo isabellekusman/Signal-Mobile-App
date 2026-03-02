@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { fontSize as fs, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
 export default function ChatScreen() {
     return (
@@ -54,31 +55,31 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingTop: Platform.OS === 'android' ? 40 : 0,
+        paddingTop: Platform.OS === 'android' ? verticalScale(40) : 0,
     },
     container: {
         flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingHorizontal: screenPadding,
+        paddingBottom: spacing(40),
     },
     header: {
-        marginTop: 40,
-        marginBottom: 40,
-        paddingHorizontal: 10,
+        marginTop: verticalScale(40),
+        marginBottom: verticalScale(40),
+        paddingHorizontal: spacing(10),
     },
     pageTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 36,
+        fontSize: fs(36),
         color: '#1C1C1E',
-        marginBottom: 8,
+        marginBottom: spacing(8),
     },
     pageSubtitle: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '800',
         color: '#8E8E93',
         letterSpacing: 2,
         textTransform: 'uppercase',
-        marginBottom: 24,
+        marginBottom: spacing(24),
     },
     separator: {
         height: 1,
@@ -87,8 +88,8 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        padding: 4, // Padding for the border/glow effect area if we add one
+        borderRadius: spacing(32),
+        padding: spacing(4), // Padding for the border/glow effect area if we add one
         borderWidth: 1,
         borderColor: '#F2F2F7',
         shadowColor: '#ec4899', // pink-500 shadow for glow effect
@@ -96,54 +97,53 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1, // Subtle pink glow
         shadowRadius: 20,
         elevation: 5,
-        minHeight: 500,
+        minHeight: verticalScale(500),
     },
     cardContent: {
         flex: 1,
-        padding: 24,
+        padding: spacing(24),
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 28,
+        fontSize: fs(28),
         color: '#1C1C1E',
-        marginBottom: 12,
+        marginBottom: spacing(12),
         textAlign: 'center',
     },
     cardSubtitle: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '700',
         color: '#1C1C1E', // Darker for readability on white
         letterSpacing: 1,
         textTransform: 'uppercase',
-        marginBottom: 48,
+        marginBottom: spacing(48),
         textAlign: 'center',
-        fontStyle: 'italic', // Matches "Object Check-In" vibe slightly or keep standard? Image shows standard sans but italic title. Text is sans.
-        // Actually image shows subtitle is italic serif? No, subtitle "CALIBRATE..." looks like Sans. "Objective Check-In" is Serif Italic.
+        fontStyle: 'italic',
     },
     inputContainer: {
         width: '100%',
-        height: 200,
+        height: verticalScale(200),
         backgroundColor: '#FAFAFA', // Very light gray/white
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 40,
+        borderRadius: spacing(24),
+        padding: spacing(24),
+        marginBottom: spacing(40),
         borderWidth: 1,
         borderColor: '#F2F2F7',
     },
     textInput: {
         flex: 1,
         fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-        fontSize: 18,
+        fontSize: fs(18),
         color: '#1C1C1E',
-        lineHeight: 20,
+        lineHeight: spacing(20),
     },
     realignButton: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: 18,
-        paddingHorizontal: 60,
-        borderRadius: 16,
+        paddingVertical: spacing(18),
+        paddingHorizontal: spacing(60),
+        borderRadius: spacing(16),
         shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2, // Stronger shadow for button pop
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     realignButtonText: {
-        fontSize: 11,
+        fontSize: fs(11),
         fontWeight: '800',
         color: '#1C1C1E',
         letterSpacing: 1.5,

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import useSubscription from '../../hooks/useSubscription';
-import { fontSize as fs, verticalScale } from '../../utils/responsive';
+import { fontSize as fs, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
 const DecoderInsightRenderer = ({ fullContent }: { fullContent: string }) => {
     const fields: Record<string, string> = {};
@@ -23,8 +23,8 @@ const DecoderInsightRenderer = ({ fullContent }: { fullContent: string }) => {
     const risks = fields['Risks'] ? fields['Risks'].split(',').map((r: string) => r.trim()).filter(Boolean) : [];
 
     return (
-        <View style={{ gap: 16, marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ gap: spacing(16), marginTop: spacing(12) }}>
+            <View style={{ flexDirection: 'row', gap: spacing(12) }}>
                 <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
                     <Text style={styles.decoderBoxLabel}>TONE</Text>
                     <Text style={styles.decoderBoxValue}>{fields['Tone'] || '—'}</Text>
@@ -59,11 +59,11 @@ const DecoderInsightRenderer = ({ fullContent }: { fullContent: string }) => {
             {risks.length > 0 && (
                 <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
                     <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
-                    <View style={{ gap: 8, marginTop: 4 }}>
+                    <View style={{ gap: spacing(8), marginTop: spacing(4) }}>
                         {risks.map((risk, index) => (
-                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
-                                <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
+                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(8) }}>
+                                <View style={{ width: spacing(6), height: spacing(6), borderRadius: spacing(3), backgroundColor: '#8E8E93' }} />
+                                <Text style={[styles.decoderBoxBody, { fontSize: fs(13) }]}>{risk}</Text>
                             </View>
                         ))}
                     </View>
@@ -71,7 +71,7 @@ const DecoderInsightRenderer = ({ fullContent }: { fullContent: string }) => {
             )}
 
             {fields['Suggested Reply'] && (
-                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: 8 }]}>
+                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: spacing(8) }]}>
                     <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
                     <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{fields['Suggested Reply']}"</Text>
                 </View>
@@ -84,7 +84,7 @@ const ClarityInsightRenderer = ({ fullContent }: { fullContent: string }) => {
     const messages = fullContent.split('\n\n').filter((m) => m.trim().length > 0);
 
     return (
-        <View style={{ gap: 12, marginTop: 12 }}>
+        <View style={{ gap: spacing(12), marginTop: spacing(12) }}>
             {messages.map((msg, index) => {
                 const isUser = msg.startsWith('You:');
                 const text = msg.replace(/^(You|Signal):\s*/, '');
@@ -92,19 +92,17 @@ const ClarityInsightRenderer = ({ fullContent }: { fullContent: string }) => {
                     <View key={index} style={{
                         alignSelf: isUser ? 'flex-end' : 'flex-start',
                         backgroundColor: isUser ? '#FDF2F8' : '#F9FAFB',
-                        padding: 12,
-                        borderRadius: 16,
-                        borderBottomRightRadius: isUser ? 4 : 16,
-                        borderBottomLeftRadius: !isUser ? 4 : 16,
+                        padding: spacing(12),
+                        borderRadius: spacing(16),
+                        borderBottomRightRadius: isUser ? spacing(4) : spacing(16),
+                        borderBottomLeftRadius: !isUser ? spacing(4) : spacing(16),
                         maxWidth: '85%',
                         borderWidth: 1,
                         borderColor: isUser ? '#FCE7F3' : '#F2F2F7',
                     }}>
-                        {/* We could add a label, but standard chat bubbles speak for themselves */}
-                        {/* {!isUser && <Text style={{ fontSize: 10, fontWeight: '800', color: '#ec4899', marginBottom: 4 }}>SIGNAL</Text>} */}
                         <Text style={{
-                            fontSize: 15,
-                            lineHeight: 22,
+                            fontSize: fs(15),
+                            lineHeight: spacing(22),
                             color: isUser ? '#ec4899' : '#1C1C1E',
                             fontFamily: !isUser ? (Platform.OS === 'ios' ? 'Georgia' : 'serif') : undefined
                         }}>
@@ -125,13 +123,13 @@ const StarsInsightRenderer = ({ fullContent }: { fullContent: string }) => {
     // We will render it nicely into a single styled cosmic box if it isn't JSON.
 
     return (
-        <View style={{ gap: 16, marginTop: 12 }}>
+        <View style={{ gap: spacing(16), marginTop: spacing(12) }}>
             <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <Ionicons name="sparkles" size={16} color="#ec4899" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(8), marginBottom: spacing(8) }}>
+                    <Ionicons name="sparkles" size={spacing(16)} color="#ec4899" />
                     <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#ec4899' }]}>COSMIC ANALYSIS</Text>
                 </View>
-                <Text style={[styles.decoderBoxBody, { lineHeight: 24 }]}>{fullContent}</Text>
+                <Text style={[styles.decoderBoxBody, { lineHeight: spacing(24) }]}>{fullContent}</Text>
             </View>
         </View>
     );
@@ -234,18 +232,18 @@ export default function HomeScreen() {
         return (
             <SafeAreaView style={styles.safeArea}>
                 <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 10 }}>
-                    <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: screenPadding, paddingTop: spacing(10) }}>
+                    <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: spacing(36), height: spacing(36), borderRadius: spacing(18), backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
                         {userProfile?.name ? (
-                            <Text style={{ fontSize: 16, fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
+                            <Text style={{ fontSize: fs(16), fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
                         ) : (
-                            <Ionicons name="person" size={18} color="#ec4899" />
+                            <Ionicons name="person" size={spacing(18)} color="#ec4899" />
                         )}
                     </TouchableOpacity>
                 </View>
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconWrap}>
-                        <Ionicons name="heart-outline" size={40} color="#ec4899" />
+                        <Ionicons name="heart-outline" size={spacing(40)} color="#ec4899" />
                     </View>
                     <Text style={styles.emptyTitle}>Start Your Story</Text>
                     <Text style={styles.emptySubtitle}>
@@ -273,24 +271,23 @@ export default function HomeScreen() {
                 <View style={styles.header}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={styles.pageTitle}>Home</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(12) }}>
                             {isPro && (
                                 <View style={styles.proBadge}>
-                                    <Ionicons name="checkmark-circle" size={14} color="#ec4899" />
+                                    <Ionicons name="checkmark-circle" size={spacing(14)} color="#ec4899" />
                                     <Text style={styles.proBadgeText}>PRO ACCESS</Text>
                                 </View>
                             )}
-                            <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
+                            <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: spacing(36), height: spacing(36), borderRadius: spacing(18), backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
                                 {userProfile?.name ? (
-                                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
+                                    <Text style={{ fontSize: fs(16), fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
                                 ) : (
-                                    <Ionicons name="person" size={18} color="#ec4899" />
+                                    <Ionicons name="person" size={spacing(18)} color="#ec4899" />
                                 )}
                             </TouchableOpacity>
                         </View>
                     </View>
                     <Text style={styles.sectionLabel}>CONTINUE WHERE YOU LEFT OFF</Text>
-
                 </View>
 
                 <View style={styles.headerDivider} />
@@ -445,11 +442,11 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingTop: Platform.OS === 'android' ? 40 : 0,
+        paddingTop: Platform.OS === 'android' ? verticalScale(40) : 0,
     },
     container: {
-        paddingHorizontal: 20,
-        paddingBottom: 20,
+        paddingHorizontal: screenPadding,
+        paddingBottom: spacing(20),
     },
     header: {
         marginTop: verticalScale(20),
@@ -474,56 +471,56 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#F2F2F7',
         width: '100%',
-        marginBottom: 24,
+        marginBottom: spacing(24),
     },
 
     // Connection Card
     connectionCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 18,
+        borderRadius: spacing(20),
+        padding: spacing(18),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginBottom: 16,
+        marginBottom: spacing(16),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
-        shadowRadius: 8,
+        shadowRadius: 10,
         elevation: 2,
     },
     connectionCardInner: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
+        gap: spacing(14),
     },
     connectionAvatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: spacing(56),
+        height: spacing(56),
+        borderRadius: spacing(28),
         backgroundColor: '#FDF2F8',
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
     },
     connectionInitials: {
-        fontSize: 20,
+        fontSize: fs(20),
         fontWeight: '700',
         color: '#ec4899',
     },
     connectionName: {
-        fontSize: 20,
+        fontSize: fs(20),
         fontWeight: '700',
         color: '#1C1C1E',
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
     metaBadge: {
         backgroundColor: '#FDF2F8',
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: 10,
+        paddingHorizontal: spacing(10),
+        paddingVertical: spacing(3),
+        borderRadius: spacing(10),
     },
     metaBadgeText: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '700',
         color: '#ec4899',
         letterSpacing: 0.5,
@@ -533,47 +530,47 @@ const styles = StyleSheet.create({
     // Insight Cards
     insightCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 18,
-        padding: 18,
+        borderRadius: spacing(18),
+        padding: spacing(18),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginBottom: 14,
+        marginBottom: spacing(14),
     },
     insightHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
+        gap: spacing(8),
+        marginBottom: spacing(12),
     },
     insightIconWrap: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
+        width: spacing(28),
+        height: spacing(28),
+        borderRadius: spacing(8),
         justifyContent: 'center',
         alignItems: 'center',
     },
     insightLabel: {
-        fontSize: 13,
+        fontSize: fs(13),
         fontWeight: '800',
         color: '#8E8E93',
         letterSpacing: 1.2,
         flex: 1,
     },
     insightDate: {
-        fontSize: 10,
+        fontSize: fs(10),
         color: '#C7C7CC',
         fontWeight: '600',
     },
     insightTitle: {
-        fontSize: 15,
+        fontSize: fs(15),
         fontWeight: '700',
         color: '#1C1C1E',
-        marginBottom: 4,
+        marginBottom: spacing(4),
     },
     insightSummary: {
-        fontSize: 13,
+        fontSize: fs(13),
         color: '#8E8E93',
-        lineHeight: 19,
+        lineHeight: spacing(19),
     },
     insightCardExpanded: {
         borderColor: 'rgba(236, 72, 153, 0.2)',
@@ -584,23 +581,23 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     insightFullContent: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#1C1C1E',
-        lineHeight: 22,
+        lineHeight: spacing(22),
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
     expandHint: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
-        marginTop: 10,
-        paddingTop: 10,
+        gap: spacing(4),
+        marginTop: spacing(10),
+        paddingTop: spacing(10),
         borderTopWidth: 1,
         borderTopColor: '#F2F2F7',
     },
     expandHintText: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '800',
         color: '#ec4899',
         letterSpacing: 1,
@@ -609,14 +606,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
-        marginTop: 16,
-        paddingTop: 10,
+        gap: spacing(4),
+        marginTop: spacing(16),
+        paddingTop: spacing(10),
         borderTopWidth: 1,
         borderTopColor: '#F2F2F7',
     },
     collapseHintText: {
-        fontSize: 9,
+        fontSize: fs(9),
         fontWeight: '800',
         color: '#C7C7CC',
         letterSpacing: 1,
@@ -626,28 +623,28 @@ const styles = StyleSheet.create({
     vibeTags: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 6,
+        gap: spacing(6),
     },
     vibeTag: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        paddingHorizontal: spacing(10),
+        paddingVertical: spacing(4),
+        borderRadius: spacing(12),
     },
     vibeTagText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '700',
     },
 
     // Continue Button
     continueButton: {
         backgroundColor: '#1C1C1E',
-        height: 56,
-        borderRadius: 28,
+        height: verticalScale(56),
+        borderRadius: verticalScale(28),
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
-        gap: 10,
-        marginTop: 8,
+        gap: spacing(10),
+        marginTop: spacing(8),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
@@ -656,7 +653,7 @@ const styles = StyleSheet.create({
     },
     continueButtonText: {
         color: '#FFFFFF',
-        fontSize: 13,
+        fontSize: fs(13),
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
@@ -665,25 +662,25 @@ const styles = StyleSheet.create({
     // No data
     noDataCard: {
         alignItems: 'center',
-        paddingVertical: 40,
+        paddingVertical: spacing(40),
         backgroundColor: '#F9FAFB',
-        borderRadius: 18,
+        borderRadius: spacing(18),
         borderWidth: 1,
         borderColor: '#F2F2F7',
-        marginTop: 8,
+        marginTop: spacing(8),
     },
     noDataTitle: {
-        fontSize: 15,
+        fontSize: fs(15),
         fontWeight: '600',
         color: '#8E8E93',
-        marginTop: 12,
+        marginTop: spacing(12),
     },
     noDataSubtitle: {
-        fontSize: 12,
+        fontSize: fs(12),
         color: '#B0B0B0',
         textAlign: 'center',
-        marginTop: 4,
-        paddingHorizontal: 40,
+        marginTop: spacing(4),
+        paddingHorizontal: spacing(40),
     },
 
     // Empty State (no connections at all)
@@ -691,38 +688,38 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 40,
+        paddingHorizontal: spacing(40),
     },
     emptyIconWrap: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: spacing(80),
+        height: spacing(80),
+        borderRadius: spacing(40),
         backgroundColor: '#FDF2F8',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: spacing(24),
     },
     emptyTitle: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 28,
+        fontSize: fs(28),
         color: '#1C1C1E',
-        marginBottom: 12,
+        marginBottom: spacing(12),
         textAlign: 'center',
     },
     emptySubtitle: {
-        fontSize: 14,
+        fontSize: fs(14),
         color: '#8E8E93',
         textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 32,
+        lineHeight: spacing(22),
+        marginBottom: spacing(32),
     },
     ctaButton: {
         backgroundColor: '#1C1C1E',
-        height: 56,
-        borderRadius: 28,
+        height: verticalScale(56),
+        borderRadius: verticalScale(28),
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 40,
+        paddingHorizontal: spacing(40),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
@@ -731,7 +728,7 @@ const styles = StyleSheet.create({
     },
     ctaButtonText: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '700',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
@@ -739,42 +736,42 @@ const styles = StyleSheet.create({
     proBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: spacing(4),
         backgroundColor: '#FDF2F8',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+        paddingHorizontal: spacing(12),
+        paddingVertical: spacing(6),
+        borderRadius: spacing(20),
         borderWidth: 1,
         borderColor: '#FCE7F3',
     },
     proBadgeText: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '800',
         color: '#ec4899',
         letterSpacing: 0.5,
     },
     decoderBox: {
-        padding: 16,
-        borderRadius: 16,
+        padding: spacing(16),
+        borderRadius: spacing(16),
         borderWidth: 1,
         borderColor: 'transparent',
     },
     decoderBoxLabel: {
-        fontSize: 10,
+        fontSize: fs(10),
         fontWeight: '800',
         color: '#8E8E93',
         letterSpacing: 1,
         textTransform: 'uppercase',
-        marginBottom: 8,
+        marginBottom: spacing(8),
     },
     decoderBoxValue: {
-        fontSize: 16,
+        fontSize: fs(16),
         fontWeight: '600',
         color: '#1C1C1E',
     },
     decoderBoxBody: {
-        fontSize: 15,
-        lineHeight: 24,
+        fontSize: fs(15),
+        lineHeight: spacing(24),
         color: '#1C1C1E',
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
