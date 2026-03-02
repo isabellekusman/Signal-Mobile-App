@@ -115,9 +115,10 @@ function InnerLayout() {
   useEffect(() => {
     // Only trigger after RevenueCat is ready, actually configured, and onboarding is complete
     if (!revenueCatReady || !isRevenueCatConfigured()) return;
-    if (hasCompletedOnboarding && (!hasSeenSubWelcome || (!isTrialActive && !hasSeenTrialExpiry))) {
-      setShowPaywall('forced');
-    }
+    // Disable automatic/forced paywall popup; paywall will only appear from explicit user actions (e.g. VIEW PLANS).
+    // if (hasCompletedOnboarding && (!hasSeenSubWelcome || (!isTrialActive && !hasSeenTrialExpiry))) {
+    //   setShowPaywall('forced');
+    // }
   }, [revenueCatReady, hasCompletedOnboarding, hasSeenSubWelcome, isTrialActive, hasSeenTrialExpiry]);
 
 

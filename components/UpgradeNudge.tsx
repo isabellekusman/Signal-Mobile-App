@@ -21,9 +21,17 @@ interface UpgradeNudgeProps {
     feature: string;
     currentTier: string;
     targetTier?: 'seeker' | 'signal';
+    titleOverride?: string;
+    messageOverride?: string;
 }
 
-export default function UpgradeNudge({ feature, currentTier, targetTier = 'signal' }: UpgradeNudgeProps) {
+export default function UpgradeNudge({
+    feature,
+    currentTier,
+    targetTier = 'signal',
+    titleOverride,
+    messageOverride,
+}: UpgradeNudgeProps) {
     const { setShowPaywall } = useConnections();
 
     if (currentTier === 'signal') return null;
@@ -39,7 +47,9 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
     };
 
     let copy = '';
-    if (targetTier === 'signal') {
+    if (messageOverride) {
+        copy = messageOverride;
+    } else if (targetTier === 'signal') {
         copy = FEATURE_COPY[feature] || 'Full experience';
     } else if (targetTier === 'seeker' && currentTier === 'free') {
         copy = `Unlock ${FEATURE_LABELS[feature] || feature}`;
@@ -47,7 +57,7 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
 
     if (!copy) return null;
 
-    const title = FEATURE_LABELS[feature] || 'Upgrade';
+    const title = titleOverride || FEATURE_LABELS[feature] || 'Upgrade';
 
     return (
         <View style={s.lockedCard}>

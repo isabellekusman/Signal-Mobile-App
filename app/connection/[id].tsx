@@ -2039,23 +2039,25 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
 
             {/* Daily Advice Section */}
             <View style={profileStyles.adviceCard}>
-                <View style={{ marginBottom: 16 }}>
+                <View style={{ marginBottom: 8 }}>
                     <Text style={profileStyles.sectionTitle}>TODAY'S BRIEFING</Text>
                 </View>
+
+                {(adviceError === 'RATE_LIMITED' || adviceError === 'GATED') && (
+                    <UpgradeNudge
+                        feature="daily_advice"
+                        currentTier={subscriptionTier}
+                        targetTier={subscriptionTier === 'free' ? 'seeker' : 'signal'}
+                        titleOverride="Today's Briefing"
+                        messageOverride="You've used your daily limit for Today's Briefing. See plans for more."
+                    />
+                )}
 
                 {loadingAdvice ? (
                     <View style={{ paddingVertical: 32, alignItems: 'center' }}>
                         <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Generating your daily briefing...</Text>
                     </View>
-                ) : adviceError === 'RATE_LIMITED' ? (
-                    <RateLimitBanner feature="daily_advice" />
-                ) : adviceError === 'GATED' ? (
-                    <LockedFeatureCard
-                        featureName="Daily Advice"
-                        requiredTier="seeker"
-                        onUnlockPress={() => setShowPaywall('voluntary')}
-                    />
-                ) : adviceError ? (
+                ) : adviceError && adviceError !== 'RATE_LIMITED' && adviceError !== 'GATED' ? (
                     <View style={{ paddingVertical: 16, alignItems: 'center' }}>
                         <Text style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{adviceError}</Text>
                         <TouchableOpacity style={{ paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#FDF2F8', borderRadius: 8 }} onPress={fetchAdvice}>
