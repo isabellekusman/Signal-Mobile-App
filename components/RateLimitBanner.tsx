@@ -58,17 +58,19 @@ interface RateLimitBannerProps {
 }
 
 export default function RateLimitBanner({ feature, onDismiss }: RateLimitBannerProps) {
-    const { setShowPaywall } = useConnections();
+    const { setShowPaywall, subscriptionTier } = useConnections();
     const copy = FEATURE_COPY[feature] || {
         title: 'This Feature',
         message: "You've reached your daily limit for this feature.",
-        upgradeTier: 'Seeker',
+        upgradeTier: (subscriptionTier === 'seeker' || subscriptionTier === 'signal') ? 'Signal' : 'Seeker',
     };
+
+    const displayMessage = copy.message.replace('free ', (subscriptionTier === 'seeker' || subscriptionTier === 'signal') ? '' : 'free ');
 
     return (
         <View style={s.lockedCard}>
             <Text style={s.lockedTitle}>{copy.title}</Text>
-            <Text style={s.lockedDescription}>{copy.message}</Text>
+            <Text style={s.lockedDescription}>{displayMessage}</Text>
             <TouchableOpacity
                 style={s.lockedButton}
                 activeOpacity={0.8}

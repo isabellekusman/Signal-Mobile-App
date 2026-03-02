@@ -131,6 +131,7 @@ function localToDBConnection(conn: Connection) {
         daily_logs: conn.dailyLogs || [],
         saved_logs: conn.savedLogs || [],
         onboarding_context: conn.onboardingContext || {},
+        cached_advice: conn.cachedAdvice || null,
     };
 }
 
@@ -148,6 +149,7 @@ function dbToLocalConnection(dbConn: any): Connection {
         savedLogs: dbConn.saved_logs || [],
         onboardingCompleted: true,
         onboardingContext: dbConn.onboarding_context || {},
+        cachedAdvice: dbConn.cached_advice || undefined,
     };
 }
 
@@ -390,6 +392,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         if (updates.dailyLogs !== undefined) dbUpdates.daily_logs = updates.dailyLogs;
         if (updates.savedLogs !== undefined) dbUpdates.saved_logs = updates.savedLogs;
         if (updates.onboardingContext !== undefined) dbUpdates.onboarding_context = updates.onboardingContext;
+        if (updates.cachedAdvice !== undefined) dbUpdates.cached_advice = updates.cachedAdvice;
 
         if (Object.keys(dbUpdates).length > 0) {
             db.updateConnection(id, dbUpdates).catch((err) => {

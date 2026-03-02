@@ -1866,6 +1866,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     const [adviceError, setAdviceError] = useState<string | null>(null);
     const [isMoveExpanded, setIsMoveExpanded] = useState(false);
     const [isWatchForExpanded, setIsWatchForExpanded] = useState(false);
+    const [expandedLogGroups, setExpandedLogGroups] = useState<string[]>([]);
 
     const savedLogs = (connection.savedLogs || []).filter(l => !l.isHidden);
     const dailyLogs = connection.dailyLogs || [];
@@ -1875,7 +1876,10 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     const getTodayKey = () => new Date().toISOString().split('T')[0];
 
     const fetchAdvice = async () => {
-        if (subscriptionTier === 'free' && !isTrialActive) return; // Do not call API for free users
+        if (subscriptionTier === 'free' && !isTrialActive) {
+            setAdviceError('GATED');
+            return;
+        }
 
         setLoadingAdvice(true);
         setAdviceError(null);
@@ -1954,9 +1958,11 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
         } catch (error: any) {
             if (error.message === 'DAILY_LIMIT_REACHED') {
                 setAdviceError('RATE_LIMITED');
+            } else if (error.message === 'FEATURE_GATED') {
+                setAdviceError('GATED');
             } else {
                 logger.error(error, { tags: { feature: 'dailyAdvice', method: 'fetchAdvice' } });
-                setAdviceError("Connection lost or timed out.");
+                setAdviceError("Failed to load briefing. Please try again.");
             }
         } finally {
             setLoadingAdvice(false);
@@ -1977,7 +1983,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
         } else {
             fetchAdvice();
         }
-    }, [subscriptionTier, isTrialActive]);
+    }, [subscriptionTier, isTrialActive, connection.id]);
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
@@ -2060,6 +2066,12 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                     </View>
                 ) : adviceError === 'RATE_LIMITED' ? (
                     <RateLimitBanner feature="daily_advice" />
+                ) : adviceError === 'GATED' ? (
+                    <LockedFeatureCard
+                        featureName="Daily Advice"
+                        requiredTier="seeker"
+                        onUnlockPress={() => setShowPaywall('voluntary')}
+                    />
                 ) : adviceError ? (
                     <View style={{ paddingVertical: 16, alignItems: 'center' }}>
                         <Text style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{adviceError}</Text>
@@ -2117,15 +2129,6 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                 ) : null}
             </View>
 
-            {subscriptionTier === 'free' && !isTrialActive && (
-                <LockedFeatureCard
-                    featureName="Daily Advice"
-                    requiredTier="seeker"
-                    onUnlockPress={() => setShowPaywall('voluntary')}
-                />
-            )}
-
-
             {/* Saved Logs Section */}
             <View style={profileStyles.logsSection}>
                 <Text style={profileStyles.sectionTitle}>SAVED ANALYSIS</Text>
@@ -2141,43 +2144,70 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                     </View>
                 ) : (
                     <View style={{ gap: 24 }}>
-                        {groupedLogs.map((group) => (
-                            <View key={group.title}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                    <View style={[profileStyles.groupIcon, { backgroundColor: group.color + '10' }]}>
-                                        <Ionicons name={group.icon} size={12} color={group.color} />
-                                    </View>
-                                    <Text style={profileStyles.groupTitle}>{group.title}</Text>
-                                    <View style={{ flex: 1, height: 1, backgroundColor: '#F2F2F7', marginLeft: 4 }} />
-                                </View>
-                                <View style={{ gap: 10 }}>
-                                    {group.logs.map((log) => (
-                                        <TouchableOpacity
-                                            key={log.id}
-                                            style={profileStyles.logCard}
-                                            onPress={() => onNavigateToSource && onNavigateToSource(log.source, log)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={profileStyles.logTitle}>{log.title}</Text>
-                                                    <Text style={profileStyles.logDate}>{formatDate(log.date)}</Text>
-                                                </View>
+                        {groupedLogs.map((group) => {
+                            const isCollapsible = group.logs.length >= 3 && (group.source === 'clarity' || group.source === 'decoder');
+                            const isExpanded = !isCollapsible || expandedLogGroups.includes(group.source);
+
+                            return (
+                                <View key={group.title}>
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() => {
+                                            if (!isCollapsible) return;
+                                            haptics.selection();
+                                            if (expandedLogGroups.includes(group.source)) {
+                                                setExpandedLogGroups(expandedLogGroups.filter(s => s !== group.source));
+                                            } else {
+                                                setExpandedLogGroups([...expandedLogGroups, group.source]);
+                                            }
+                                        }}
+                                        disabled={!isCollapsible}
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}
+                                    >
+                                        <View style={[profileStyles.groupIcon, { backgroundColor: group.color + '10' }]}>
+                                            <Ionicons name={group.icon} size={12} color={group.color} />
+                                        </View>
+                                        <Text style={profileStyles.groupTitle}>{group.title}</Text>
+                                        <Text style={[profileStyles.countBadge, { opacity: (isCollapsible && !isExpanded) ? 1 : 0 }]}>
+                                            {group.logs.length}
+                                        </Text>
+                                        {isCollapsible && (
+                                            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color="#D1D1D6" style={{ marginLeft: 2 }} />
+                                        )}
+                                        <View style={{ flex: 1, height: 1, backgroundColor: '#F2F2F7', marginLeft: 4 }} />
+                                    </TouchableOpacity>
+
+                                    {isExpanded && (
+                                        <View style={{ gap: 10 }}>
+                                            {group.logs.map((log) => (
                                                 <TouchableOpacity
-                                                    onPress={() => deleteLog(log.id)}
-                                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                                    style={{ padding: 4 }}
+                                                    key={log.id}
+                                                    style={profileStyles.logCard}
+                                                    onPress={() => onNavigateToSource && onNavigateToSource(log.source, log)}
+                                                    activeOpacity={0.7}
                                                 >
-                                                    <Ionicons name="trash-outline" size={16} color="#D1D1D6" />
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={profileStyles.logTitle}>{log.title}</Text>
+                                                            <Text style={profileStyles.logDate}>{formatDate(log.date)}</Text>
+                                                        </View>
+                                                        <TouchableOpacity
+                                                            onPress={() => deleteLog(log.id)}
+                                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                            style={{ padding: 4 }}
+                                                        >
+                                                            <Ionicons name="trash-outline" size={16} color="#D1D1D6" />
+                                                        </TouchableOpacity>
+                                                        <Ionicons name="chevron-forward" size={16} color="#D1D1D6" />
+                                                    </View>
+                                                    <Text style={profileStyles.logSummary} numberOfLines={2}>{log.summary}</Text>
                                                 </TouchableOpacity>
-                                                <Ionicons name="chevron-forward" size={16} color="#D1D1D6" />
-                                            </View>
-                                            <Text style={profileStyles.logSummary} numberOfLines={2}>{log.summary}</Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                            ))}
+                                        </View>
+                                    )}
                                 </View>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 )}
             </View>
@@ -2389,6 +2419,17 @@ const profileStyles = StyleSheet.create({
         fontWeight: '800',
         color: '#1C1C1E',
         letterSpacing: 1.5,
+    },
+    countBadge: {
+        fontSize: fs(10),
+        fontWeight: '700',
+        color: '#8E8E93',
+        backgroundColor: '#F2F2F7',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        overflow: 'hidden',
+        marginLeft: 4,
     },
     groupIcon: {
         width: spacing(24),

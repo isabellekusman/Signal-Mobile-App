@@ -569,7 +569,7 @@ function ContractSection({
 
 export default function MeScreen() {
     const router = useRouter();
-    const { connections, userProfile, setUserProfile, subscriptionTier, setSubscriptionTier, isTrialActive, trialExpiresAt, setTrialExpiresAt, setShowPaywall, refreshUsage } = useConnections();
+    const { connections, updateConnection, userProfile, setUserProfile, subscriptionTier, setSubscriptionTier, isTrialActive, trialExpiresAt, setTrialExpiresAt, setShowPaywall, refreshUsage } = useConnections();
 
     const { signOut, user } = useAuth();
 
@@ -891,10 +891,27 @@ export default function MeScreen() {
                                     onPress={async () => {
                                         await db.resetDailyUsage();
                                         await refreshUsage();
-                                        Alert.alert("Simulated", "Daily message counts have been reset to 0.");
+                                        Alert.alert("Simulated", "Daily usage across all features has been reset to 0.");
                                     }}
                                 >
-                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#166534' }}>SIMULATE: RESET DAILY USAGE</Text>
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#166534' }}>RELOAD DAILY LIMITS (RESET USAGE)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#FFF7ED', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#FFEDD5' }}
+                                    onPress={async () => {
+                                        try {
+                                            // Iterate and clear cachedAdvice for all connections
+                                            for (const conn of connections) {
+                                                await updateConnection(conn.id, { cachedAdvice: undefined });
+                                            }
+                                            Alert.alert("Briefings Cleared", "All cached Today's Briefings have been cleared for testing.");
+                                        } catch (e) {
+                                            Alert.alert("Error clearing briefings");
+                                        }
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#9A3412' }}>CLEAR ALL CACHED BRIEFINGS</Text>
                                 </TouchableOpacity>
 
 

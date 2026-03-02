@@ -310,8 +310,8 @@ Rules:
 };
 
 // Select the right prompt based on tier
-function getSystemPrompt(feature: string, tier: string): string {
-    if (tier === 'signal') {
+function getSystemPrompt(feature: string, tier: string, isTrialActive: boolean): string {
+    if (tier === 'signal' || isTrialActive) {
         return SYSTEM_PROMPTS_DEEP[feature] || SYSTEM_PROMPTS_STANDARD[feature] || '';
     }
     return SYSTEM_PROMPTS_STANDARD[feature] || '';
@@ -471,7 +471,7 @@ Deno.serve(async (req: Request) => {
         console.log('[AI Proxy] Step 7: Calling Gemini');
         if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
 
-        const systemPrompt = getSystemPrompt(feature, tier);
+        const systemPrompt = getSystemPrompt(feature, tier, isTrialActive);
 
         // Prepare contents for Gemini multimodal API
         const parts: any[] = [
@@ -570,7 +570,7 @@ Deno.serve(async (req: Request) => {
             user_id: user.id,
             feature,
             tokens_used: result.length + (prompt?.length || 0)
-        }).then(({ error }) => {
+        }).then(({ error }: any) => {
             if (error) Sentry.captureException(error, { extra: { context: '[AI Proxy] Usage Log Error' } });
         });
 

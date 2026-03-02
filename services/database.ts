@@ -42,6 +42,7 @@ export interface DBConnection {
     daily_logs: any[];
     saved_logs: any[];
     onboarding_context: any;
+    cached_advice?: any;
     created_at: string;
     updated_at: string;
 }
@@ -193,14 +194,14 @@ async function resetDailyUsage(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Clear the last 24 hours of usage to avoid timezone mismatch issues for testing
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const { error } = await supabase
         .from('ai_usage')
         .delete()
         .eq('user_id', user.id)
-        .gte('created_at', todayStart.toISOString());
+        .gte('created_at', twentyFourHoursAgo.toISOString());
 
     if (error) {
         logger.error(error, { tags: { service: 'database', method: 'resetDailyUsage' } });
