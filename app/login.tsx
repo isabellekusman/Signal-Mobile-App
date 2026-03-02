@@ -25,13 +25,14 @@ export default function LoginScreen() {
     const { signIn, signUp } = useAuth();
 
     const [showEmailForm, setShowEmailForm] = useState(false);
-    const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+    const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
@@ -169,6 +170,37 @@ export default function LoginScreen() {
         }
     };
 
+    // ─── Forgot Password ────────────────────────────────────────
+    const handleForgotPassword = async () => {
+        setError('');
+        setSuccess('');
+
+        const trimmedEmail = email.trim().toLowerCase();
+        if (!trimmedEmail) {
+            setError('Please enter your email address.');
+            return;
+        }
+        if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+
+        setResetLoading(true);
+        try {
+            const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail);
+            if (resetError) {
+                setError(resetError.message);
+            } else {
+                setSuccess('If an account exists for that email, a password reset link has been sent. Check your inbox.');
+                setMode('signin');
+            }
+        } catch {
+            setError('Something went wrong. Please try again.');
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
@@ -243,97 +275,157 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     ) : (
                         <View style={styles.emailForm}>
-                            {/* Mode Toggle */}
-                            <View style={styles.toggleContainer}>
-                                <TouchableOpacity
-                                    style={[styles.toggleButton, mode === 'signin' && styles.toggleActive]}
-                                    onPress={() => { setMode('signin'); setError(''); setSuccess(''); }}
-                                >
-                                    <Text style={[styles.toggleText, mode === 'signin' && styles.toggleTextActive]}>
-                                        SIGN IN
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.toggleButton, mode === 'signup' && styles.toggleActive]}
-                                    onPress={() => { setMode('signup'); setError(''); setSuccess(''); }}
-                                >
-                                    <Text style={[styles.toggleText, mode === 'signup' && styles.toggleTextActive]}>
-                                        CREATE ACCOUNT
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                            {/* Mode Toggle — hidden during forgot flow */}
+                            {mode !== 'forgot' && (
+                                <View style={styles.toggleContainer}>
+                                    <TouchableOpacity
+                                        style={[styles.toggleButton, mode === 'signin' && styles.toggleActive]}
+                                        onPress={() => { setMode('signin'); setError(''); setSuccess(''); }}
+                                    >
+                                        <Text style={[styles.toggleText, mode === 'signin' && styles.toggleTextActive]}>
+                                            SIGN IN
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.toggleButton, mode === 'signup' && styles.toggleActive]}
+                                        onPress={() => { setMode('signup'); setError(''); setSuccess(''); }}
+                                    >
+                                        <Text style={[styles.toggleText, mode === 'signup' && styles.toggleTextActive]}>
+                                            CREATE ACCOUNT
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
 
-                            <Text style={styles.label}>EMAIL</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="you@example.com"
-                                placeholderTextColor="#C7C7CC"
-                                value={email}
-                                onChangeText={(t) => { setEmail(t); setError(''); }}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                selectionColor="#1C1C1E"
-                            />
-
-                            <Text style={styles.label}>PASSWORD</Text>
-                            <View style={styles.passwordContainer}>
-                                <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                    placeholder="••••••••"
-                                    placeholderTextColor="#C7C7CC"
-                                    value={password}
-                                    onChangeText={(t) => { setPassword(t); setError(''); }}
-                                    secureTextEntry={!showPassword}
-                                    autoCapitalize="none"
-                                    selectionColor="#1C1C1E"
-                                />
-                                <TouchableOpacity
-                                    style={styles.eyeButton}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                >
-                                    <Ionicons
-                                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                                        size={20}
-                                        color="#8E8E93"
-                                    />
-                                </TouchableOpacity>
-                            </View>
-
-                            {mode === 'signup' && (
+                            {mode !== 'forgot' && (
                                 <>
-                                    <Text style={styles.label}>CONFIRM PASSWORD</Text>
+                                    <Text style={styles.label}>EMAIL</Text>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="••••••••"
+                                        placeholder="you@example.com"
                                         placeholderTextColor="#C7C7CC"
-                                        value={confirmPassword}
-                                        onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
-                                        secureTextEntry={!showPassword}
+                                        value={email}
+                                        onChangeText={(t) => { setEmail(t); setError(''); }}
+                                        keyboardType="email-address"
                                         autoCapitalize="none"
+                                        autoCorrect={false}
                                         selectionColor="#1C1C1E"
                                     />
+
+                                    <Text style={styles.label}>PASSWORD</Text>
+                                    <View style={styles.passwordContainer}>
+                                        <TextInput
+                                            style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                            placeholder="••••••••"
+                                            placeholderTextColor="#C7C7CC"
+                                            value={password}
+                                            onChangeText={(t) => { setPassword(t); setError(''); }}
+                                            secureTextEntry={!showPassword}
+                                            autoCapitalize="none"
+                                            selectionColor="#1C1C1E"
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.eyeButton}
+                                            onPress={() => setShowPassword(!showPassword)}
+                                        >
+                                            <Ionicons
+                                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                                size={20}
+                                                color="#8E8E93"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {mode === 'signup' && (
+                                        <>
+                                            <Text style={styles.label}>CONFIRM PASSWORD</Text>
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="••••••••"
+                                                placeholderTextColor="#C7C7CC"
+                                                value={confirmPassword}
+                                                onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
+                                                secureTextEntry={!showPassword}
+                                                autoCapitalize="none"
+                                                selectionColor="#1C1C1E"
+                                            />
+                                        </>
+                                    )}
+                                </>
+                            )}
+
+                            {mode === 'forgot' ? (
+                                /* ─── Forgot Password View ─── */
+                                <>
+                                    <Text style={styles.forgotDescription}>
+                                        Enter the email you signed up with and we'll send you a link to reset your password.
+                                    </Text>
+
+                                    <Text style={styles.label}>EMAIL</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="you@example.com"
+                                        placeholderTextColor="#C7C7CC"
+                                        value={email}
+                                        onChangeText={(t) => { setEmail(t); setError(''); }}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        selectionColor="#1C1C1E"
+                                    />
+
+                                    <TouchableOpacity
+                                        style={[styles.emailSubmitButton, resetLoading && { opacity: 0.6 }]}
+                                        onPress={handleForgotPassword}
+                                        disabled={resetLoading || googleLoading}
+                                        activeOpacity={0.8}
+                                    >
+                                        {resetLoading ? (
+                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                        ) : (
+                                            <Text style={styles.emailSubmitText}>SEND RESET LINK</Text>
+                                        )}
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.backButton}
+                                        onPress={() => { setMode('signin'); setError(''); }}
+                                    >
+                                        <Text style={styles.backButtonText}>BACK TO SIGN IN</Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                /* ─── Normal Sign-In / Sign-Up View ─── */
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.emailSubmitButton, loading && { opacity: 0.6 }]}
+                                        onPress={handleEmailSubmit}
+                                        disabled={loading || googleLoading}
+                                        activeOpacity={0.8}
+                                    >
+                                        {loading ? (
+                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                        ) : (
+                                            <Text style={styles.emailSubmitText}>
+                                                {mode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT'}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+
+                                    {mode === 'signin' && (
+                                        <TouchableOpacity
+                                            style={styles.forgotPasswordButton}
+                                            onPress={() => { setMode('forgot'); setError(''); setSuccess(''); }}
+                                        >
+                                            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                                        </TouchableOpacity>
+                                    )}
                                 </>
                             )}
 
                             <TouchableOpacity
-                                style={[styles.emailSubmitButton, loading && { opacity: 0.6 }]}
-                                onPress={handleEmailSubmit}
-                                disabled={loading || googleLoading}
-                                activeOpacity={0.8}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.emailSubmitText}>
-                                        {mode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT'}
-                                    </Text>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
                                 style={styles.backButton}
-                                onPress={() => { setShowEmailForm(false); setError(''); setSuccess(''); }}
+                                onPress={() => { setShowEmailForm(false); setMode('signin'); setError(''); setSuccess(''); }}
                             >
                                 <Text style={styles.backButtonText}>BACK</Text>
                             </TouchableOpacity>
@@ -613,5 +705,26 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 1,
+    },
+
+    // Forgot Password
+    forgotPasswordButton: {
+        alignItems: 'center',
+        paddingVertical: 12,
+        marginTop: 4,
+    },
+    forgotPasswordText: {
+        fontSize: 13,
+        color: '#ec4899',
+        fontWeight: '600',
+    },
+    forgotDescription: {
+        fontSize: 14,
+        color: '#8E8E93',
+        textAlign: 'center',
+        lineHeight: 21,
+        marginBottom: 16,
+        marginTop: 8,
+        paddingHorizontal: 8,
     },
 });
