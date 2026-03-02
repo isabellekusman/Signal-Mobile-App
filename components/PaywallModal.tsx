@@ -50,56 +50,99 @@ export default function PaywallModal({ visible, onClose, onSubscribe, onStartTri
                 )}
 
                 <View style={[s.content, !showCloseButton && { paddingTop: 60 }]}>
-                    <Text style={s.title}>{isExpired ? 'Your Free Tier is Up' : 'Clarity Awaits'}</Text>
-                    <Text style={s.subtitle}>
-                        {isExpired
-                            ? 'Your evaluation period has ended. Choose a plan to maintain full access to behavioral analysis.'
-                            : 'Choose your level of insight and unlock full behavioral decoding for every connection.'}
-                    </Text>
+                    <View style={s.topSection}>
+                        <Text style={s.title}>{isExpired ? 'Your Free Tier is Up' : 'Clarity Awaits'}</Text>
+                        <Text style={s.subtitle}>
+                            {isExpired
+                                ? 'Your evaluation period has ended. Choose a plan to maintain full access to behavioral analysis.'
+                                : 'Stop guessing. Start knowing. Decode mixed signals, align your stars, and gain certainty on where you stand.'}
+                        </Text>
+                    </View>
 
-                    {/* Tier: The Seeker */}
-                    <TouchableOpacity
-                        style={s.tierCard}
-                        onPress={() => onSubscribe('seeker')}
-                    >
-                        <View style={s.tierInfo}>
-                            <Text style={s.tierName}>THE SEEKER</Text>
-                            <Text style={s.tierPrice}>$9.99 / month</Text>
-                            <Text style={s.tierBenefit}>15 daily uses per feature</Text>
-                            <Text style={s.tierBenefit}>Full access to all tools</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={PINK} />
-                    </TouchableOpacity>
+                    <View style={s.middleSection}>
+                        {/* Tier: The Seeker */}
+                        <TouchableOpacity
+                            style={[s.tierCard, { borderColor: '#E5E5EA', borderWidth: 1, backgroundColor: '#FFFFFF' }]}
+                            onPress={() => onSubscribe('seeker')}
+                        >
+                            <View style={s.tierInfo}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={s.tierName}>THE SEEKER</Text>
+                                    <Text style={s.tierPrice}>$9.99<Text style={{ fontSize: 14, color: GRAY, fontWeight: '500' }}> / mo</Text></Text>
+                                </View>
+                                <Text style={{ fontSize: 13, color: '#3A3A3C', fontWeight: '500', marginBottom: 14, marginTop: 6, lineHeight: 18 }}>
+                                    Essential clarity. Find out if they're actually busy, or just making excuses.
+                                </Text>
 
-                    {/* Tier: The Signal */}
-                    <TouchableOpacity
-                        style={s.tierCard}
-                        onPress={() => onSubscribe('signal')}
-                    >
-                        <View style={s.tierInfo}>
-                            <Text style={s.tierName}>THE SIGNAL</Text>
-                            <Text style={s.tierPrice}>$19.99 / month</Text>
-                            <Text style={s.tierBenefit}>Unlimited access</Text>
-                            <Text style={s.tierBenefit}>Deeper, expanded AI analysis</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={PINK} />
-                    </TouchableOpacity>
-
-                    {!isExpired && (
-                        <>
-                            <View style={s.trialInfo}>
-                                <Text style={s.trialText}>Includes a 1-week free trial for all new subscribers.</Text>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Decode texts & uncover the real subtext</Text>
+                                </View>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Daily astrological compatibility charts</Text>
+                                </View>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Up to 15 deep AI insights per day</Text>
+                                </View>
                             </View>
+                        </TouchableOpacity>
 
-                            <TouchableOpacity style={s.primaryButton} onPress={onStartTrial}>
-                                <Text style={s.primaryButtonText}>Start 7-Day Free Trial</Text>
-                            </TouchableOpacity>
-                        </>
-                    )}
+                        {/* Tier: The Signal */}
+                        <TouchableOpacity
+                            style={[s.tierCard, { backgroundColor: '#FFF0F6', borderColor: PINK, borderWidth: 2 }]}
+                            onPress={() => onSubscribe('signal')}
+                        >
+                            <View style={{ position: 'absolute', top: -12, right: 24, backgroundColor: PINK, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                                <Text style={{ color: WHITE, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>BEST VALUE</Text>
+                            </View>
+                            <View style={s.tierInfo}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={[s.tierName, { color: PINK }]}>THE SIGNAL</Text>
+                                    <Text style={s.tierPrice}>$19.99<Text style={{ fontSize: 14, color: GRAY, fontWeight: '500' }}> / mo</Text></Text>
+                                </View>
+                                <Text style={{ fontSize: 13, color: '#3A3A3C', fontWeight: '500', marginBottom: 14, marginTop: 6, lineHeight: 18 }}>
+                                    Master your connections. Uncover long-term patterns and stop wasting your energy.
+                                </Text>
 
-                    <Text style={s.footer}>
-                        Cancel anytime in your App Store settings.
-                    </Text>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="infinite" size={16} color={PINK} />
+                                    <Text style={[s.tierBenefit, { fontWeight: '700', color: DARK }]}>Unlimited daily AI insights</Text>
+                                </View>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="analytics" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Unlock Monthly & Weekly behavior patterns</Text>
+                                </View>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="planet" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Deep-dive cosmic push/pull dynamics</Text>
+                                </View>
+                                <View style={s.benefitRow}>
+                                    <Ionicons name="flash" size={16} color={PINK} />
+                                    <Text style={s.tierBenefit}>Priority AI processing speed</Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={s.bottomSection}>
+                        {!isExpired && (
+                            <>
+                                <View style={s.trialInfo}>
+                                    <Text style={s.trialText}>Includes a 1-week free trial for all new subscribers.</Text>
+                                </View>
+
+                                <TouchableOpacity style={s.primaryButton} onPress={onStartTrial}>
+                                    <Text style={s.primaryButtonText}>Start 7-Day Free Trial</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        <Text style={s.footer}>
+                            Cancel anytime in your App Store settings.
+                        </Text>
+                    </View>
                 </View>
             </SafeAreaView>
         </Modal>
@@ -112,62 +155,81 @@ const s = StyleSheet.create({
         backgroundColor: WHITE,
     },
     header: {
-        padding: 20,
-        alignItems: 'flex-start',
+        paddingTop: Platform.OS === 'android' ? 24 : 12,
+        paddingHorizontal: 16,
+        alignItems: 'flex-end',
     },
     closeButton: {
         padding: 8,
+        backgroundColor: '#F2F2F7',
+        borderRadius: 20,
     },
     content: {
         flex: 1,
         paddingHorizontal: 24,
-        paddingTop: 20,
+    },
+    topSection: {
+        marginBottom: 8,
+    },
+    middleSection: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    bottomSection: {
+        paddingBottom: Platform.OS === 'ios' ? 20 : 32,
     },
     title: {
-        fontSize: 36,
+        fontSize: 32,
         fontFamily: SERIF,
         color: DARK,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 15,
         color: GRAY,
-        lineHeight: 24,
-        marginBottom: 40,
+        lineHeight: 22,
         fontFamily: SERIF,
     },
     tierCard: {
         backgroundColor: LIGHT_GRAY,
         borderRadius: 20,
-        padding: 24,
+        padding: 20,
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 16,
+        shadowColor: DARK,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
     },
     tierInfo: {
         flex: 1,
     },
     tierName: {
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: '800',
         color: GRAY,
         letterSpacing: 1.5,
-        marginBottom: 8,
     },
     tierPrice: {
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: '800',
         color: DARK,
-        marginBottom: 12,
+    },
+    benefitRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 6,
+        gap: 8,
     },
     tierBenefit: {
-        fontSize: 14,
-        color: GRAY,
-        marginBottom: 4,
+        fontSize: 13,
+        color: '#3A3A3C',
+        flex: 1,
+        lineHeight: 18,
     },
     trialInfo: {
-        marginTop: 20,
-        marginBottom: 32,
+        marginBottom: 20,
         alignItems: 'center',
     },
     trialText: {
@@ -194,7 +256,7 @@ const s = StyleSheet.create({
         letterSpacing: 1,
     },
     footer: {
-        marginTop: 24,
+        marginTop: 20,
         textAlign: 'center',
         fontSize: 12,
         color: GRAY,
