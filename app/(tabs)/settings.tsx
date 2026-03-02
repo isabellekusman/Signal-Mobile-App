@@ -76,7 +76,7 @@ export default function SettingsScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
 
                     {/* Header */}
                     <View style={styles.header}>

@@ -1434,6 +1434,7 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
+                automaticallyAdjustKeyboardInsets
             >
                 <View style={styles.onboardingContainer}>
                     <View style={styles.onboardingHeader}>
@@ -2421,6 +2422,7 @@ export default function ConnectionDetailScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
+                    automaticallyAdjustKeyboardInsets
                 >
                     {/* Navigation Header */}
                     <View style={styles.navHeader}>

@@ -746,7 +746,7 @@ export default function MeScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
 
                     {/* ═══ 1. IDENTITY ═══ */}
                     <IdentityHeader

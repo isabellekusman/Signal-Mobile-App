@@ -471,6 +471,7 @@ export default function OnboardingScreen() {
                     contentContainerStyle={s.scrollContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                 >
                     <Animated.View style={[s.stepWrap, { opacity: fadeAnim }]}>
                         {renderStep()}

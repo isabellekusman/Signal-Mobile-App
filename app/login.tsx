@@ -211,6 +211,7 @@ export default function LoginScreen() {
                     contentContainerStyle={styles.container}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
+                    automaticallyAdjustKeyboardInsets
                 >
                     {/* Brand Header */}
                     <View style={styles.header}>

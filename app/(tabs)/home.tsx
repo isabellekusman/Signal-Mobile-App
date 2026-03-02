@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 // Refresh trigger: 2026-02-22T12:51:00
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../../context/ConnectionsContext';
 import useSubscription from '../../hooks/useSubscription';
@@ -12,6 +12,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const { connections, theme } = useConnections();
     const isPro = useSubscription();
+    const [insightExpanded, setInsightExpanded] = useState(false);
     const activeConnections = connections.filter(c => c.status === 'active');
 
     // Find the most recently active connection (by lastActive or by dailyLogs)
@@ -216,17 +217,45 @@ export default function HomeScreen() {
 
                         {/* Latest Analysis Insight */}
                         {latestInsight && (
-                            <View style={styles.insightCard}>
+                            <TouchableOpacity
+                                style={[styles.insightCard, insightExpanded && styles.insightCardExpanded]}
+                                activeOpacity={0.7}
+                                onPress={() => setInsightExpanded(!insightExpanded)}
+                            >
                                 <View style={styles.insightHeader}>
                                     <View style={[styles.insightIconWrap, { backgroundColor: getSourceColor(latestInsight.source) + '15' }]}>
                                         <Ionicons name={getSourceIcon(latestInsight.source)} size={16} color={getSourceColor(latestInsight.source)} />
                                     </View>
                                     <Text style={styles.insightLabel}>LATEST INSIGHT</Text>
                                     <Text style={styles.insightDate}>{formatDate(latestInsight.date)}</Text>
+                                    <Ionicons
+                                        name={insightExpanded ? 'chevron-up' : 'chevron-down'}
+                                        size={16}
+                                        color="#C7C7CC"
+                                        style={{ marginLeft: 4 }}
+                                    />
                                 </View>
                                 <Text style={styles.insightTitle}>{latestInsight.title}</Text>
-                                <Text style={styles.insightSummary} numberOfLines={3}>{latestInsight.summary}</Text>
-                            </View>
+                                {insightExpanded ? (
+                                    <>
+                                        <Text style={styles.insightFullContent}>
+                                            {latestInsight.fullContent || latestInsight.summary}
+                                        </Text>
+                                        <View style={styles.collapseHint}>
+                                            <Ionicons name="chevron-up" size={12} color="#C7C7CC" />
+                                            <Text style={styles.collapseHintText}>TAP TO COLLAPSE</Text>
+                                        </View>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={styles.insightSummary} numberOfLines={3}>{latestInsight.summary}</Text>
+                                        <View style={styles.expandHint}>
+                                            <Text style={styles.expandHintText}>TAP TO READ MORE</Text>
+                                            <Ionicons name="chevron-down" size={12} color="#ec4899" />
+                                        </View>
+                                    </>
+                                )}
+                            </TouchableOpacity>
                         )}
 
                         {/* Quick Continue Button */}
@@ -391,6 +420,52 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#8E8E93',
         lineHeight: 19,
+    },
+    insightCardExpanded: {
+        borderColor: 'rgba(236, 72, 153, 0.2)',
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
+    },
+    insightFullContent: {
+        fontSize: 14,
+        color: '#1C1C1E',
+        lineHeight: 22,
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    },
+    expandHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+    },
+    expandHintText: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: '#ec4899',
+        letterSpacing: 1,
+    },
+    collapseHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        marginTop: 16,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+    },
+    collapseHintText: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: '#C7C7CC',
+        letterSpacing: 1,
     },
 
     // Vibe Tags

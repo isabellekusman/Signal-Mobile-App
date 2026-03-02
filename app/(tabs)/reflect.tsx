@@ -77,6 +77,7 @@ export default function ReflectScreen() {
                         contentContainerStyle={styles.container}
                         keyboardShouldPersistTaps="handled"
                         showsVerticalScrollIndicator={false}
+                        automaticallyAdjustKeyboardInsets
                     >
 
                         {/* Page Header */}

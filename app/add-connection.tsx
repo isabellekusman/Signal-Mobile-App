@@ -189,7 +189,7 @@ export default function AddConnectionScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.container}>
+                <ScrollView contentContainerStyle={styles.container} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
 
                     {/* Header */}
                     <View style={styles.header}>
