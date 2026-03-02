@@ -2,13 +2,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { UsageCounter } from '../../components/UsageCounter';
 import { SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
+
 import { fontSize as fs, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
 export default function ReflectScreen() {
-    const { connections, setShowPaywall, updateConnection, subscriptionTier } = useConnections();
+    const { connections, setShowPaywall, updateConnection, subscriptionTier, isTrialActive, refreshUsage } = useConnections();
+
     const activeConnections = connections.filter(c => c.status === 'active');
 
     const [attachedConnectionId, setAttachedConnectionId] = useState<string | null>(null);
@@ -24,10 +27,11 @@ export default function ReflectScreen() {
 
     const handleRealign = async () => {
         if (!reflection.trim()) return;
-        if (subscriptionTier === 'free') {
+        if (subscriptionTier === 'free' && !isTrialActive) {
             setShowPaywall('voluntary');
             return;
         }
+
         haptics.light();
         setLoading(true);
         try {
@@ -68,8 +72,10 @@ export default function ReflectScreen() {
             }
         } finally {
             setLoading(false);
+            refreshUsage();
         }
     };
+
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -90,7 +96,9 @@ export default function ReflectScreen() {
                             <Text style={styles.pageTitle}>Reflect</Text>
                             <Text style={styles.pageSubtitle}>EMOTIONAL PROCESSING</Text>
                             <View style={styles.separator} />
+                            <UsageCounter feature="clarity" style={{ marginTop: 12, alignSelf: 'center' }} />
                         </View>
+
 
                         {/* Optional Connection Attachment */}
                         <View style={styles.attachSection}>

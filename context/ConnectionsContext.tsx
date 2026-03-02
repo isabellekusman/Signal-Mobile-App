@@ -98,12 +98,19 @@ interface ConnectionsContextType {
     subscriptionTier: 'free' | 'seeker' | 'signal';
     setSubscriptionTier: (tier: 'free' | 'seeker' | 'signal') => void;
     trialExpiresAt: string | null;
+    setTrialExpiresAt: (expiry: string | null) => void;
     isTrialActive: boolean;
+
     paywallMode: 'voluntary' | 'forced' | null;
     setShowPaywall: (mode: 'voluntary' | 'forced' | null) => void;
     hasSeenSubWelcome: boolean;
     hasSeenTrialExpiry: boolean;
+    // Usage Tracking
+    usageCounts: Record<string, number>;
+    refreshUsage: () => Promise<Record<string, number>>;
+
 }
+
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
@@ -188,6 +195,8 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     const [paywallMode, setPaywallMode] = useState<'voluntary' | 'forced' | null>(null);
     const [hasSeenSubWelcome, setHasSeenSubWelcome] = useState(false);
     const [hasSeenTrialExpiry, setHasSeenTrialExpiry] = useState(false);
+    const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
+
 
     const currentUserId = user?.id ?? null;
 
@@ -244,7 +253,12 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
                     if (keys.onboarding) {
                         AsyncStorage.setItem(keys.onboarding, 'true').catch(() => { });
                     }
+
+                    // 1.5 Load usage
+                    refreshUsage();
+
                 }
+
 
                 if (cloudConnections && cloudConnections.length > 0) {
                     const localConns = cloudConnections.map(dbToLocalConnection);
@@ -392,18 +406,39 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         });
     };
 
+    const refreshUsage = async (): Promise<Record<string, number>> => {
+        if (!currentUserId) return {};
+        try {
+            const features = ['clarity', 'objective', 'decoder', 'dynamic', 'stars', 'daily_advice', 'log_synthesis'];
+            const counts: Record<string, number> = {};
+            await Promise.all(features.map(async (f) => {
+                counts[f] = await db.getDailyUsageCount(f);
+            }));
+            setUsageCounts(counts);
+            return counts;
+        } catch (err) {
+            logger.warn('Failed to refresh usage counts', { extra: { err } });
+            return {};
+        }
+    };
+
+
     return (
         <ConnectionsContext.Provider value={{
             connections, addConnection, updateConnection, deleteConnection,
             theme, setTheme,
             userProfile, setUserProfile,
             hasCompletedOnboarding, completeOnboarding,
-            subscriptionTier, setSubscriptionTier, trialExpiresAt, isTrialActive,
+            subscriptionTier, setSubscriptionTier, trialExpiresAt, setTrialExpiresAt, isTrialActive,
+
             setShowPaywall: setPaywallMode,
             paywallMode,
             hasSeenSubWelcome,
             hasSeenTrialExpiry,
+            usageCounts,
+            refreshUsage,
         }}>
+
             {children}
         </ConnectionsContext.Provider>
     );

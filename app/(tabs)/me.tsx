@@ -569,7 +569,8 @@ function ContractSection({
 
 export default function MeScreen() {
     const router = useRouter();
-    const { connections, userProfile, setUserProfile, subscriptionTier, setSubscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
+    const { connections, userProfile, setUserProfile, subscriptionTier, setSubscriptionTier, isTrialActive, trialExpiresAt, setTrialExpiresAt, setShowPaywall, refreshUsage } = useConnections();
+
     const { signOut, user } = useAuth();
 
     // ── Identity ──
@@ -848,6 +849,55 @@ export default function MeScreen() {
                                 >
                                     <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>TEST PURCHASE (SANDBOX)</Text>
                                 </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#DBEAFE', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
+                                    onPress={async () => {
+                                        setSubscriptionTier('free');
+                                        const now = new Date();
+                                        const expiry = new Date(now.setDate(now.getDate() + 7)).toISOString();
+                                        setTrialExpiresAt(expiry);
+                                        // Also persists to Supabase so it's "real" for the API
+                                        await db.upsertProfile({
+                                            subscription_tier: 'free',
+                                            trial_expires_at: expiry,
+                                            has_seen_trial_expiry: false
+                                        });
+                                        Alert.alert("Simulated", "7-Day Free Trial Activated (Free Tier)");
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#1E40AF' }}>SIMULATE: 7-DAY TRIAL ACTIVE (FREE)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#FEE2E2', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA' }}
+                                    onPress={async () => {
+                                        setSubscriptionTier('free');
+                                        const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString();
+                                        setTrialExpiresAt(yesterday);
+                                        await db.upsertProfile({
+                                            subscription_tier: 'free',
+                                            trial_expires_at: yesterday,
+                                            has_seen_trial_expiry: true
+                                        });
+                                        Alert.alert("Simulated", "Trial Expired (Post-Trial Free Tier)");
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#991B1B' }}>SIMULATE: POST-TRIAL FREE TIER</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#F0FDF4', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#DCFCE7' }}
+                                    onPress={async () => {
+                                        await db.resetDailyUsage();
+                                        await refreshUsage();
+                                        Alert.alert("Simulated", "Daily message counts have been reset to 0.");
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#166534' }}>SIMULATE: RESET DAILY USAGE</Text>
+                                </TouchableOpacity>
+
+
 
                                 <TouchableOpacity
                                     style={{ backgroundColor: WHITE, padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}

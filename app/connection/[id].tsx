@@ -8,10 +8,14 @@ import { Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform
 import LockedFeatureCard from '../../components/LockedFeatureCard';
 import RateLimitBanner from '../../components/RateLimitBanner';
 import UpgradeNudge from '../../components/UpgradeNudge';
+
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
+import { db } from '../../services/database';
 import { haptics } from '../../services/haptics';
 import { logger } from '../../services/logger';
+
+
 
 import { fontSize as fs, scale, screenPadding, spacing, verticalScale } from '../../utils/responsive';
 
@@ -28,7 +32,7 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 const ClarityContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
-    const { updateConnection, connections, subscriptionTier, setShowPaywall } = useConnections();
+    const { updateConnection, connections, subscriptionTier, isTrialActive, setShowPaywall, usageCounts, refreshUsage } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
     const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
@@ -36,6 +40,8 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
     const [loading, setLoading] = useState(false);
     const [initialInput, setInitialInput] = useState('');
     const [rateLimited, setRateLimited] = useState(false);
+    const [showTrialUpsell, setShowTrialUpsell] = useState(false);
+
 
     useEffect(() => {
         if (initialLog && initialLog.source === 'clarity') {
@@ -81,8 +87,8 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
     };
 
     const processAIResponse = async (userText: string, currentHistory: any[]) => {
-        if (subscriptionTier === 'free') return; // Do not call API for free users
         try {
+
             const themeContext = selectedThemes.length > 0 ? ` [Themes: ${selectedThemes.join(', ')}]` : '';
             const historyText = currentHistory.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n');
 
@@ -98,8 +104,15 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
             }
         } finally {
             setLoading(false);
+            const counts = await refreshUsage();
+            const limit = isTrialActive ? 5 : (subscriptionTier === 'free' ? 3 : 0);
+            if (limit > 0 && counts && (counts['clarity'] || 0) >= limit) {
+                setTimeout(() => setShowPaywall('voluntary'), 1500);
+            }
         }
+
     };
+
 
     const toggleTheme = (theme: string) => {
         haptics.selection();
@@ -175,23 +188,16 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
                 />
             </View>
 
-            {subscriptionTier === 'free' ? (
-                <View style={{ marginTop: 20 }}>
-                    <LockedFeatureCard
-                        featureName="Clarity Chat"
-                        requiredTier="seeker"
-                        onUnlockPress={() => setShowPaywall('voluntary')}
-                    />
-                </View>
-            ) : (
-                <TouchableOpacity
-                    style={[styles.actionButton, (!initialInput.trim()) && { opacity: 0.5 }]}
-                    onPress={startChat}
-                    disabled={!initialInput.trim()}
-                >
-                    <Text style={styles.actionButtonText}>START CHAT</Text>
-                </TouchableOpacity>
-            )}
+
+
+            <TouchableOpacity
+                style={[styles.actionButton, (!initialInput.trim()) && { opacity: 0.5 }]}
+                onPress={startChat}
+                disabled={!initialInput.trim()}
+            >
+                <Text style={styles.actionButtonText}>START CHAT</Text>
+            </TouchableOpacity>
+
 
             {/* Chat Modal */}
             <Modal
@@ -247,14 +253,11 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
                             {!loading && rateLimited && (
                                 <RateLimitBanner feature="clarity" />
                             )}
-                            {!loading && messages.length > 0 && !rateLimited && (
-                                <LockedFeatureCard
-                                    featureName="Clarity Chat"
-                                    requiredTier="seeker"
-                                    onUnlockPress={() => setShowPaywall('voluntary')}
-                                />
-                            )}
+                            <View style={{ height: 40 }} />
                         </ScrollView>
+
+
+
 
                         {/* Chat Input */}
                         <View style={styles.chatInputContainer}>
@@ -283,7 +286,9 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
 
 // Content Component for the "Decoder" tab
 const DecoderContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
-    const { updateConnection, connections, setShowPaywall, subscriptionTier } = useConnections();
+    const { updateConnection, connections, setShowPaywall, subscriptionTier, refreshUsage, isTrialActive } = useConnections();
+
+
     const [text, setText] = useState('');
     const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
     const [analysis, setAnalysis] = useState<{
@@ -389,8 +394,8 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
 
     const handleScanText = async () => {
         if (!text.trim() && !image) return;
-        if (subscriptionTier === 'free') return; // Do not call API for free users
         haptics.medium();
+
         Keyboard.dismiss();
         setLoading(true);
         setError(null);
@@ -421,18 +426,42 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
             }
         } finally {
             setLoading(false);
+            const counts = await refreshUsage();
+            // Trial has unlimited decoder. Free has 2.
+            if (subscriptionTier === 'free' && !isTrialActive && counts && (counts['decoder'] || 0) >= 2) {
+                // If the modal isn't open yet, we can't trigger it after response easily without it being annoying.
+                // But the rule says "allow the response to fully complete, then surface".
+                // In Decoder, the response is in a modal (setIsAnalysisOpen).
+                // We'll let them see the result, and when they CLOSE the modal, we show the paywall.
+            }
         }
     };
+
+
 
     const translateY = scanAnim.interpolate({
         inputRange: [0, 1],
         outputRange: [0, verticalScale(220)],
     });
 
-    const handleCloseAnalysis = (isExplicitSave: boolean = false) => {
+    const handleCloseAnalysis = async (isExplicitSave: boolean = false) => {
         if (analysis) {
             if (isExplicitSave) haptics.success();
             else haptics.selection();
+            const counts = await refreshUsage();
+
+            setIsAnalysisOpen(false);
+            setAnalysis(null);
+            setText('');
+            setImage(null);
+
+            // Trigger paywall after modal closure if limit reached
+            if (subscriptionTier === 'free' && !isTrialActive && counts && (counts['decoder'] || 0) >= 2) {
+                setTimeout(() => setShowPaywall('voluntary'), 500);
+                return;
+            }
+
+
 
             const conn = connections.find(c => c.id === connectionId);
             const newLog: SavedLog = {
@@ -504,7 +533,10 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
                     <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginTop: 12, marginBottom: -12, fontWeight: '600' }}>{error}</Text>
                 )}
 
+
+
                 {rateLimited ? (
+
                     <RateLimitBanner feature="decoder" onDismiss={() => setRateLimited(false)} />
                 ) : (
                     <>
@@ -615,7 +647,8 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLog }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string, initialLog?: any }) => {
-    const { subscriptionTier, setShowPaywall } = useConnections();
+    const { subscriptionTier, isTrialActive, setShowPaywall, refreshUsage } = useConnections();
+
     const [forecast, setForecast] = useState<{
         connectionTheme?: string;
         dailyForecast: string;
@@ -646,8 +679,8 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLo
         }
     }, [initialLog]);
 
-    // Stars Align is gated for free users
-    if (subscriptionTier === 'free') {
+    // Stars Align is gated for free users (except during trial)
+    if (subscriptionTier === 'free' && !isTrialActive) {
         return (
             <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
                 <LockedFeatureCard
@@ -658,6 +691,7 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLo
             </View>
         );
     }
+
 
     const fetchForecast = async () => {
         haptics.light();
@@ -703,11 +737,13 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLo
 
     useEffect(() => {
         fetchForecast();
-    }, []);
+    }, [subscriptionTier, isTrialActive]);
 
     return (
         <View style={styles.starsContainer}>
+
             <View style={styles.starsCard}>
+
                 {/* Header with Title and Date */}
                 <View style={styles.starsHeader}>
                     <View style={styles.starsTitleBlock}>
@@ -883,6 +919,9 @@ const RatingCircles = ({ filled = 3, total = 5 }: { filled?: number, total?: num
 
 // Objective Check-In Component
 const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, signals: any[] }) => {
+    const { refreshUsage, isTrialActive, subscriptionTier, setShowPaywall } = useConnections();
+
+
     const [result, setResult] = useState('');
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -906,7 +945,16 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
             }
         } finally {
             setLoading(false);
+            const counts = await refreshUsage();
+            const limit = isTrialActive ? 5 : (subscriptionTier === 'free' ? 3 : 0);
+            if (limit > 0 && counts && (counts['objective'] || 0) >= limit) {
+                setTimeout(() => {
+                    setModalVisible(false);
+                    setShowPaywall('voluntary');
+                }, 2000);
+            }
         }
+
     };
 
     return (
@@ -924,6 +972,8 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
+
+
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={() => { haptics.selection(); setModalVisible(false); }}
@@ -1004,7 +1054,8 @@ const SimpleSlider = ({ value, onValueChange }: { value: number, onValueChange: 
 
 // Content Component for the "Dynamic" tab
 const DynamicContent = ({ connection }: { connection: Connection }) => {
-    const { updateConnection } = useConnections();
+    const { updateConnection, refreshUsage } = useConnections();
+
 
     // Form State
     // Form State
@@ -1052,7 +1103,10 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
         setTimeout(() => {
             const updatedLogs = [newLog, ...(connection.dailyLogs || [])];
             updateConnection(connection.id, { dailyLogs: updatedLogs });
+            db.logUsage('dynamic');
             haptics.success();
+            refreshUsage();
+
 
             // Reset
             setEnergy('');
@@ -1080,7 +1134,9 @@ const DynamicContent = ({ connection }: { connection: Connection }) => {
 
     return (
         <View style={styles.dynamicContainer}>
+
             <View style={styles.dynamicCard}>
+
                 <Text style={styles.dynamicTitle}>Log Today's Signal</Text>
 
                 {/* 1. Energy Exchange */}
@@ -1646,6 +1702,8 @@ const OnboardingQuiz = ({ id, name, tag, onComplete }: { id: string, name: strin
 // PATTERN INSIGHTS CARD — Signal Tier Only
 // ──────────────────────────────────────────────────
 const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
+    const { subscriptionTier, setShowPaywall, isTrialActive } = useConnections();
+
     const [synthesis, setSynthesis] = useState<{
         timeframe: string;
         themes: string[];
@@ -1659,9 +1717,12 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
 
     const dailyLogs = connection.dailyLogs || [];
 
+
     const fetchSynthesis = async () => {
         if (dailyLogs.length === 0) return;
-        if (subscriptionTier !== 'signal') return; // Only Signal tier can call this API
+        if (subscriptionTier !== 'signal' && !isTrialActive) return; // Only Signal/Trial can call this API
+
+
         setLoading(true);
         setError(null);
         try {
@@ -1788,7 +1849,8 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
 // PROFILE CONTENT — All-encompassing analysis page
 // ──────────────────────────────────────────────────
 const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connection; onNavigateToSource?: (source: string, log: SavedLog) => void }) => {
-    const { updateConnection, subscriptionTier, setShowPaywall } = useConnections();
+    const { updateConnection, subscriptionTier, isTrialActive, setShowPaywall, refreshUsage } = useConnections();
+
     const [advice, setAdvice] = useState<{
         stateOfConnection: string;
         todaysMove: string;
@@ -1805,7 +1867,8 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     const getTodayKey = () => new Date().toISOString().split('T')[0];
 
     const fetchAdvice = async () => {
-        if (subscriptionTier === 'free') return; // Do not call API for free users
+        if (subscriptionTier === 'free' && !isTrialActive) return; // Do not call API for free users
+
         setLoadingAdvice(true);
         setAdviceError(null);
         try {
@@ -1889,8 +1952,10 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
             }
         } finally {
             setLoadingAdvice(false);
+            refreshUsage();
         }
     };
+
 
     useEffect(() => {
         // Check if we already have today's cached advice
@@ -1904,7 +1969,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
         } else {
             fetchAdvice();
         }
-    }, []);
+    }, [subscriptionTier, isTrialActive]);
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
@@ -1962,7 +2027,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                             <Text style={profileStyles.adviceLabel}>STATE OF THE CONNECTION</Text>
                             <Text style={profileStyles.adviceText}>{advice.stateOfConnection}</Text>
                         </View>
-                        {subscriptionTier !== 'free' ? (
+                        {(subscriptionTier !== 'free' || isTrialActive) ? (
                             <>
                                 {advice.todaysMove ? (
                                     <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
@@ -1982,13 +2047,14 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                 ) : null}
             </View>
 
-            {subscriptionTier === 'free' && (
+            {subscriptionTier === 'free' && !isTrialActive && (
                 <LockedFeatureCard
                     featureName="Daily Advice"
                     requiredTier="seeker"
                     onUnlockPress={() => setShowPaywall('voluntary')}
                 />
             )}
+
 
             {/* Saved Logs Section */}
             <View style={profileStyles.logsSection}>
@@ -2073,7 +2139,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                 <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
                     AI-powered synthesis of your check-in entries
                 </Text>
-                {subscriptionTier === 'signal' ? (
+                {(subscriptionTier === 'signal' || isTrialActive) ? (
                     <PatternInsightsCard connection={connection} />
                 ) : (
                     <LockedFeatureCard

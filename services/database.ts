@@ -170,6 +170,47 @@ async function getDailyUsageCount(feature?: string): Promise<number> {
     return count || 0;
 }
 
+async function logUsage(feature: string): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+        .from('ai_usage')
+        .insert({
+            user_id: user.id,
+            feature,
+            tokens_used: 0 // Local usage doesn't use tokens
+        });
+
+    if (error) {
+        logger.error(error, { tags: { service: 'database', method: 'logUsage' } });
+        return false;
+    }
+    return true;
+}
+
+async function resetDailyUsage(): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const { error } = await supabase
+        .from('ai_usage')
+        .delete()
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString());
+
+    if (error) {
+        logger.error(error, { tags: { service: 'database', method: 'resetDailyUsage' } });
+        return false;
+    }
+    return true;
+}
+
+
+
 // ─── Account Operations ─────────────────────────────────────
 
 async function deleteAccount(): Promise<boolean> {
@@ -208,5 +249,9 @@ export const db = {
     updateConnection,
     deleteConnection,
     getDailyUsageCount,
+    logUsage,
+    resetDailyUsage,
     deleteAccount,
 };
+
+

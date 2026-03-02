@@ -17,27 +17,44 @@ Sentry.init({
 });
 
 // ─── Rate Limits per Feature per Day ────────────────────────
+// Revised limits based on the 4-tier system (Trial, Free, Seeker, Signal)
 const RATE_LIMITS: Record<string, { free: number; seeker: number; signal: number }> = {
     clarity: { free: 3, seeker: 15, signal: 9999 },
-    decoder: { free: 3, seeker: 15, signal: 9999 },
-    stars: { free: 0, seeker: 10, signal: 9999 },
+    objective: { free: 3, seeker: 15, signal: 9999 },
+    decoder: { free: 2, seeker: 15, signal: 9999 },
     dynamic: { free: 3, seeker: 15, signal: 9999 },
-    daily_advice: { free: 5, seeker: 15, signal: 9999 },
-    objective: { free: 5, seeker: 15, signal: 9999 },
+    stars: { free: 0, seeker: 10, signal: 9999 },
+    daily_advice: { free: 0, seeker: 15, signal: 9999 },
     log_synthesis: { free: 0, seeker: 0, signal: 9999 },
 };
 
-// ─── Features that are fully gated for free users ───────────
+// Trial limits (First 7 Days)
+const TRIAL_LIMITS: Record<string, number> = {
+    clarity: 5,
+    objective: 5,
+    decoder: 9999, // Unlimited
+    stars: 9999,
+    dynamic: 9999,
+    daily_advice: 9999,
+    log_synthesis: 9999,
+};
+
+// ─── Features that are fully gated for certain tiers ──────────
 const GATED_FEATURES: Record<string, { gate: string; message: string }> = {
     stars: {
-        gate: 'stars_align',
-        message: 'Stars Align is available on Seeker and above. Get personalized astrological readings with your subscription.',
+        gate: 'seeker',
+        message: 'Stars Align is available on Seeker and above. Get personalized readings with your subscription.',
+    },
+    daily_advice: {
+        gate: 'seeker',
+        message: 'Daily Advice is available on Seeker and above.',
     },
     log_synthesis: {
-        gate: 'log_synthesis',
+        gate: 'signal',
         message: 'Pattern Insights is available on Signal tier. See what your entries reveal over time.',
     },
 };
+
 
 // ─── System Prompts: Standard (free/seeker) and Deep (signal) ───
 
@@ -372,13 +389,13 @@ Deno.serve(async (req: Request) => {
             });
         }
 
-        // 4. Fetch user's subscription tier
-        console.log('[AI Proxy] Step 4: Fetching user tier & checking limits');
+        // 4. Fetch user's subscription tier & trial status
+        console.log('[AI Proxy] Step 4: Fetching user tier & trial status');
         const serviceSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
         const { data: profile, error: profileError } = await serviceSupabase
             .from('profiles')
-            .select('subscription_tier')
+            .select('subscription_tier, trial_expires_at, created_at')
             .eq('id', user.id)
             .single();
 
@@ -387,30 +404,20 @@ Deno.serve(async (req: Request) => {
         }
 
         const tier = (profile?.subscription_tier as string) ?? 'free';
-        console.log(`[AI Proxy] User tier: ${tier}`);
+        const now = new Date();
+        const trialExpires = profile?.trial_expires_at ? new Date(profile.trial_expires_at) : null;
+        const createdAt = profile?.created_at ? new Date(profile.created_at) : null;
 
-        // 5. Feature-level gating (e.g., Stars Align blocked for free)
-        if (GATED_FEATURES[feature]) {
-            const tierLimit = RATE_LIMITS[feature]?.[tier as 'free' | 'seeker' | 'signal'] ?? 0;
-            if (tierLimit === 0) {
-                const gateInfo = GATED_FEATURES[feature];
-                console.warn(`[AI Proxy] Feature ${feature} gated for tier ${tier}`);
-                return new Response(JSON.stringify({
-                    error: 'FEATURE_GATED',
-                    gate: gateInfo.gate,
-                    message: gateInfo.message,
-                }), {
-                    status: 402,
-                    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
-                });
-            }
-        }
+        // 7-day trial from creation if not explicitly set
+        const finalTrialExpiry = trialExpires || (createdAt ? new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000) : null);
+        const isTrialActive = finalTrialExpiry ? now < finalTrialExpiry : false;
 
-        // 6. Rate Limiting Check
+        console.log(`[AI Proxy] User tier: ${tier}, Trial active: ${isTrialActive}`);
+
+        // ─── Rate Limiting & Gating Check ───
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        console.log('[AI Proxy] Querying usage for user:', user.id);
         const { count: usageCount, error: usageError } = await serviceSupabase
             .from('ai_usage')
             .select('*', { count: 'exact', head: true })
@@ -423,8 +430,27 @@ Deno.serve(async (req: Request) => {
         }
 
         const currentUsage = usageCount ?? 0;
-        const tierLimit = RATE_LIMITS[feature]?.[tier as 'free' | 'seeker' | 'signal'] ?? 5;
+        let tierLimit = RATE_LIMITS[feature]?.[tier as 'free' | 'seeker' | 'signal'] ?? 0;
+
+        // Trial override
+        if (isTrialActive) {
+            tierLimit = TRIAL_LIMITS[feature] ?? 0;
+        }
+
         console.log(`[AI Proxy] Current usage: ${currentUsage}, Limit: ${tierLimit}`);
+
+        // Handle Gating (if limit is 0, it means it's fully locked for this tier/trial state)
+        if (tierLimit === 0) {
+            const gateInfo = GATED_FEATURES[feature];
+            return new Response(JSON.stringify({
+                error: 'FEATURE_GATED',
+                gate: gateInfo?.gate || 'premium',
+                message: gateInfo?.message || 'Upgrade to unlock this feature.'
+            }), {
+                status: 402,
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+            });
+        }
 
         if (currentUsage >= tierLimit) {
             console.warn('[AI Proxy] Hard limit reached for user');
@@ -432,12 +458,14 @@ Deno.serve(async (req: Request) => {
                 error: 'LIMIT_REACHED',
                 message: `You have reached your daily limit for ${feature}.`,
                 usage: currentUsage,
-                limit: tierLimit
+                limit: tierLimit,
+                target_tier: tier === 'free' ? 'seeker' : 'signal'
             }), {
                 status: 429,
                 headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
             });
         }
+
 
         // 7. Call Gemini (with 1 retry for transient 500/503 errors)
         console.log('[AI Proxy] Step 7: Calling Gemini');
