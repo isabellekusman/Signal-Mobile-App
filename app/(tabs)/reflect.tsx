@@ -7,7 +7,7 @@ import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
 
 export default function ReflectScreen() {
-    const { connections, setShowPaywall, updateConnection } = useConnections();
+    const { connections, setShowPaywall, updateConnection, subscriptionTier } = useConnections();
     const activeConnections = connections.filter(c => c.status === 'active');
 
     const [attachedConnectionId, setAttachedConnectionId] = useState<string | null>(null);
@@ -23,6 +23,10 @@ export default function ReflectScreen() {
 
     const handleRealign = async () => {
         if (!reflection.trim()) return;
+        if (subscriptionTier === 'free') {
+            setShowPaywall('voluntary');
+            return;
+        }
         haptics.light();
         setLoading(true);
         try {

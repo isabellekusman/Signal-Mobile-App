@@ -1144,10 +1144,10 @@ const s = StyleSheet.create({
 
     // ── 3. Trait Meters ──
     sectionTitle: {
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: '800',
         color: GRAY,
-        letterSpacing: 2.5,
+        letterSpacing: 2.0,
         marginBottom: 16,
     },
     traitSection: {

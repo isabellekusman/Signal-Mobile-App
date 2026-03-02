@@ -5,8 +5,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import LockedFeatureCard from '../../components/LockedFeatureCard';
 import RateLimitBanner from '../../components/RateLimitBanner';
-import UpgradeNudge, { LockedFeatureCard } from '../../components/UpgradeNudge';
+import UpgradeNudge from '../../components/UpgradeNudge';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
@@ -27,7 +28,7 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 const ClarityContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
-    const { updateConnection, connections, subscriptionTier } = useConnections();
+    const { updateConnection, connections, subscriptionTier, setShowPaywall } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
     const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
@@ -80,6 +81,7 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
     };
 
     const processAIResponse = async (userText: string, currentHistory: any[]) => {
+        if (subscriptionTier === 'free') return; // Do not call API for free users
         try {
             const themeContext = selectedThemes.length > 0 ? ` [Themes: ${selectedThemes.join(', ')}]` : '';
             const historyText = currentHistory.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n');
@@ -173,13 +175,23 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
                 />
             </View>
 
-            <TouchableOpacity
-                style={[styles.actionButton, (!initialInput.trim()) && { opacity: 0.5 }]}
-                onPress={startChat}
-                disabled={!initialInput.trim()}
-            >
-                <Text style={styles.actionButtonText}>START CHAT</Text>
-            </TouchableOpacity>
+            {subscriptionTier === 'free' ? (
+                <View style={{ marginTop: 20 }}>
+                    <LockedFeatureCard
+                        featureName="Clarity Chat"
+                        requiredTier="seeker"
+                        onUnlockPress={() => setShowPaywall('voluntary')}
+                    />
+                </View>
+            ) : (
+                <TouchableOpacity
+                    style={[styles.actionButton, (!initialInput.trim()) && { opacity: 0.5 }]}
+                    onPress={startChat}
+                    disabled={!initialInput.trim()}
+                >
+                    <Text style={styles.actionButtonText}>START CHAT</Text>
+                </TouchableOpacity>
+            )}
 
             {/* Chat Modal */}
             <Modal
@@ -236,7 +248,11 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
                                 <RateLimitBanner feature="clarity" />
                             )}
                             {!loading && messages.length > 0 && !rateLimited && (
-                                <UpgradeNudge feature="clarity" currentTier={subscriptionTier} targetTier="signal" />
+                                <LockedFeatureCard
+                                    featureName="Clarity Chat"
+                                    requiredTier="seeker"
+                                    onUnlockPress={() => setShowPaywall('voluntary')}
+                                />
                             )}
                         </ScrollView>
 
@@ -373,6 +389,7 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
 
     const handleScanText = async () => {
         if (!text.trim() && !image) return;
+        if (subscriptionTier === 'free') return; // Do not call API for free users
         haptics.medium();
         Keyboard.dismiss();
         setLoading(true);
@@ -598,7 +615,7 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLog }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string, initialLog?: any }) => {
-    const { subscriptionTier } = useConnections();
+    const { subscriptionTier, setShowPaywall } = useConnections();
     const [forecast, setForecast] = useState<{
         connectionTheme?: string;
         dailyForecast: string;
@@ -634,14 +651,16 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLo
         return (
             <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
                 <LockedFeatureCard
-                    title="Stars Align"
-                    description="Reveal the daily cosmic pull. Get full astrological charts, push-pull dynamics, and specific strategies for your signs on Seeker."
+                    featureName="Stars Align"
+                    requiredTier="seeker"
+                    onUnlockPress={() => setShowPaywall('voluntary')}
                 />
             </View>
         );
     }
 
     const fetchForecast = async () => {
+        if (subscriptionTier === 'free') return; // Do not call API for free users
         haptics.light();
         const today = new Date().toISOString().split('T')[0];
         const storageKey = `stars_${connectionId}_${today}`;
@@ -1643,6 +1662,7 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
 
     const fetchSynthesis = async () => {
         if (dailyLogs.length === 0) return;
+        if (subscriptionTier !== 'signal') return; // Only Signal tier can call this API
         setLoading(true);
         setError(null);
         try {
@@ -1786,6 +1806,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     const getTodayKey = () => new Date().toISOString().split('T')[0];
 
     const fetchAdvice = async () => {
+        if (subscriptionTier === 'free') return; // Do not call API for free users
         setLoadingAdvice(true);
         setAdviceError(null);
         try {
@@ -1916,29 +1937,6 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
 
     return (
         <View style={{ paddingHorizontal: scale(24) }}>
-            {/* Header Info Card */}
-            {onboarding && (onboarding.howWeMet || onboarding.currentIntent || onboarding.howLong) && (
-                <View style={profileStyles.infoCard}>
-                    <View style={profileStyles.contextSection}>
-                        <Text style={profileStyles.sectionLabel}>BACKSTORY</Text>
-                        {onboarding.howWeMet && (
-                            <Text style={profileStyles.contextText}>
-                                <Text style={{ fontWeight: '700' }}>How you met: </Text>{onboarding.howWeMet}
-                            </Text>
-                        )}
-                        {onboarding.currentIntent && (
-                            <Text style={profileStyles.contextText}>
-                                <Text style={{ fontWeight: '700' }}>Intent: </Text>{onboarding.currentIntent}
-                            </Text>
-                        )}
-                        {onboarding.howLong && (
-                            <Text style={profileStyles.contextText}>
-                                <Text style={{ fontWeight: '700' }}>Duration: </Text>{onboarding.howLong}
-                            </Text>
-                        )}
-                    </View>
-                </View>
-            )}
 
             {/* Daily Advice Section */}
             <View style={profileStyles.adviceCard}>
@@ -1965,7 +1963,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                             <Text style={profileStyles.adviceLabel}>STATE OF THE CONNECTION</Text>
                             <Text style={profileStyles.adviceText}>{advice.stateOfConnection}</Text>
                         </View>
-                        {subscriptionTier === 'signal' ? (
+                        {subscriptionTier !== 'free' ? (
                             <>
                                 {advice.todaysMove ? (
                                     <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
@@ -1980,12 +1978,18 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                                     </View>
                                 ) : null}
                             </>
-                        ) : (
-                            <UpgradeNudge feature="daily_advice" currentTier={subscriptionTier} targetTier="signal" />
-                        )}
+                        ) : null}
                     </View>
                 ) : null}
             </View>
+
+            {subscriptionTier === 'free' && (
+                <LockedFeatureCard
+                    featureName="Daily Advice"
+                    requiredTier="seeker"
+                    onUnlockPress={() => setShowPaywall('voluntary')}
+                />
+            )}
 
             {/* Saved Logs Section */}
             <View style={profileStyles.logsSection}>
@@ -2074,8 +2078,9 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                     <PatternInsightsCard connection={connection} />
                 ) : (
                     <LockedFeatureCard
-                        title="Unlock Pattern Insights"
-                        description="Detect long-term behavioral patterns. See what months of logs actually reveal about their consistency. Available on Signal."
+                        featureName="Pattern Insights"
+                        requiredTier="signal"
+                        onUnlockPress={() => setShowPaywall('voluntary')}
                     />
                 )}
             </View>
@@ -2145,10 +2150,10 @@ const profileStyles = StyleSheet.create({
         marginBottom: 20,
     },
     sectionTitle: {
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: '800',
         color: '#1C1C1E',
-        letterSpacing: 1.5,
+        letterSpacing: 1.2,
     },
     adviceBlock: {
         backgroundColor: '#F9FAFB',

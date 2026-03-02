@@ -270,10 +270,10 @@ const s = StyleSheet.create({
         marginBottom: 32,
     },
     sectionTitle: {
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: '800',
         color: GRAY,
-        letterSpacing: 1.5,
+        letterSpacing: 2.0,
         marginBottom: 16,
     },
     card: {

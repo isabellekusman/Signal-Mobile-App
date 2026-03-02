@@ -51,7 +51,6 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
 
     return (
         <View style={s.lockedCard}>
-            <View style={s.lockedDot} />
             <Text style={s.lockedTitle}>{title}</Text>
             <Text style={s.lockedDescription}>{copy}</Text>
             <TouchableOpacity

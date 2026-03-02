@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
         textAlign: 'left',
     },
     sectionLabel: {
-        fontSize: fs(10),
+        fontSize: fs(12),
         fontWeight: '700',
         color: '#8E8E93',
         letterSpacing: 2,
@@ -553,10 +553,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     insightLabel: {
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: '800',
         color: '#8E8E93',
-        letterSpacing: 1.5,
+        letterSpacing: 1.2,
         flex: 1,
     },
     insightDate: {

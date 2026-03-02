@@ -67,7 +67,6 @@ export default function RateLimitBanner({ feature, onDismiss }: RateLimitBannerP
 
     return (
         <View style={s.lockedCard}>
-            <View style={s.lockedDot} />
             <Text style={s.lockedTitle}>{copy.title}</Text>
             <Text style={s.lockedDescription}>{copy.message}</Text>
             <TouchableOpacity
