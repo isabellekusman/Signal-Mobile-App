@@ -142,34 +142,18 @@ export default function HomeScreen() {
     const [insightExpanded, setInsightExpanded] = useState(false);
     const activeConnections = connections.filter(c => c.status === 'active');
 
-    // Find the most recently active connection (by lastActive or by dailyLogs)
+    // Find the most recently active connection (by lastActive)
     const getMostRecentConnection = () => {
         if (activeConnections.length === 0) return null;
 
-        // Prioritize connections with recent daily logs
-        const withLogs = activeConnections
-            .filter(c => c.dailyLogs && c.dailyLogs.length > 0)
-            .sort((a, b) => {
-                const aDate = new Date(a.dailyLogs![a.dailyLogs!.length - 1]?.date || 0).getTime();
-                const bDate = new Date(b.dailyLogs![b.dailyLogs!.length - 1]?.date || 0).getTime();
-                return bDate - aDate;
-            });
+        // Sort by lastActive date descending
+        const sorted = [...activeConnections].sort((a, b) => {
+            const aDate = new Date(a.lastActive || 0).getTime();
+            const bDate = new Date(b.lastActive || 0).getTime();
+            return bDate - aDate;
+        });
 
-        if (withLogs.length > 0) return withLogs[0];
-
-        // Fallback: connections with saved logs
-        const withSavedLogs = activeConnections
-            .filter(c => c.savedLogs && c.savedLogs.length > 0)
-            .sort((a, b) => {
-                const aDate = new Date(a.savedLogs![0]?.date || 0).getTime();
-                const bDate = new Date(b.savedLogs![0]?.date || 0).getTime();
-                return bDate - aDate;
-            });
-
-        if (withSavedLogs.length > 0) return withSavedLogs[0];
-
-        // Fallback: first active connection
-        return activeConnections[0];
+        return sorted[0];
     };
 
     const recentConnection = getMostRecentConnection();

@@ -370,13 +370,17 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     };
 
     const updateConnection = (id: string, updates: Partial<Connection>) => {
+        const timestamp = updates.lastActive || new Date().toISOString();
+        const finalUpdates = { ...updates, lastActive: timestamp };
+
         setConnections((prev) => {
-            const updated = prev.map((conn) => (conn.id === id ? { ...conn, ...updates } : conn));
+            const updated = prev.map((conn) => (conn.id === id ? { ...conn, ...finalUpdates } : conn));
             persistConnections(updated);
             return updated;
         });
         // Sync updates to Supabase
         const dbUpdates: Record<string, any> = {};
+        dbUpdates.updated_at = timestamp; // Always update the timestamp in DB
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.tag !== undefined) dbUpdates.tag = updates.tag;
         if (updates.zodiac !== undefined) dbUpdates.zodiac = updates.zodiac;

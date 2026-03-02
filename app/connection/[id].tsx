@@ -2455,6 +2455,13 @@ export default function ConnectionDetailScreen() {
     const [activeLog, setActiveLog] = useState<SavedLog | null>(null);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
+    // Update lastActive whenever the hub is opened
+    useEffect(() => {
+        if (paramId) {
+            updateConnection(String(paramId), { lastActive: new Date().toISOString() });
+        }
+    }, [paramId]);
+
     // Find the connection in context
     const connection = connections.find(c => c.id === paramId);
 
