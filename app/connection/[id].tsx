@@ -104,11 +104,7 @@ const ClarityContent = ({ name, connectionId, initialLog, onClose }: { name: str
             }
         } finally {
             setLoading(false);
-            const counts = await refreshUsage();
-            const limit = isTrialActive ? 5 : (subscriptionTier === 'free' ? 3 : 0);
-            if (limit > 0 && counts && (counts['clarity'] || 0) >= limit) {
-                setTimeout(() => setShowPaywall('voluntary'), 1500);
-            }
+            refreshUsage();
         }
 
     };
@@ -455,12 +451,6 @@ const DecoderContent = ({ name, connectionId, initialLog, onClose }: { name: str
             setAnalysis(null);
             setText('');
             setImage(null);
-
-            // Trigger paywall after modal closure if limit reached
-            if (subscriptionTier === 'free' && !isTrialActive && counts && (counts['decoder'] || 0) >= 2) {
-                setTimeout(() => setShowPaywall('voluntary'), 500);
-                return;
-            }
 
 
 
@@ -951,14 +941,7 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
             }
         } finally {
             setLoading(false);
-            const counts = await refreshUsage();
-            const limit = isTrialActive ? 5 : (subscriptionTier === 'free' ? 3 : 0);
-            if (limit > 0 && counts && (counts['objective'] || 0) >= limit) {
-                setTimeout(() => {
-                    setModalVisible(false);
-                    setShowPaywall('voluntary');
-                }, 2000);
-            }
+            refreshUsage();
         }
 
     };
