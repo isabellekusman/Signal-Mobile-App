@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -690,49 +689,11 @@ export default function MeScreen() {
     };
     const removeBoundary = (i: number) => setBoundaries(boundaries.filter((_, idx) => idx !== i));
 
-    const handleDeleteAccount = async () => {
-        Alert.alert(
-            'Delete Account',
-            'This will permanently delete your account and all your data from our servers. This action cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete Permanently',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setIsRefreshing(true);
-                        try {
-                            const success = await db.deleteAccount();
-                            if (success) {
-                                await AsyncStorage.clear();
-                                await signOut();
-                            } else {
-                                Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
-                            }
-                        } catch (err) {
-                            logger.error(err, { tags: { feature: 'account', method: 'deleteAccount' } });
-                        } finally {
-                            setIsRefreshing(false);
-                        }
-                    }
-                },
-            ]
-        );
-    };
+    const handleDeleteAccount = async () => { };
+    // Moved to ProfileSettingsScreen
 
-    const handleSignOut = async () => {
-        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Sign Out',
-                style: 'destructive',
-                onPress: async () => {
-                    await AsyncStorage.clear();
-                    await signOut();
-                }
-            },
-        ]);
-    };
+    const handleSignOut = async () => { };
+    // Moved to ProfileSettingsScreen
 
     const openLink = (url: string) => {
         Linking.openURL(url).catch(err => logger.error(err, { tags: { feature: 'me', method: 'openLink' } }));
@@ -818,102 +779,7 @@ export default function MeScreen() {
                         onToggleEdit={handleToggleEditContent}
                     />
 
-                    {/* ── Subscription Section ── */}
-                    <View style={{ marginTop: 40 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>SUBSCRIPTION</Text>
-
-                        <View style={{ backgroundColor: OFF_WHITE, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: LIGHT_GRAY }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <View>
-                                    <Text style={{ fontSize: 14, fontWeight: '700', color: DARK }}>{subscriptionTier.toUpperCase()}</Text>
-                                    {isTrialActive && (
-                                        <Text style={{ fontSize: 12, color: PINK, marginTop: 2, fontWeight: '600' }}>
-                                            Trial Active · {trialExpiresAt ? Math.ceil((new Date(trialExpiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0} days left
-                                        </Text>
-                                    )}
-                                </View>
-                                <TouchableOpacity
-                                    style={{ backgroundColor: DARK, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 }}
-                                    onPress={() => setShowPaywall('voluntary')}
-                                >
-                                    <Text style={{ color: WHITE, fontSize: 11, fontWeight: '700' }}>MANAGE PLAN</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <Text style={{ fontSize: 12, color: GRAY, lineHeight: 18 }}>
-                                {subscriptionTier === 'free'
-                                    ? "3 daily uses per feature after your trial ends"
-                                    : subscriptionTier === 'seeker'
-                                        ? "15 daily uses per feature + full access to all tools"
-                                        : "Unlimited access + deeper, expanded AI analysis on every feature"}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* ── Legal & Information ── */}
-                    <View style={{ marginTop: 40, marginBottom: 24 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>LEGAL & SUPPORT</Text>
-
-                        <View style={{ backgroundColor: OFF_WHITE, borderRadius: 16, borderWidth: 1, borderColor: '#F2F2F7', overflow: 'hidden' }}>
-                            <TouchableOpacity
-                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
-                                onPress={() => router.push('/terms')}
-                            >
-                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Terms of Service</Text>
-                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
-                                onPress={() => router.push('/privacy')}
-                            >
-                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Privacy Policy</Text>
-                                <Ionicons name="chevron-forward" size={16} color={SOFT_GRAY} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}
-                                onPress={handleExport}
-                            >
-                                <Text style={{ fontSize: 14, color: DARK, fontFamily: SERIF }}>Export My Data (GDPR)</Text>
-                                <Ionicons name="download-outline" size={16} color={SOFT_GRAY} />
-                            </TouchableOpacity>
-
-                            <View style={{ padding: 16, backgroundColor: '#FAFAFA' }}>
-                                <Text style={{ fontSize: 11, color: SOFT_GRAY, lineHeight: 16 }}>
-                                    Notice: Signal uses artificial intelligence to analyze relationship dynamics. AI-generated content can be inaccurate; use it as a tool for reflection, not as absolute fact.
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* ── Account Management ── */}
-                    <View style={{ marginBottom: 60 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: GRAY, letterSpacing: 1.5, marginBottom: 16 }}>ACCOUNT MANAGEMENT</Text>
-
-                        {user?.email && (
-                            <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
-                                <Text style={{ fontSize: 11, color: SOFT_GRAY, fontWeight: '600', marginBottom: 2 }}>SIGNED IN AS</Text>
-                                <Text style={{ fontSize: 13, color: DARK, fontFamily: SERIF }}>{user.email}</Text>
-                            </View>
-                        )}
-
-                        <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: OFF_WHITE, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: LIGHT_GRAY, marginBottom: 12 }}
-                            onPress={handleSignOut}
-                        >
-                            <Ionicons name="log-out-outline" size={18} color={GRAY} />
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: GRAY, letterSpacing: 1 }}>SIGN OUT</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF2F2', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA' }}
-                            onPress={handleDeleteAccount}
-                        >
-                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444', letterSpacing: 1 }}>DELETE ACCOUNT</Text>
-                        </TouchableOpacity>
-                    </View>
+                    {/* Removed Settings Sections that moved to Profile Settings */}
 
                     {/* ── Developer Section (Hidden in Prod) ── */}
                     {__DEV__ && (

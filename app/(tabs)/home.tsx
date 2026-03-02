@@ -139,7 +139,7 @@ const StarsInsightRenderer = ({ fullContent }: { fullContent: string }) => {
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { connections, theme } = useConnections();
+    const { connections, theme, userProfile } = useConnections();
     const isPro = useSubscription();
     const [insightExpanded, setInsightExpanded] = useState(false);
     const activeConnections = connections.filter(c => c.status === 'active');
@@ -230,11 +230,19 @@ export default function HomeScreen() {
         }
     };
 
-    // Empty state — no connections
     if (activeConnections.length === 0) {
         return (
             <SafeAreaView style={styles.safeArea}>
                 <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 10 }}>
+                    <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
+                        {userProfile?.name ? (
+                            <Text style={{ fontSize: 16, fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
+                        ) : (
+                            <Ionicons name="person" size={18} color="#ec4899" />
+                        )}
+                    </TouchableOpacity>
+                </View>
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconWrap}>
                         <Ionicons name="heart-outline" size={40} color="#ec4899" />
@@ -265,12 +273,21 @@ export default function HomeScreen() {
                 <View style={styles.header}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={styles.pageTitle}>Home</Text>
-                        {isPro && (
-                            <View style={styles.proBadge}>
-                                <Ionicons name="checkmark-circle" size={14} color="#ec4899" />
-                                <Text style={styles.proBadgeText}>PRO ACCESS</Text>
-                            </View>
-                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            {isPro && (
+                                <View style={styles.proBadge}>
+                                    <Ionicons name="checkmark-circle" size={14} color="#ec4899" />
+                                    <Text style={styles.proBadgeText}>PRO ACCESS</Text>
+                                </View>
+                            )}
+                            <TouchableOpacity onPress={() => router.push('/profile-settings')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FDF2F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FCE7F3' }}>
+                                {userProfile?.name ? (
+                                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#ec4899', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>{userProfile.name.charAt(0).toUpperCase()}</Text>
+                                ) : (
+                                    <Ionicons name="person" size={18} color="#ec4899" />
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     <Text style={styles.sectionLabel}>CONTINUE WHERE YOU LEFT OFF</Text>
 
