@@ -569,7 +569,7 @@ function ContractSection({
 
 export default function MeScreen() {
     const router = useRouter();
-    const { connections, userProfile, setUserProfile, subscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
+    const { connections, userProfile, setUserProfile, subscriptionTier, setSubscriptionTier, isTrialActive, trialExpiresAt, setShowPaywall } = useConnections();
     const { signOut, user } = useAuth();
 
     // ── Identity ──
@@ -996,6 +996,39 @@ export default function MeScreen() {
                                 >
                                     <Text style={{ fontSize: 11, fontWeight: '600', color: DARK }}>RESTORE PURCHASES</Text>
                                 </TouchableOpacity>
+
+                                {/* Tier Switcher */}
+                                <View style={{ marginTop: 8, backgroundColor: WHITE, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                                    <Text style={{ fontSize: 10, fontWeight: '700', color: GRAY, letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>SIMULATE TIER</Text>
+                                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                                        {(['free', 'seeker', 'signal'] as const).map((tier) => (
+                                            <TouchableOpacity
+                                                key={tier}
+                                                style={{
+                                                    flex: 1,
+                                                    paddingVertical: 10,
+                                                    borderRadius: 8,
+                                                    alignItems: 'center',
+                                                    backgroundColor: subscriptionTier === tier ? '#1C1C1E' : '#F3F4F6',
+                                                    borderWidth: 1,
+                                                    borderColor: subscriptionTier === tier ? '#1C1C1E' : '#E5E7EB',
+                                                }}
+                                                onPress={() => {
+                                                    setSubscriptionTier(tier);
+                                                    db.upsertProfile({ subscription_tier: tier });
+                                                    haptics.selection();
+                                                }}
+                                            >
+                                                <Text style={{
+                                                    fontSize: 10,
+                                                    fontWeight: '700',
+                                                    letterSpacing: 0.5,
+                                                    color: subscriptionTier === tier ? '#FFFFFF' : DARK,
+                                                }}>{tier.toUpperCase()}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
                             </View>
                         </View>
                     )}

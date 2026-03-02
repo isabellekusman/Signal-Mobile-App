@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConnections } from '../context/ConnectionsContext';
@@ -27,16 +26,19 @@ interface UpgradeNudgeProps {
 export default function UpgradeNudge({ feature, currentTier, targetTier = 'signal' }: UpgradeNudgeProps) {
     const { setShowPaywall } = useConnections();
 
-    // Don't render if user is already on Signal tier
     if (currentTier === 'signal') return null;
 
-    const featureLabel = FEATURE_LABELS[feature] || feature;
+    const FEATURE_COPY: Record<string, string> = {
+        clarity: 'Richer, more detailed insights',
+        stars: 'Full cosmic breakdown',
+        daily_advice: 'Daily action steps & alerts',
+    };
 
     let copy = '';
     if (targetTier === 'signal') {
-        copy = 'Upgrade to Signal for deeper analysis';
+        copy = FEATURE_COPY[feature] || 'Full experience';
     } else if (targetTier === 'seeker' && currentTier === 'free') {
-        copy = `Upgrade to Seeker to unlock ${featureLabel}`;
+        copy = `Unlock ${FEATURE_LABELS[feature] || feature}`;
     }
 
     if (!copy) return null;
@@ -47,27 +49,21 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
             activeOpacity={0.7}
             onPress={() => setShowPaywall('voluntary')}
         >
-            <View style={s.inner}>
-                <Ionicons name="sparkles" size={14} color={PINK} />
-                <Text style={s.text}>{copy}</Text>
-                <Ionicons name="chevron-forward" size={14} color={GRAY} />
-            </View>
+            <Text style={s.label}>UPGRADE TO SIGNAL</Text>
+            <Text style={s.copy}>{copy}</Text>
         </TouchableOpacity>
     );
 }
 
 /**
  * LockedFeatureCard — shown when a feature is completely gated.
- * Displays a locked state with upgrade CTA that opens the paywall.
  */
 export function LockedFeatureCard({ title, description }: { title: string; description: string }) {
     const { setShowPaywall } = useConnections();
 
     return (
         <View style={s.lockedCard}>
-            <View style={s.lockedIconWrap}>
-                <Ionicons name="lock-closed" size={24} color={PINK} />
-            </View>
+            <View style={s.lockedDot} />
             <Text style={s.lockedTitle}>{title}</Text>
             <Text style={s.lockedDescription}>{description}</Text>
             <TouchableOpacity
@@ -82,50 +78,45 @@ export function LockedFeatureCard({ title, description }: { title: string; descr
 }
 
 const s = StyleSheet.create({
+    // ── Upgrade Nudge ──
     container: {
-        marginTop: 16,
-        marginBottom: 8,
-        paddingHorizontal: 4,
-    },
-    inner: {
-        flexDirection: 'row',
+        marginTop: 20,
+        marginBottom: 4,
+        borderTopWidth: 1,
+        borderTopColor: LIGHT_GRAY,
+        paddingTop: 16,
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: '#FDF2F8',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#FCE7F3',
     },
-    text: {
-        flex: 1,
-        fontSize: 13,
-        fontWeight: '600',
-        color: DARK,
+    label: {
+        fontSize: 9,
+        fontWeight: '800',
+        letterSpacing: 2,
+        color: GRAY,
+        marginBottom: 4,
+    },
+    copy: {
+        fontSize: 14,
         fontFamily: SERIF,
+        fontStyle: 'italic',
+        color: DARK,
+        textAlign: 'center',
     },
-    // Locked Feature Card
+
+    // ── Locked Feature Card ──
     lockedCard: {
         alignItems: 'center',
-        padding: 32,
-        marginVertical: 16,
-        backgroundColor: '#FAFAFA',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: LIGHT_GRAY,
+        paddingVertical: 36,
+        paddingHorizontal: 24,
     },
-    lockedIconWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#FDF2F8',
-        justifyContent: 'center',
-        alignItems: 'center',
+    lockedDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: PINK,
         marginBottom: 16,
     },
     lockedTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
         color: DARK,
         fontFamily: SERIF,
@@ -137,19 +128,19 @@ const s = StyleSheet.create({
         color: GRAY,
         textAlign: 'center',
         lineHeight: 20,
-        marginBottom: 20,
-        paddingHorizontal: 16,
+        marginBottom: 24,
     },
     lockedButton: {
-        backgroundColor: DARK,
-        paddingVertical: 14,
-        paddingHorizontal: 32,
+        borderWidth: 1,
+        borderColor: DARK,
+        paddingVertical: 12,
+        paddingHorizontal: 28,
         borderRadius: 24,
     },
     lockedButtonText: {
-        color: '#FFFFFF',
-        fontSize: 11,
+        color: DARK,
+        fontSize: 10,
         fontWeight: '700',
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
     },
 });

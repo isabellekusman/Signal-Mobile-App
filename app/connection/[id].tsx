@@ -530,8 +530,6 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                                 >
                                     <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>SAVE TO PROFILE</Text>
                                 </TouchableOpacity>
-
-                                <UpgradeNudge feature="decoder" currentTier={subscriptionTier} targetTier="signal" />
                             </View>
                         )}
                     </ScrollView>
@@ -660,26 +658,40 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
                     </View>
                 </View>
 
-                {/* Decode The Cosmos Button */}
-                <TouchableOpacity
-                    style={[styles.scanButton, { marginTop: 24, backgroundColor: error ? '#1C1C1E' : '#ec4899' }]}
-                    onPress={() => {
-                        haptics.selection();
-                        if (error) {
-                            fetchForecast();
-                        } else if (!forecast) {
-                            fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
-                        } else {
-                            setIsDetailedAnalysisOpen(true);
-                        }
-                    }}
-                    disabled={loading}
-                >
-                    <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : (error ? 'TAP TO RETRY' : 'DECODE THE COSMOS')}</Text>
-                </TouchableOpacity>
+                {/* Decode The Cosmos Button — Signal only, Seeker sees upgrade prompt */}
+                {subscriptionTier === 'signal' ? (
+                    <TouchableOpacity
+                        style={[styles.scanButton, { marginTop: 24, backgroundColor: error ? '#1C1C1E' : '#ec4899' }]}
+                        onPress={() => {
+                            haptics.selection();
+                            if (error) {
+                                fetchForecast();
+                            } else if (!forecast) {
+                                fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
+                            } else {
+                                setIsDetailedAnalysisOpen(true);
+                            }
+                        }}
+                        disabled={loading}
+                    >
+                        <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : (error ? 'TAP TO RETRY' : 'DECODE THE COSMOS')}</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <>
+                        {error && (
+                            <TouchableOpacity
+                                style={[styles.scanButton, { marginTop: 24, backgroundColor: '#1C1C1E' }]}
+                                onPress={() => { haptics.selection(); fetchForecast(); }}
+                                disabled={loading}
+                            >
+                                <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : 'TAP TO RETRY'}</Text>
+                            </TouchableOpacity>
+                        )}
+                        <UpgradeNudge feature="stars" currentTier={subscriptionTier} targetTier="signal" />
+                    </>
+                )}
             </View>
 
-            <UpgradeNudge feature="stars" currentTier={subscriptionTier} targetTier="signal" />
             <Text style={styles.starsFooterDisclaimer}>* ASTROLOGY DESCRIBES TENDENCIES, NOT EFFORT.</Text>
 
             {/* Detailed Analysis Modal */}
@@ -1859,19 +1871,24 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                             <Text style={profileStyles.adviceLabel}>STATE OF THE CONNECTION</Text>
                             <Text style={profileStyles.adviceText}>{advice.stateOfConnection}</Text>
                         </View>
-                        {advice.todaysMove ? (
-                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
-                                <Text style={[profileStyles.adviceLabel, { color: '#ec4899' }]}>TODAY'S MOVE</Text>
-                                <Text style={profileStyles.adviceText}>{advice.todaysMove}</Text>
-                            </View>
-                        ) : null}
-                        {advice.watchFor ? (
-                            <View style={[profileStyles.adviceBlock, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                <Text style={[profileStyles.adviceLabel, { color: '#8E8E93' }]}>WATCH FOR</Text>
-                                <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
-                            </View>
-                        ) : null}
-                        <UpgradeNudge feature="daily_advice" currentTier={subscriptionTier} targetTier="signal" />
+                        {subscriptionTier === 'signal' ? (
+                            <>
+                                {advice.todaysMove ? (
+                                    <View style={[profileStyles.adviceBlock, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
+                                        <Text style={[profileStyles.adviceLabel, { color: '#ec4899' }]}>TODAY'S MOVE</Text>
+                                        <Text style={profileStyles.adviceText}>{advice.todaysMove}</Text>
+                                    </View>
+                                ) : null}
+                                {advice.watchFor ? (
+                                    <View style={[profileStyles.adviceBlock, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[profileStyles.adviceLabel, { color: '#8E8E93' }]}>WATCH FOR</Text>
+                                        <Text style={profileStyles.adviceText}>{advice.watchFor}</Text>
+                                    </View>
+                                ) : null}
+                            </>
+                        ) : (
+                            <UpgradeNudge feature="daily_advice" currentTier={subscriptionTier} targetTier="signal" />
+                        )}
                     </View>
                 ) : null}
             </View>

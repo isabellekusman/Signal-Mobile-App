@@ -210,7 +210,7 @@ function InnerLayout() {
         </Stack>
       </AuthGate>
       <PaywallModal
-        visible={revenueCatReady && isRevenueCatConfigured() && paywallMode !== null && !isPro}
+        visible={paywallMode !== null && !isPro}
         onClose={handleClose}
         onSubscribe={handleSubscribe}
         onStartTrial={handleStartTrial}
