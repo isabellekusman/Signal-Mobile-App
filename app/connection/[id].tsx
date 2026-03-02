@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import RateLimitBanner from '../../components/RateLimitBanner';
 import UpgradeNudge, { LockedFeatureCard } from '../../components/UpgradeNudge';
 import { Connection, DailyLog, SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
@@ -25,7 +26,7 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
-const ClarityContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
+const ClarityContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
     const { updateConnection, connections, subscriptionTier } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
@@ -33,6 +34,22 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
     const [messages, setMessages] = useState<Array<{ id: string, text: string, sender: 'user' | 'ai' }>>([]);
     const [loading, setLoading] = useState(false);
     const [initialInput, setInitialInput] = useState('');
+    const [rateLimited, setRateLimited] = useState(false);
+
+    useEffect(() => {
+        if (initialLog && initialLog.source === 'clarity') {
+            const originalMessages = initialLog.fullContent
+                .split(/\\n\\n|\n\n/)
+                .filter((m: string) => m.trim().length > 0)
+                .map((m: string, i: number) => {
+                    const isUser = m.startsWith('You:');
+                    const text = m.replace(/^(You|Signal):\s*/, '');
+                    return { id: `hist-${i}`, text, sender: isUser ? 'user' : 'ai' as const };
+                });
+            setMessages(originalMessages);
+            setIsChatOpen(true);
+        }
+    }, [initialLog]);
 
     const startChat = () => {
         if (initialInput.trim()) {
@@ -71,8 +88,12 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 
             haptics.success();
             setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: result, sender: 'ai' }]);
-        } catch (error) {
-            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "Connection lost or timed out. Send another message to try again.", sender: 'ai' }]);
+        } catch (error: any) {
+            if (error.message === 'DAILY_LIMIT_REACHED') {
+                setRateLimited(true);
+            } else {
+                setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "Connection lost or timed out. Send another message to try again.", sender: 'ai' }]);
+            }
         } finally {
             setLoading(false);
         }
@@ -211,7 +232,10 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
                                     <Text style={[styles.messageText, styles.aiMessageText]}>Analyzing...</Text>
                                 </View>
                             )}
-                            {!loading && messages.length > 0 && (
+                            {!loading && rateLimited && (
+                                <RateLimitBanner feature="clarity" />
+                            )}
+                            {!loading && messages.length > 0 && !rateLimited && (
                                 <UpgradeNudge feature="clarity" currentTier={subscriptionTier} targetTier="signal" />
                             )}
                         </ScrollView>
@@ -242,10 +266,7 @@ const ClarityContent = ({ name, connectionId }: { name: string; connectionId: st
 };
 
 // Content Component for the "Decoder" tab
-// Content Component for the "Decoder" tab
-// Content Component for the "Decoder" tab
-// Content Component for the "Decoder" tab
-const DecoderContent = ({ name, connectionId }: { name: string; connectionId: string }) => {
+const DecoderContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
     const { updateConnection, connections, setShowPaywall, subscriptionTier } = useConnections();
     const [text, setText] = useState('');
     const [image, setImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
@@ -260,8 +281,36 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
     } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [rateLimited, setRateLimited] = useState(false);
     const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
     const scanAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (initialLog && initialLog.source === 'decoder') {
+            const fields: Record<string, string> = {};
+            const lines = initialLog.fullContent.split('\n');
+            lines.forEach((line: string) => {
+                const colonIdx = line.indexOf(':');
+                if (colonIdx > -1) {
+                    const key = line.substring(0, colonIdx).trim();
+                    const val = line.substring(colonIdx + 1).trim();
+                    fields[key] = val;
+                }
+            });
+            const risks = fields['Risks'] ? fields['Risks'].split(',').map((r: string) => r.trim()).filter(Boolean) : [];
+
+            setAnalysis({
+                tone: fields['Tone'] || '—',
+                effort: fields['Effort'] || '—',
+                powerDynamics: fields['Power Dynamics'] || '',
+                subtext: fields['Subtext'] || '',
+                motivation: fields['Motivation'] || '',
+                risks: risks,
+                replySuggestion: fields['Suggested Reply'] || ''
+            });
+            setIsAnalysisOpen(true);
+        }
+    }, [initialLog]);
 
     useEffect(() => {
         if (loading) {
@@ -348,7 +397,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
             setIsAnalysisOpen(true);
         } catch (err: any) {
             if (err.message === 'DAILY_LIMIT_REACHED') {
-                setShowPaywall('voluntary');
+                setRateLimited(true);
             } else {
                 logger.error(err, { tags: { feature: 'decoder', method: 'handleScanText' } });
                 setError("Connection lost or timed out.");
@@ -434,21 +483,27 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
                     )}
                 </View>
 
-                {error && (
+                {error && !rateLimited && (
                     <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginTop: 12, marginBottom: -12, fontWeight: '600' }}>{error}</Text>
                 )}
 
-                <TouchableOpacity
-                    style={[styles.scanButton, (loading || (!text.trim() && !image)) && { opacity: 0.5 }, error ? { backgroundColor: '#1C1C1E', borderColor: '#1C1C1E' } : null]}
-                    onPress={handleScanText}
-                    disabled={loading || (!text.trim() && !image)}
-                >
-                    <Text style={[styles.scanButtonText, error ? { color: '#FFFFFF' } : null]}>{loading ? 'SCANNING...' : (error ? 'TAP TO RETRY' : 'SCAN SIGNAL')}</Text>
-                </TouchableOpacity>
+                {rateLimited ? (
+                    <RateLimitBanner feature="decoder" onDismiss={() => setRateLimited(false)} />
+                ) : (
+                    <>
+                        <TouchableOpacity
+                            style={[styles.scanButton, (loading || (!text.trim() && !image)) && { opacity: 0.5 }, error ? { backgroundColor: '#1C1C1E', borderColor: '#1C1C1E' } : null]}
+                            onPress={handleScanText}
+                            disabled={loading || (!text.trim() && !image)}
+                        >
+                            <Text style={[styles.scanButtonText, error ? { color: '#FFFFFF' } : null]}>{loading ? 'SCANNING...' : (error ? 'TAP TO RETRY' : 'SCAN SIGNAL')}</Text>
+                        </TouchableOpacity>
 
-                <Text style={styles.disclaimerText}>
-                    THIS IS AN OBSERVATIONAL READ ON TONE & EFFORT, NOT A FACT.
-                </Text>
+                        <Text style={styles.disclaimerText}>
+                            THIS IS AN OBSERVATIONAL READ ON TONE & EFFORT, NOT A FACT.
+                        </Text>
+                    </>
+                )}
             </View>
 
             {/* Analysis Result Modal */}
@@ -542,7 +597,7 @@ const DecoderContent = ({ name, connectionId }: { name: string; connectionId: st
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
-const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string }) => {
+const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLog }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string, initialLog?: any }) => {
     const { subscriptionTier } = useConnections();
     const [forecast, setForecast] = useState<{
         connectionTheme?: string;
@@ -559,7 +614,20 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
     } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<boolean>(false);
+    const [rateLimited, setRateLimited] = useState(false);
     const [isDetailedAnalysisOpen, setIsDetailedAnalysisOpen] = useState(false);
+
+    useEffect(() => {
+        if (initialLog && initialLog.source === 'stars') {
+            setForecast({
+                connectionTheme: initialLog.title || '',
+                dailyForecast: initialLog.summary || '',
+                cosmicStrategy: "Cosmic strategy captured in detailed analysis.",
+                extendedNarrative: initialLog.fullContent
+            });
+            setIsDetailedAnalysisOpen(true);
+        }
+    }, [initialLog]);
 
     // Stars Align is gated for free users
     if (subscriptionTier === 'free') {
@@ -567,7 +635,7 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
             <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
                 <LockedFeatureCard
                     title="Stars Align"
-                    description="Stars Align is available on Seeker and above. Get personalized astrological readings with your subscription."
+                    description="Reveal the daily cosmic pull. Get full astrological charts, push-pull dynamics, and specific strategies for your signs on Seeker."
                 />
             </View>
         );
@@ -601,11 +669,15 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
             haptics.success();
             await AsyncStorage.setItem(storageKey, JSON.stringify(result));
         } catch (err: any) {
-            if (err.message === 'TIMEOUT') {
-                logger.warn('Stars alignment timed out', { tags: { feature: 'stars' } });
+            if (err.message === 'DAILY_LIMIT_REACHED') {
+                setRateLimited(true);
+            } else {
+                if (err.message === 'TIMEOUT') {
+                    logger.warn('Stars alignment timed out', { tags: { feature: 'stars' } });
+                }
+                logger.error(err, { tags: { feature: 'stars', method: 'fetchForecast' } });
+                setError(true);
             }
-            logger.error(err, { tags: { feature: 'stars', method: 'fetchForecast' } });
-            setError(true);
         } finally {
             setLoading(false);
         }
@@ -638,56 +710,62 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
 
                 {/* Connection Theme Headline */}
                 <Text style={styles.connectionThemeText}>
-                    {error ? "Cloudy Skies" : (forecast?.connectionTheme || "Aligning the Cosmos...")}
+                    {rateLimited ? "Limit Reached" : error ? "Cloudy Skies" : (forecast?.connectionTheme || "Aligning the Cosmos...")}
                 </Text>
 
                 {/* Main Forecast Text */}
-                <Text style={styles.forecastText}>
-                    {error ? "The cosmos are cloudy right now. Connection lost or timed out." : (forecast?.dailyForecast || (loading ? "Aligning your cosmic energies..." : `See how the ${userZodiac} and ${partnerZodiac} energies collide today.`))}
-                </Text>
-
-                {/* Cosmic Strategy (Short) */}
-                <View style={[styles.starsGrid, { marginTop: 20 }]}>
-                    <View style={[styles.strategyCard, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7', borderWidth: 1 }]}>
-                        <View style={styles.strategyHeader}>
-                            <Text style={[styles.strategyLabel, { color: '#ec4899' }]}>COSMIC STRATEGY</Text>
-                        </View>
-                        <Text style={[styles.strategyText, { color: '#1C1C1E' }]}>
-                            {error ? "Focus on your own center." : (forecast?.cosmicStrategy || "...")}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Decode The Cosmos Button — Signal only, Seeker sees upgrade prompt */}
-                {subscriptionTier === 'signal' ? (
-                    <TouchableOpacity
-                        style={[styles.scanButton, { marginTop: 24, backgroundColor: error ? '#1C1C1E' : '#ec4899' }]}
-                        onPress={() => {
-                            haptics.selection();
-                            if (error) {
-                                fetchForecast();
-                            } else if (!forecast) {
-                                fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
-                            } else {
-                                setIsDetailedAnalysisOpen(true);
-                            }
-                        }}
-                        disabled={loading}
-                    >
-                        <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : (error ? 'TAP TO RETRY' : 'DECODE THE COSMOS')}</Text>
-                    </TouchableOpacity>
+                {rateLimited ? (
+                    <RateLimitBanner feature="stars" onDismiss={() => setRateLimited(false)} />
                 ) : (
                     <>
-                        {error && (
+                        <Text style={styles.forecastText}>
+                            {error ? "The cosmos are cloudy right now. Connection lost or timed out." : (forecast?.dailyForecast || (loading ? "Aligning your cosmic energies..." : `See how the ${userZodiac} and ${partnerZodiac} energies collide today.`))}
+                        </Text>
+
+                        {/* Cosmic Strategy (Short) */}
+                        <View style={[styles.starsGrid, { marginTop: 20 }]}>
+                            <View style={[styles.strategyCard, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7', borderWidth: 1 }]}>
+                                <View style={styles.strategyHeader}>
+                                    <Text style={[styles.strategyLabel, { color: '#ec4899' }]}>COSMIC STRATEGY</Text>
+                                </View>
+                                <Text style={[styles.strategyText, { color: '#1C1C1E' }]}>
+                                    {error ? "Focus on your own center." : (forecast?.cosmicStrategy || "...")}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Decode The Cosmos Button — Signal only, Seeker sees upgrade prompt */}
+                        {subscriptionTier === 'signal' ? (
                             <TouchableOpacity
-                                style={[styles.scanButton, { marginTop: 24, backgroundColor: '#1C1C1E' }]}
-                                onPress={() => { haptics.selection(); fetchForecast(); }}
+                                style={[styles.scanButton, { marginTop: 24, backgroundColor: error ? '#1C1C1E' : '#ec4899' }]}
+                                onPress={() => {
+                                    haptics.selection();
+                                    if (error) {
+                                        fetchForecast();
+                                    } else if (!forecast) {
+                                        fetchForecast().then(() => setIsDetailedAnalysisOpen(true));
+                                    } else {
+                                        setIsDetailedAnalysisOpen(true);
+                                    }
+                                }}
                                 disabled={loading}
                             >
-                                <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : 'TAP TO RETRY'}</Text>
+                                <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : (error ? 'TAP TO RETRY' : 'DECODE THE COSMOS')}</Text>
                             </TouchableOpacity>
+                        ) : (
+                            <>
+                                {error && (
+                                    <TouchableOpacity
+                                        style={[styles.scanButton, { marginTop: 24, backgroundColor: '#1C1C1E' }]}
+                                        onPress={() => { haptics.selection(); fetchForecast(); }}
+                                        disabled={loading}
+                                    >
+                                        <Text style={[styles.scanButtonText, { color: '#FFFFFF' }]}>{loading ? 'ALIGNING...' : 'TAP TO RETRY'}</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <UpgradeNudge feature="stars" currentTier={subscriptionTier} targetTier="signal" />
+                            </>
                         )}
-                        <UpgradeNudge feature="stars" currentTier={subscriptionTier} targetTier="signal" />
                     </>
                 )}
             </View>
@@ -713,7 +791,7 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
                         <Text style={[styles.decoderModalTitle, { color: '#1C1C1E' }]}>Cosmic Decoding</Text>
                         <Text style={styles.decoderModalSubtitle}>The push and pull of today's energy.</Text>
 
-                        {forecast?.detailedAnalysis && (
+                        {forecast?.detailedAnalysis ? (
                             <View style={{ gap: 24 }}>
                                 {/* Current Transits */}
                                 {forecast.planetaryTransits && (
@@ -753,7 +831,12 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac }: { conne
                                     <Text style={[styles.decoderBoxBody, { fontSize: 16, lineHeight: 26 }]}>{forecast.detailedAnalysis.cosmicStrategyDepth}</Text>
                                 </View>
                             </View>
-                        )}
+                        ) : forecast?.extendedNarrative ? (
+                            <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>COSMIC ANALYSIS</Text>
+                                <Text style={[styles.decoderBoxBody, { lineHeight: 24 }]}>{forecast.extendedNarrative}</Text>
+                            </View>
+                        ) : null}
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
@@ -785,17 +868,24 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
     const [result, setResult] = useState('');
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
+    const [rateLimited, setRateLimited] = useState(false);
 
     const handleCheckIn = async () => {
         haptics.light();
         setLoading(true);
         setModalVisible(true);
+        setRateLimited(false);
         try {
             const checkInResult = await aiService.getObjectiveCheckIn(signals);
             setResult(checkInResult);
             haptics.success();
-        } catch (error) {
-            setResult("Connection lost or timed out. Close this modal and tap the button to try again.");
+        } catch (error: any) {
+            if (error.message === 'DAILY_LIMIT_REACHED') {
+                setRateLimited(true);
+                setResult('');
+            } else {
+                setResult("Connection lost or timed out. Close this modal and tap the button to try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -827,6 +917,8 @@ const ObjectiveCheckIn = ({ connectionId, signals }: { connectionId: string, sig
                         <ScrollView style={{ maxHeight: 400 }}>
                             {loading ? (
                                 <Text style={styles.modalSubtitle}>Calculating grounded truth...</Text>
+                            ) : rateLimited ? (
+                                <RateLimitBanner feature="objective" />
                             ) : (
                                 <Text style={styles.analysisText}>{result}</Text>
                             )}
@@ -1568,8 +1660,12 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
             const result = aiService.safeParseJSON(resultString);
             setSynthesis(result);
         } catch (err: any) {
-            logger.error(err, { tags: { feature: 'log_synthesis', method: 'fetchSynthesis' } });
-            setError('Connection lost or timed out.');
+            if (err.message === 'DAILY_LIMIT_REACHED') {
+                setError('RATE_LIMITED');
+            } else {
+                logger.error(err, { tags: { feature: 'log_synthesis', method: 'fetchSynthesis' } });
+                setError('Connection lost or timed out.');
+            }
         } finally {
             setLoading(false);
         }
@@ -1609,6 +1705,10 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
                 <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Analyzing your patterns...</Text>
             </View>
         );
+    }
+
+    if (error === 'RATE_LIMITED') {
+        return <RateLimitBanner feature="log_synthesis" />;
     }
 
     if (error) {
@@ -1668,7 +1768,7 @@ const PatternInsightsCard = ({ connection }: { connection: Connection }) => {
 // ──────────────────────────────────────────────────
 // PROFILE CONTENT — All-encompassing analysis page
 // ──────────────────────────────────────────────────
-const ProfileContent = ({ connection }: { connection: Connection }) => {
+const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connection; onNavigateToSource?: (source: string, log: SavedLog) => void }) => {
     const { updateConnection, subscriptionTier, setShowPaywall } = useConnections();
     const [advice, setAdvice] = useState<{
         stateOfConnection: string;
@@ -1677,7 +1777,6 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
     } | null>(null);
     const [loadingAdvice, setLoadingAdvice] = useState(false);
     const [adviceError, setAdviceError] = useState<string | null>(null);
-    const [selectedLog, setSelectedLog] = useState<SavedLog | null>(null);
 
     const savedLogs = (connection.savedLogs || []).filter(l => !l.isHidden);
     const dailyLogs = connection.dailyLogs || [];
@@ -1762,8 +1861,12 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 },
             });
         } catch (error: any) {
-            logger.error(error, { tags: { feature: 'dailyAdvice', method: 'fetchAdvice' } });
-            setAdviceError("Connection lost or timed out.");
+            if (error.message === 'DAILY_LIMIT_REACHED') {
+                setAdviceError('RATE_LIMITED');
+            } else {
+                logger.error(error, { tags: { feature: 'dailyAdvice', method: 'fetchAdvice' } });
+                setAdviceError("Connection lost or timed out.");
+            }
         } finally {
             setLoadingAdvice(false);
         }
@@ -1809,25 +1912,13 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
     const deleteLog = (logId: string) => {
         const updated = savedLogs.filter(l => l.id !== logId);
         updateConnection(connection.id, { savedLogs: updated });
-        setSelectedLog(null);
     };
 
     return (
         <View style={{ paddingHorizontal: scale(24) }}>
             {/* Header Info Card */}
-            <View style={profileStyles.infoCard}>
-                <View style={profileStyles.infoRow}>
-                    <View style={profileStyles.infoBadge}>
-                        <Ionicons name="heart-outline" size={14} color="#ec4899" />
-                        <Text style={profileStyles.infoBadgeText}>{connection.tag}</Text>
-                    </View>
-                    <View style={profileStyles.infoBadge}>
-                        <Ionicons name="star-outline" size={14} color="#ec4899" />
-                        <Text style={profileStyles.infoBadgeText}>{connection.zodiac}</Text>
-                    </View>
-                </View>
-
-                {onboarding && (
+            {onboarding && (onboarding.howWeMet || onboarding.currentIntent || onboarding.howLong) && (
+                <View style={profileStyles.infoCard}>
                     <View style={profileStyles.contextSection}>
                         <Text style={profileStyles.sectionLabel}>BACKSTORY</Text>
                         {onboarding.howWeMet && (
@@ -1846,8 +1937,8 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                             </Text>
                         )}
                     </View>
-                )}
-            </View>
+                </View>
+            )}
 
             {/* Daily Advice Section */}
             <View style={profileStyles.adviceCard}>
@@ -1859,6 +1950,8 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                     <View style={{ paddingVertical: 32, alignItems: 'center' }}>
                         <Text style={{ color: '#8E8E93', fontSize: 13, letterSpacing: 0.5 }}>Generating your daily briefing...</Text>
                     </View>
+                ) : adviceError === 'RATE_LIMITED' ? (
+                    <RateLimitBanner feature="daily_advice" />
                 ) : adviceError ? (
                     <View style={{ paddingVertical: 16, alignItems: 'center' }}>
                         <Text style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{adviceError}</Text>
@@ -1913,7 +2006,7 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                             <TouchableOpacity
                                 key={log.id}
                                 style={profileStyles.logCard}
-                                onPress={() => setSelectedLog(log)}
+                                onPress={() => onNavigateToSource && onNavigateToSource(log.source, log)}
                                 activeOpacity={0.7}
                             >
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -1934,38 +2027,40 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
             </View>
 
             {/* Daily Check-In History */}
-            {dailyLogs.length > 0 && (
-                <View style={profileStyles.logsSection}>
-                    <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
-                    <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
-                        Dynamic check-in history
-                    </Text>
-                    <View style={{ gap: 10 }}>
-                        {dailyLogs.slice(0, 10).map((log) => (
-                            <View key={log.id} style={profileStyles.dailyLogCard}>
-                                <Text style={profileStyles.dailyLogDate}>{formatDate(log.date)}</Text>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
+            {
+                dailyLogs.length > 0 && (
+                    <View style={profileStyles.logsSection}>
+                        <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
+                        <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                            Dynamic check-in history
+                        </Text>
+                        <View style={{ gap: 10 }}>
+                            {dailyLogs.slice(0, 10).map((log) => (
+                                <View key={log.id} style={profileStyles.dailyLogCard}>
+                                    <Text style={profileStyles.dailyLogDate}>{formatDate(log.date)}</Text>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
+                                            <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
+                                        </View>
+                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                            <Text style={[profileStyles.dailyTagText, { color: '#1C1C1E' }]}>{log.direction}</Text>
+                                        </View>
+                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                            <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>{log.structured_emotion_state}</Text>
+                                        </View>
+                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                            <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>Clarity: {log.clarity}%</Text>
+                                        </View>
                                     </View>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#1C1C1E' }]}>{log.direction}</Text>
-                                    </View>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>{log.structured_emotion_state}</Text>
-                                    </View>
-                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>Clarity: {log.clarity}%</Text>
-                                    </View>
+                                    {log.notable ? (
+                                        <Text style={profileStyles.dailyNote}>"{log.notable}"</Text>
+                                    ) : null}
                                 </View>
-                                {log.notable ? (
-                                    <Text style={profileStyles.dailyNote}>"{log.notable}"</Text>
-                                ) : null}
-                            </View>
-                        ))}
+                            ))}
+                        </View>
                     </View>
-                </View>
-            )}
+                )
+            }
 
             {/* Monthly/Weekly Patterns — Signal Tier Feature */}
             <View style={profileStyles.logsSection}>
@@ -1980,172 +2075,16 @@ const ProfileContent = ({ connection }: { connection: Connection }) => {
                 ) : (
                     <LockedFeatureCard
                         title="Unlock Pattern Insights"
-                        description="See what your entries reveal over time. Available on Signal."
+                        description="Detect long-term behavioral patterns. See what months of logs actually reveal about their consistency. Available on Signal."
                     />
                 )}
             </View>
 
             {/* Log Detail Modal — Structured UI by source type */}
-            <Modal
-                visible={!!selectedLog}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setSelectedLog(null)}
-            >
-                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-                        {/* Modal Header */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                            <TouchableOpacity onPress={() => setSelectedLog(null)}>
-                                <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => selectedLog && deleteLog(selectedLog.id)}>
-                                <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DELETE</Text>
-                            </TouchableOpacity>
-                        </View>
 
-                        {selectedLog && (
-                            <>
-                                {/* Source Icon + Title + Date */}
-                                <View style={[profileStyles.logIcon, { backgroundColor: getSourceColor(selectedLog.source) + '15', marginBottom: 12 }]}>
-                                    <Ionicons name={getSourceIcon(selectedLog.source)} size={20} color={getSourceColor(selectedLog.source)} />
-                                </View>
-                                <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 22, color: '#1C1C1E', marginBottom: 4 }}>{selectedLog.title}</Text>
-                                <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 24 }}>{formatDate(selectedLog.date)}</Text>
-
-                                {/* ── DECODER: Structured cards ── */}
-                                {selectedLog.source === 'decoder' && (() => {
-                                    // Parse "Key: Value\nKey: Value" format
-                                    const fields: Record<string, string> = {};
-                                    const lines = selectedLog.fullContent.split('\n');
-                                    lines.forEach(line => {
-                                        const colonIdx = line.indexOf(':');
-                                        if (colonIdx > -1) {
-                                            const key = line.substring(0, colonIdx).trim();
-                                            const val = line.substring(colonIdx + 1).trim();
-                                            fields[key] = val;
-                                        }
-                                    });
-                                    const risks = fields['Risks'] ? fields['Risks'].split(',').map(r => r.trim()).filter(Boolean) : [];
-
-                                    return (
-                                        <View style={{ gap: 20 }}>
-                                            {/* Row 1: Tone & Effort */}
-                                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                                    <Text style={styles.decoderBoxLabel}>TONE</Text>
-                                                    <Text style={styles.decoderBoxValue}>{fields['Tone'] || '—'}</Text>
-                                                </View>
-                                                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                                    <Text style={styles.decoderBoxLabel}>EFFORT</Text>
-                                                    <Text style={styles.decoderBoxValue}>{fields['Effort'] || '—'}</Text>
-                                                </View>
-                                            </View>
-
-                                            {/* Power Dynamics */}
-                                            {fields['Power Dynamics'] && (
-                                                <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
-                                                    <Text style={[styles.decoderBoxLabel, { color: '#1C1C1E' }]}>POWER DYNAMICS</Text>
-                                                    <Text style={styles.decoderBoxBody}>{fields['Power Dynamics']}</Text>
-                                                </View>
-                                            )}
-
-                                            {/* What's Actually Being Said */}
-                                            {fields['Subtext'] && (
-                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                                    <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>WHAT'S ACTUALLY BEING SAID</Text>
-                                                    <Text style={styles.decoderBoxBody}>{fields['Subtext']}</Text>
-                                                </View>
-                                            )}
-
-                                            {/* The Why */}
-                                            {fields['Motivation'] && (
-                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                                    <Text style={styles.decoderBoxLabel}>THE "WHY"</Text>
-                                                    <Text style={styles.decoderBoxBody}>{fields['Motivation']}</Text>
-                                                </View>
-                                            )}
-
-                                            {/* Detected Signals */}
-                                            {risks.length > 0 && (
-                                                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                                    <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
-                                                    <View style={{ gap: 8, marginTop: 4 }}>
-                                                        {risks.map((risk, index) => (
-                                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
-                                                                <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                </View>
-                                            )}
-
-                                            {/* Suggested Reply */}
-                                            {fields['Suggested Reply'] && (
-                                                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: 4 }]}>
-                                                    <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
-                                                    <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{fields['Suggested Reply']}"</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    );
-                                })()}
-
-                                {/* ── CLARITY: Chat-style transcript ── */}
-                                {selectedLog.source === 'clarity' && (() => {
-                                    const messages = selectedLog.fullContent
-                                        .split(/\\n\\n|\n\n/)
-                                        .filter(m => m.trim().length > 0)
-                                        .map(m => {
-                                            const isUser = m.startsWith('You:');
-                                            const text = m.replace(/^(You|Signal):\s*/, '');
-                                            return { isUser, text };
-                                        });
-
-                                    return (
-                                        <View style={{ gap: 12 }}>
-                                            {messages.map((msg, i) => (
-                                                <View
-                                                    key={i}
-                                                    style={{
-                                                        alignSelf: msg.isUser ? 'flex-end' : 'flex-start',
-                                                        maxWidth: '85%',
-                                                        backgroundColor: msg.isUser ? '#1C1C1E' : '#F2F2F7',
-                                                        borderRadius: 18,
-                                                        borderBottomRightRadius: msg.isUser ? 4 : 18,
-                                                        borderBottomLeftRadius: msg.isUser ? 18 : 4,
-                                                        paddingHorizontal: 16,
-                                                        paddingVertical: 12,
-                                                    }}
-                                                >
-                                                    <Text style={{
-                                                        fontSize: 14,
-                                                        lineHeight: 21,
-                                                        color: msg.isUser ? '#FFFFFF' : '#1C1C1E',
-                                                        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-                                                    }}>{msg.text}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    );
-                                })()}
-
-                                {/* ── STARS: Styled content card ── */}
-                                {selectedLog.source === 'stars' && (
-                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
-                                        <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>COSMIC ANALYSIS</Text>
-                                        <Text style={[styles.decoderBoxBody, { lineHeight: 24 }]}>{selectedLog.fullContent}</Text>
-                                    </View>
-                                )}
-                            </>
-                        )}
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
 
             <View style={{ height: 40 }} />
-        </View>
+        </View >
     );
 };
 
@@ -2338,6 +2277,7 @@ export default function ConnectionDetailScreen() {
     const initialMapping = mapParamToSection(String(paramTab || 'OVERVIEW'));
     const [activeSection, setActiveSection] = useState<HubSection>(initialMapping.section);
     const [activeTool, setActiveTool] = useState<UnderstandTool>(initialMapping.tool);
+    const [activeLog, setActiveLog] = useState<any | null>(null);
 
     // Find the connection in context
     const connection = connections.find(c => c.id === paramId);
@@ -2395,6 +2335,7 @@ export default function ConnectionDetailScreen() {
 
     const handleSectionChange = (section: HubSection) => {
         setActiveSection(section);
+        setActiveLog(null);
         if (section !== 'UNDERSTAND') {
             setActiveTool(null);
         }
@@ -2402,10 +2343,12 @@ export default function ConnectionDetailScreen() {
 
     const handleToolSelect = (tool: UnderstandTool) => {
         setActiveTool(tool);
+        setActiveLog(null);
     };
 
     const handleBackFromTool = () => {
         setActiveTool(null);
+        setActiveLog(null);
     };
 
     // If a specific tool is active in UNDERSTAND, show the tool directly
@@ -2499,7 +2442,21 @@ export default function ConnectionDetailScreen() {
                     {/* Section Content */}
                     {activeSection === 'OVERVIEW' && (
                         <>
-                            {connection && <ProfileContent connection={connection} />}
+                            {connection && <ProfileContent connection={connection} onNavigateToSource={(source, log) => {
+                                setActiveLog(log);
+                                if (source === 'clarity') {
+                                    handleSectionChange('CLARITY');
+                                } else if (source === 'decoder') {
+                                    handleSectionChange('UNDERSTAND');
+                                    handleToolSelect('DECODER');
+                                } else if (source === 'stars') {
+                                    handleSectionChange('UNDERSTAND');
+                                    handleToolSelect('STARS');
+                                } else if (source === 'dynamic') {
+                                    handleSectionChange('UNDERSTAND');
+                                    handleToolSelect('DYNAMIC');
+                                }
+                            }} />}
                         </>
                     )}
 
@@ -2526,7 +2483,7 @@ export default function ConnectionDetailScreen() {
                     )}
 
                     {activeSection === 'UNDERSTAND' && activeTool === 'DECODER' && (
-                        <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />
+                        <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} initialLog={activeLog} />
                     )}
 
                     {activeSection === 'UNDERSTAND' && activeTool === 'STARS' && (
@@ -2535,6 +2492,7 @@ export default function ConnectionDetailScreen() {
                             name={Array.isArray(name) ? name[0] : name}
                             userZodiac="Capricorn"
                             partnerZodiac={zodiac}
+                            initialLog={activeLog}
                         />
                     )}
 
@@ -2543,7 +2501,7 @@ export default function ConnectionDetailScreen() {
                     )}
 
                     {activeSection === 'CLARITY' && (
-                        <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} />
+                        <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} initialLog={activeLog} />
                     )}
 
                 </ScrollView>
@@ -3136,23 +3094,17 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     saveCheckInButton: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#FCE7F3',
-        paddingVertical: 18,
-        borderRadius: 16,
+        backgroundColor: '#1C1C1E',
+        paddingVertical: 16,
+        borderRadius: 28,
         alignItems: 'center',
-        shadowColor: '#ec4899',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 1,
+        marginTop: 8,
     },
     saveCheckInText: {
-        color: '#1C1C1E',
-        fontSize: 11,
-        fontWeight: '800',
-        letterSpacing: 1.5,
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1,
         textTransform: 'uppercase',
     },
     pastLogsHeader: {

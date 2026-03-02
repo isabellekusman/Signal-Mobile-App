@@ -8,6 +8,135 @@ import { useConnections } from '../../context/ConnectionsContext';
 import useSubscription from '../../hooks/useSubscription';
 import { fontSize as fs, verticalScale } from '../../utils/responsive';
 
+const DecoderInsightRenderer = ({ fullContent }: { fullContent: string }) => {
+    const fields: Record<string, string> = {};
+    const lines = fullContent.split('\n');
+    lines.forEach((line) => {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx > -1) {
+            const key = line.substring(0, colonIdx).trim();
+            const val = line.substring(colonIdx + 1).trim();
+            fields[key] = val;
+        }
+    });
+
+    const risks = fields['Risks'] ? fields['Risks'].split(',').map((r: string) => r.trim()).filter(Boolean) : [];
+
+    return (
+        <View style={{ gap: 16, marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                    <Text style={styles.decoderBoxLabel}>TONE</Text>
+                    <Text style={styles.decoderBoxValue}>{fields['Tone'] || '—'}</Text>
+                </View>
+                <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                    <Text style={styles.decoderBoxLabel}>EFFORT</Text>
+                    <Text style={styles.decoderBoxValue}>{fields['Effort'] || '—'}</Text>
+                </View>
+            </View>
+
+            {fields['Power Dynamics'] && (
+                <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
+                    <Text style={[styles.decoderBoxLabel, { color: '#1C1C1E' }]}>POWER DYNAMICS</Text>
+                    <Text style={styles.decoderBoxBody}>{fields['Power Dynamics']}</Text>
+                </View>
+            )}
+
+            {fields['Subtext'] && (
+                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                    <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>WHAT'S ACTUALLY BEING SAID</Text>
+                    <Text style={styles.decoderBoxBody}>{fields['Subtext']}</Text>
+                </View>
+            )}
+
+            {fields['Motivation'] && (
+                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                    <Text style={styles.decoderBoxLabel}>THE "WHY"</Text>
+                    <Text style={styles.decoderBoxBody}>{fields['Motivation']}</Text>
+                </View>
+            )}
+
+            {risks.length > 0 && (
+                <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                    <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                        {risks.map((risk, index) => (
+                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
+                                <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {fields['Suggested Reply'] && (
+                <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5', marginTop: 8 }]}>
+                    <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
+                    <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{fields['Suggested Reply']}"</Text>
+                </View>
+            )}
+        </View>
+    );
+};
+
+const ClarityInsightRenderer = ({ fullContent }: { fullContent: string }) => {
+    const messages = fullContent.split('\n\n').filter((m) => m.trim().length > 0);
+
+    return (
+        <View style={{ gap: 12, marginTop: 12 }}>
+            {messages.map((msg, index) => {
+                const isUser = msg.startsWith('You:');
+                const text = msg.replace(/^(You|Signal):\s*/, '');
+                return (
+                    <View key={index} style={{
+                        alignSelf: isUser ? 'flex-end' : 'flex-start',
+                        backgroundColor: isUser ? '#FDF2F8' : '#F9FAFB',
+                        padding: 12,
+                        borderRadius: 16,
+                        borderBottomRightRadius: isUser ? 4 : 16,
+                        borderBottomLeftRadius: !isUser ? 4 : 16,
+                        maxWidth: '85%',
+                        borderWidth: 1,
+                        borderColor: isUser ? '#FCE7F3' : '#F2F2F7',
+                    }}>
+                        {/* We could add a label, but standard chat bubbles speak for themselves */}
+                        {/* {!isUser && <Text style={{ fontSize: 10, fontWeight: '800', color: '#ec4899', marginBottom: 4 }}>SIGNAL</Text>} */}
+                        <Text style={{
+                            fontSize: 15,
+                            lineHeight: 22,
+                            color: isUser ? '#ec4899' : '#1C1C1E',
+                            fontFamily: !isUser ? (Platform.OS === 'ios' ? 'Georgia' : 'serif') : undefined
+                        }}>
+                            {text}
+                        </Text>
+                    </View>
+                );
+            })}
+        </View>
+    );
+};
+
+const StarsInsightRenderer = ({ fullContent }: { fullContent: string }) => {
+    // We don't have the fully structured fields in Stars 'fullContent' directly,
+    // just the extendedNarrative from the simple fetch. BUT if we had JSON, we'd parse it here.
+    // Given Stars saves just text currently (or maybe we can parse it if it was structured).
+    // Let's assume it might just be the standard text. 
+    // We will render it nicely into a single styled cosmic box if it isn't JSON.
+
+    return (
+        <View style={{ gap: 16, marginTop: 12 }}>
+            <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Ionicons name="sparkles" size={16} color="#ec4899" />
+                    <Text style={[styles.decoderBoxLabel, { marginBottom: 0, color: '#ec4899' }]}>COSMIC ANALYSIS</Text>
+                </View>
+                <Text style={[styles.decoderBoxBody, { lineHeight: 24 }]}>{fullContent}</Text>
+            </View>
+        </View>
+    );
+};
+
 export default function HomeScreen() {
     const router = useRouter();
     const { connections, theme } = useConnections();
@@ -238,9 +367,17 @@ export default function HomeScreen() {
                                 <Text style={styles.insightTitle}>{latestInsight.title}</Text>
                                 {insightExpanded ? (
                                     <>
-                                        <Text style={styles.insightFullContent}>
-                                            {latestInsight.fullContent || latestInsight.summary}
-                                        </Text>
+                                        {latestInsight.source === 'decoder' ? (
+                                            <DecoderInsightRenderer fullContent={latestInsight.fullContent || latestInsight.summary || ''} />
+                                        ) : latestInsight.source === 'clarity' ? (
+                                            <ClarityInsightRenderer fullContent={latestInsight.fullContent || latestInsight.summary || ''} />
+                                        ) : latestInsight.source === 'stars' ? (
+                                            <StarsInsightRenderer fullContent={latestInsight.fullContent || latestInsight.summary || ''} />
+                                        ) : (
+                                            <Text style={styles.insightFullContent}>
+                                                {latestInsight.fullContent || latestInsight.summary}
+                                            </Text>
+                                        )}
                                         <View style={styles.collapseHint}>
                                             <Ionicons name="chevron-up" size={12} color="#C7C7CC" />
                                             <Text style={styles.collapseHintText}>TAP TO COLLAPSE</Text>
@@ -598,5 +735,30 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#ec4899',
         letterSpacing: 0.5,
+    },
+    decoderBox: {
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    decoderBoxLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#8E8E93',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: 8,
+    },
+    decoderBoxValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1C1C1E',
+    },
+    decoderBoxBody: {
+        fontSize: 15,
+        lineHeight: 24,
+        color: '#1C1C1E',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
 });

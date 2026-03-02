@@ -70,7 +70,11 @@ export const aiService = {
                                 throw gatedError;
                             }
                             if (body.error === 'LIMIT_REACHED') {
-                                throw new Error('DAILY_LIMIT_REACHED');
+                                const limitError = new Error('DAILY_LIMIT_REACHED');
+                                (limitError as any).feature = feature;
+                                (limitError as any).usage = body.usage;
+                                (limitError as any).limit = body.limit;
+                                throw limitError;
                             }
                         } catch (e: any) {
                             if (e.message === 'FEATURE_GATED' || e.message === 'DAILY_LIMIT_REACHED') throw e;

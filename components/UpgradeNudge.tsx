@@ -29,9 +29,13 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
     if (currentTier === 'signal') return null;
 
     const FEATURE_COPY: Record<string, string> = {
-        clarity: 'Richer, more detailed insights',
-        stars: 'Full cosmic breakdown',
-        daily_advice: 'Daily action steps & alerts',
+        clarity: 'Unlock deep conversational analysis and endless Clarity chats',
+        decoder: 'Scan endlessly to reveal hidden tone and dynamic shifts',
+        stars: 'Full cosmic breakdown & push-pull astrological dynamics',
+        daily_advice: 'Personalized action steps & proactive relationship alerts',
+        dynamic: 'Track unlimited check-ins for long-term behavioral patterns',
+        objective: 'Cut through feelings to get the data-driven grounded truth',
+        log_synthesis: 'Unlock pattern insights to see what your logs actually mean',
     };
 
     let copy = '';
@@ -43,15 +47,21 @@ export default function UpgradeNudge({ feature, currentTier, targetTier = 'signa
 
     if (!copy) return null;
 
+    const title = FEATURE_LABELS[feature] || 'Upgrade';
+
     return (
-        <TouchableOpacity
-            style={s.container}
-            activeOpacity={0.7}
-            onPress={() => setShowPaywall('voluntary')}
-        >
-            <Text style={s.label}>UPGRADE TO SIGNAL</Text>
-            <Text style={s.copy}>{copy}</Text>
-        </TouchableOpacity>
+        <View style={s.lockedCard}>
+            <View style={s.lockedDot} />
+            <Text style={s.lockedTitle}>{title}</Text>
+            <Text style={s.lockedDescription}>{copy}</Text>
+            <TouchableOpacity
+                style={s.lockedButton}
+                activeOpacity={0.8}
+                onPress={() => setShowPaywall('voluntary')}
+            >
+                <Text style={s.lockedButtonText}>VIEW PLANS</Text>
+            </TouchableOpacity>
+        </View>
     );
 }
 
@@ -91,7 +101,7 @@ const s = StyleSheet.create({
         fontSize: 9,
         fontWeight: '800',
         letterSpacing: 2,
-        color: GRAY,
+        color: PINK,
         marginBottom: 4,
     },
     copy: {
