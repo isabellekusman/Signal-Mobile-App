@@ -31,7 +31,7 @@ const CHIPS = [
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
 // Content Component for the "Clarity" tab (Default)
-const ClarityContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
+const ClarityContent = ({ name, connectionId, initialLog, onClose }: { name: string; connectionId: string; initialLog?: any; onClose?: () => void }) => {
     const { updateConnection, connections, subscriptionTier, isTrialActive, setShowPaywall, usageCounts, refreshUsage } = useConnections();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [input, setInput] = useState('');
@@ -144,6 +144,7 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
         setInput('');
         setInitialInput('');
         setSelectedThemes([]);
+        if (initialLog && onClose) onClose();
     };
 
     return (
@@ -285,7 +286,7 @@ const ClarityContent = ({ name, connectionId, initialLog }: { name: string; conn
 };
 
 // Content Component for the "Decoder" tab
-const DecoderContent = ({ name, connectionId, initialLog }: { name: string; connectionId: string; initialLog?: any }) => {
+const DecoderContent = ({ name, connectionId, initialLog, onClose }: { name: string; connectionId: string; initialLog?: any; onClose?: () => void }) => {
     const { updateConnection, connections, setShowPaywall, subscriptionTier, refreshUsage, isTrialActive } = useConnections();
 
 
@@ -480,6 +481,7 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
         setAnalysis(null);
         setText('');
         setImage(null);
+        if (initialLog && onClose) onClose();
     };
 
     return (
@@ -646,7 +648,7 @@ const DecoderContent = ({ name, connectionId, initialLog }: { name: string; conn
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
 // Content Component for the "Stars" tab
-const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLog }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string, initialLog?: any }) => {
+const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLog, onClose }: { connectionId: string, name: string, userZodiac: string, partnerZodiac: string, initialLog?: any, onClose?: () => void }) => {
     const { subscriptionTier, isTrialActive, setShowPaywall, refreshUsage } = useConnections();
 
     const [forecast, setForecast] = useState<{
@@ -837,7 +839,11 @@ const StarsContent = ({ connectionId, name, userZodiac, partnerZodiac, initialLo
                     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
                         {/* Header */}
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
-                            <TouchableOpacity onPress={() => { haptics.selection(); setIsDetailedAnalysisOpen(false); }}>
+                            <TouchableOpacity onPress={() => {
+                                haptics.selection();
+                                setIsDetailedAnalysisOpen(false);
+                                if (initialLog && onClose) onClose();
+                            }}>
                                 <Ionicons name="close-circle" size={32} color="#E5E5EA" />
                             </TouchableOpacity>
                         </View>
@@ -1997,9 +2003,47 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
     };
 
     const deleteLog = (logId: string) => {
-        const updated = savedLogs.filter(l => l.id !== logId);
-        updateConnection(connection.id, { savedLogs: updated });
+        Alert.alert(
+            "Delete Analysis",
+            "Are you sure you want to delete this saved analysis?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        const updated = (connection.savedLogs || []).filter(l => l.id !== logId);
+                        updateConnection(connection.id, { savedLogs: updated });
+                        haptics.medium();
+                    }
+                }
+            ]
+        );
     };
+
+    const groupedLogs = [
+        {
+            title: 'CLARITY DECISIONS',
+            source: 'clarity',
+            icon: 'chatbubble-ellipses-outline' as const,
+            color: '#ec4899',
+            logs: savedLogs.filter(l => l.source === 'clarity')
+        },
+        {
+            title: 'MESSAGE DECODES',
+            source: 'decoder',
+            icon: 'scan-outline' as const,
+            color: '#1C1C1E',
+            logs: savedLogs.filter(l => l.source === 'decoder')
+        },
+        {
+            title: 'COSMIC READINGS',
+            source: 'stars',
+            icon: 'sparkles-outline' as const,
+            color: '#ec4899',
+            logs: savedLogs.filter(l => l.source === 'stars')
+        }
+    ].filter(g => g.logs.length > 0);
 
     return (
         <View style={{ paddingHorizontal: scale(24) }}>
@@ -2089,33 +2133,50 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                     Logs from Clarity, Decoder & Stars
                 </Text>
 
-                {savedLogs.length === 0 ? (
+                {groupedLogs.length === 0 ? (
                     <View style={profileStyles.emptyState}>
                         <Ionicons name="file-tray-outline" size={32} color="#D1D1D6" />
                         <Text style={profileStyles.emptyText}>No saved logs yet.</Text>
                         <Text style={profileStyles.emptySubtext}>Use Clarity, Decoder, or Stars and hit "Save" to build your analysis history.</Text>
                     </View>
                 ) : (
-                    <View style={{ gap: 10 }}>
-                        {savedLogs.map((log) => (
-                            <TouchableOpacity
-                                key={log.id}
-                                style={profileStyles.logCard}
-                                onPress={() => onNavigateToSource && onNavigateToSource(log.source, log)}
-                                activeOpacity={0.7}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                                    <View style={[profileStyles.logIcon, { backgroundColor: getSourceColor(log.source) + '15' }]}>
-                                        <Ionicons name={getSourceIcon(log.source)} size={16} color={getSourceColor(log.source)} />
+                    <View style={{ gap: 24 }}>
+                        {groupedLogs.map((group) => (
+                            <View key={group.title}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                    <View style={[profileStyles.groupIcon, { backgroundColor: group.color + '10' }]}>
+                                        <Ionicons name={group.icon} size={12} color={group.color} />
                                     </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={profileStyles.logTitle}>{log.title}</Text>
-                                        <Text style={profileStyles.logDate}>{formatDate(log.date)}</Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={16} color="#D1D1D6" />
+                                    <Text style={profileStyles.groupTitle}>{group.title}</Text>
+                                    <View style={{ flex: 1, height: 1, backgroundColor: '#F2F2F7', marginLeft: 4 }} />
                                 </View>
-                                <Text style={profileStyles.logSummary} numberOfLines={2}>{log.summary}</Text>
-                            </TouchableOpacity>
+                                <View style={{ gap: 10 }}>
+                                    {group.logs.map((log) => (
+                                        <TouchableOpacity
+                                            key={log.id}
+                                            style={profileStyles.logCard}
+                                            onPress={() => onNavigateToSource && onNavigateToSource(log.source, log)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={profileStyles.logTitle}>{log.title}</Text>
+                                                    <Text style={profileStyles.logDate}>{formatDate(log.date)}</Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => deleteLog(log.id)}
+                                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                    style={{ padding: 4 }}
+                                                >
+                                                    <Ionicons name="trash-outline" size={16} color="#D1D1D6" />
+                                                </TouchableOpacity>
+                                                <Ionicons name="chevron-forward" size={16} color="#D1D1D6" />
+                                            </View>
+                                            <Text style={profileStyles.logSummary} numberOfLines={2}>{log.summary}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
                         ))}
                     </View>
                 )}
@@ -2323,6 +2384,19 @@ const profileStyles = StyleSheet.create({
         color: '#6B7280',
         lineHeight: spacing(18),
     },
+    groupTitle: {
+        fontSize: fs(10),
+        fontWeight: '800',
+        color: '#1C1C1E',
+        letterSpacing: 1.5,
+    },
+    groupIcon: {
+        width: spacing(24),
+        height: spacing(24),
+        borderRadius: spacing(8),
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     dailyLogCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: spacing(14),
@@ -2378,7 +2452,8 @@ export default function ConnectionDetailScreen() {
     const initialMapping = mapParamToSection(String(paramTab || 'OVERVIEW'));
     const [activeSection, setActiveSection] = useState<HubSection>(initialMapping.section);
     const [activeTool, setActiveTool] = useState<UnderstandTool>(initialMapping.tool);
-    const [activeLog, setActiveLog] = useState<any | null>(null);
+    const [activeLog, setActiveLog] = useState<SavedLog | null>(null);
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
     // Find the connection in context
     const connection = connections.find(c => c.id === paramId);
@@ -2445,6 +2520,12 @@ export default function ConnectionDetailScreen() {
     const handleToolSelect = (tool: UnderstandTool) => {
         setActiveTool(tool);
         setActiveLog(null);
+    };
+
+    const handleNavigateToLog = (source: string, log: SavedLog) => {
+        haptics.selection();
+        setActiveLog(log);
+        setIsLogModalOpen(true);
     };
 
     const handleBackFromTool = () => {
@@ -2543,21 +2624,10 @@ export default function ConnectionDetailScreen() {
                     {/* Section Content */}
                     {activeSection === 'OVERVIEW' && (
                         <>
-                            {connection && <ProfileContent connection={connection} onNavigateToSource={(source, log) => {
-                                setActiveLog(log);
-                                if (source === 'clarity') {
-                                    handleSectionChange('CLARITY');
-                                } else if (source === 'decoder') {
-                                    handleSectionChange('UNDERSTAND');
-                                    handleToolSelect('DECODER');
-                                } else if (source === 'stars') {
-                                    handleSectionChange('UNDERSTAND');
-                                    handleToolSelect('STARS');
-                                } else if (source === 'dynamic') {
-                                    handleSectionChange('UNDERSTAND');
-                                    handleToolSelect('DYNAMIC');
-                                }
-                            }} />}
+                            {connection && <ProfileContent
+                                connection={connection}
+                                onNavigateToSource={handleNavigateToLog}
+                            />}
                         </>
                     )}
 
@@ -2584,7 +2654,11 @@ export default function ConnectionDetailScreen() {
                     )}
 
                     {activeSection === 'UNDERSTAND' && activeTool === 'DECODER' && (
-                        <DecoderContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} initialLog={activeLog} />
+                        <DecoderContent
+                            name={Array.isArray(name) ? name[0] : name}
+                            connectionId={connectionId}
+                            onClose={() => handleSectionChange('OVERVIEW')}
+                        />
                     )}
 
                     {activeSection === 'UNDERSTAND' && activeTool === 'STARS' && (
@@ -2593,7 +2667,7 @@ export default function ConnectionDetailScreen() {
                             name={Array.isArray(name) ? name[0] : name}
                             userZodiac="Capricorn"
                             partnerZodiac={zodiac}
-                            initialLog={activeLog}
+                            onClose={() => handleSectionChange('OVERVIEW')}
                         />
                     )}
 
@@ -2602,11 +2676,127 @@ export default function ConnectionDetailScreen() {
                     )}
 
                     {activeSection === 'CLARITY' && (
-                        <ClarityContent name={Array.isArray(name) ? name[0] : name} connectionId={connectionId} initialLog={activeLog} />
+                        <ClarityContent
+                            name={Array.isArray(name) ? name[0] : name}
+                            connectionId={connectionId}
+                            onClose={() => handleSectionChange('OVERVIEW')}
+                        />
                     )}
 
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Global Log Detail Popup — View any saved analysis from Overview */}
+            <Modal
+                visible={isLogModalOpen}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setIsLogModalOpen(false)}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' }}>
+                        <TouchableOpacity onPress={() => setIsLogModalOpen(false)}>
+                            <Ionicons name="close" size={24} color="#1C1C1E" />
+                        </TouchableOpacity>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#8E8E93', letterSpacing: 1.5 }}>
+                            {activeLog?.source.toUpperCase()} ANALYSIS
+                        </Text>
+                        <View style={{ width: 24 }} />
+                    </View>
+
+                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                        {activeLog && (
+                            <>
+                                <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 28, color: '#1C1C1E', marginBottom: 8 }}>
+                                    {activeLog.title}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: '#8E8E93', marginBottom: 32 }}>
+                                    {new Date(activeLog.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).toUpperCase()}
+                                </Text>
+
+                                {activeLog.source === 'clarity' && (
+                                    <View style={{ gap: 12 }}>
+                                        {activeLog.fullContent.split(/\n\n/).map((m, i) => {
+                                            const isUser = m.startsWith('You:');
+                                            const text = m.replace(/^(You|Signal):\s*/, '');
+                                            return (
+                                                <View key={i} style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble, { maxWidth: '90%' }]}>
+                                                    <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.aiMessageText, { fontSize: 15 }]}>
+                                                        {text}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                )}
+
+                                {activeLog.source === 'decoder' && (
+                                    <View style={{ gap: 24 }}>
+                                        {(() => {
+                                            const fields: Record<string, string> = {};
+                                            activeLog.fullContent.split('\n').forEach(line => {
+                                                const colonIdx = line.indexOf(':');
+                                                if (colonIdx > -1) {
+                                                    fields[line.substring(0, colonIdx).trim()] = line.substring(colonIdx + 1).trim();
+                                                }
+                                            });
+                                            const risks = fields['Risks'] ? fields['Risks'].split(',').map(r => r.trim()).filter(Boolean) : [];
+                                            return (
+                                                <>
+                                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                                        <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                            <Text style={styles.decoderBoxLabel}>TONE</Text>
+                                                            <Text style={styles.decoderBoxValue}>{fields['Tone'] || '—'}</Text>
+                                                        </View>
+                                                        <View style={[styles.decoderBox, { flex: 1, backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                            <Text style={styles.decoderBoxLabel}>EFFORT</Text>
+                                                            <Text style={styles.decoderBoxValue}>{fields['Effort'] || '—'}</Text>
+                                                        </View>
+                                                    </View>
+                                                    <View style={[styles.decoderBox, { backgroundColor: '#FFFFFF', borderColor: '#1C1C1E', borderWidth: 1 }]}>
+                                                        <Text style={[styles.decoderBoxLabel, { color: '#1C1C1E' }]}>POWER DYNAMICS</Text>
+                                                        <Text style={styles.decoderBoxBody}>{fields['Power Dynamics']}</Text>
+                                                    </View>
+                                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                        <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>WHAT'S ACTUALLY BEING SAID</Text>
+                                                        <Text style={styles.decoderBoxBody}>{fields['Subtext']}</Text>
+                                                    </View>
+                                                    {risks.length > 0 && (
+                                                        <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                                            <Text style={[styles.decoderBoxLabel, { color: '#8E8E93' }]}>DETECTED SIGNALS</Text>
+                                                            <View style={{ gap: 8, marginTop: 4 }}>
+                                                                {risks.map((risk, index) => (
+                                                                    <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8E8E93' }} />
+                                                                        <Text style={[styles.decoderBoxBody, { fontSize: 13 }]}>{risk}</Text>
+                                                                    </View>
+                                                                ))}
+                                                            </View>
+                                                        </View>
+                                                    )}
+                                                    <View style={[styles.decoderBox, { backgroundColor: '#FAFAFA', borderColor: '#E5E5E5' }]}>
+                                                        <Text style={[styles.decoderBoxLabel, { color: '#525252' }]}>SUGGESTED REPLY</Text>
+                                                        <Text style={[styles.decoderBoxBody, { fontStyle: 'italic' }]}>"{fields['Suggested Reply']}"</Text>
+                                                    </View>
+                                                </>
+                                            );
+                                        })()}
+                                    </View>
+                                )}
+
+                                {activeLog.source === 'stars' && (
+                                    <View style={[styles.decoderBox, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7' }]}>
+                                        <Text style={[styles.decoderBoxLabel, { color: '#ec4899' }]}>COSMIC GUIDANCE</Text>
+                                        <Text style={[styles.decoderBoxBody, { lineHeight: 26, fontSize: 16 }]}>
+                                            {activeLog.fullContent}
+                                        </Text>
+                                    </View>
+                                )}
+                            </>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 }
