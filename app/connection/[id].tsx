@@ -2212,9 +2212,28 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                 )}
             </View>
 
+            {/* Log Detail Modal — Structured UI by source type */}
+
+
+            <View style={{ height: 40 }} />
+        </View >
+    );
+};
+
+const TrackContent = ({ connection }: { connection: Connection }) => {
+    const { subscriptionTier, isTrialActive, setShowPaywall } = useConnections();
+    const dailyLogs = connection.dailyLogs || [];
+
+    const formatDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    };
+
+    return (
+        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}>
             {/* Daily Check-In History */}
             {
-                dailyLogs.length > 0 && (
+                dailyLogs.length > 0 ? (
                     <View style={profileStyles.logsSection}>
                         <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
                         <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
@@ -2245,6 +2264,12 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                             ))}
                         </View>
                     </View>
+                ) : (
+                    <View style={profileStyles.emptyState}>
+                        <Ionicons name="calendar-outline" size={32} color="#D1D1D6" />
+                        <Text style={profileStyles.emptyText}>No daily logs yet.</Text>
+                        <Text style={profileStyles.emptySubtext}>Use the Dynamic tool to log your daily encounters.</Text>
+                    </View>
                 )
             }
 
@@ -2266,12 +2291,7 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                     />
                 )}
             </View>
-
-            {/* Log Detail Modal — Structured UI by source type */}
-
-
-            <View style={{ height: 40 }} />
-        </View >
+        </View>
     );
 };
 
@@ -2476,12 +2496,13 @@ export default function ConnectionDetailScreen() {
     const { connections, updateConnection, deleteConnection, setShowPaywall } = useConnections();
 
     // Determine initial section from route params
-    type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'CLARITY';
-    type UnderstandTool = 'DECODER' | 'STARS' | 'DYNAMIC' | null;
+    type HubSection = 'OVERVIEW' | 'TRACK' | 'UNDERSTAND';
+    type UnderstandTool = 'DECODER' | 'STARS' | 'DYNAMIC' | 'CLARITY' | null;
 
     const mapParamToSection = (tab: string): { section: HubSection; tool: UnderstandTool } => {
         switch (tab) {
-            case 'CLARITY': return { section: 'CLARITY', tool: null };
+            case 'CLARITY': return { section: 'UNDERSTAND', tool: 'CLARITY' };
+            case 'TRACK': return { section: 'TRACK', tool: null };
             case 'DECODER': return { section: 'UNDERSTAND', tool: 'DECODER' };
             case 'STARS': return { section: 'UNDERSTAND', tool: 'STARS' };
             case 'DYNAMIC': return { section: 'UNDERSTAND', tool: 'DYNAMIC' };
@@ -2549,12 +2570,13 @@ export default function ConnectionDetailScreen() {
         );
     }
 
-    const SECTIONS: HubSection[] = ['OVERVIEW', 'UNDERSTAND', 'CLARITY'];
+    const SECTIONS: HubSection[] = ['OVERVIEW', 'TRACK', 'UNDERSTAND'];
 
     const UNDERSTAND_TOOLS = [
         { id: 'DECODER' as const, label: 'Decoder', icon: 'scan-outline' as const, description: 'Read between the lines' },
         { id: 'STARS' as const, label: 'Stars', icon: 'sparkles-outline' as const, description: 'Cosmic compatibility' },
         { id: 'DYNAMIC' as const, label: 'Dynamic', icon: 'pulse-outline' as const, description: 'Daily energy log' },
+        { id: 'CLARITY' as const, label: 'Clarity', icon: 'chatbubble-ellipses-outline' as const, description: 'Find perspective' },
     ];
 
     const handleSectionChange = (section: HubSection) => {
@@ -2723,7 +2745,11 @@ export default function ConnectionDetailScreen() {
                         <DynamicContent connection={connection} />
                     )}
 
-                    {activeSection === 'CLARITY' && (
+                    {activeSection === 'TRACK' && connection && (
+                        <TrackContent connection={connection} />
+                    )}
+
+                    {activeSection === 'UNDERSTAND' && activeTool === 'CLARITY' && (
                         <ClarityContent
                             name={Array.isArray(name) ? name[0] : name}
                             connectionId={connectionId}
