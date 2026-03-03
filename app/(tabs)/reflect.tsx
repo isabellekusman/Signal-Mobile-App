@@ -2,7 +2,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { UsageCounter } from '../../components/UsageCounter';
 import { SavedLog, useConnections } from '../../context/ConnectionsContext';
 import { aiService } from '../../services/aiService';
 import { haptics } from '../../services/haptics';
@@ -96,7 +95,6 @@ export default function ReflectScreen() {
                             <Text style={styles.pageTitle}>Reflect</Text>
                             <Text style={styles.pageSubtitle}>EMOTIONAL PROCESSING</Text>
                             <View style={styles.separator} />
-                            <UsageCounter feature="clarity" style={{ marginTop: 12, alignSelf: 'center' }} />
                         </View>
 
 
