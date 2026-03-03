@@ -2109,7 +2109,22 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
                                     </View>
                                 ) : null}
                             </>
-                        ) : null}
+                        ) : (
+                            <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                    haptics.selection();
+                                    setShowPaywall('voluntary');
+                                }}
+                                style={[profileStyles.adviceBlock, { backgroundColor: '#F9FAFB', borderColor: '#F2F2F7', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 }]}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name="lock-closed" size={14} color="#8E8E93" />
+                                    <Text style={[profileStyles.adviceLabel, { marginBottom: 0 }]}>TODAY'S MOVE & WATCH FOR</Text>
+                                </View>
+                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#ec4899', letterSpacing: 0.5, textTransform: 'uppercase' }}>Unlock</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 ) : null}
             </View>
@@ -2118,14 +2133,14 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
             <View style={profileStyles.logsSection}>
                 <Text style={profileStyles.sectionTitle}>SAVED ANALYSIS</Text>
                 <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
-                    Logs from Clarity, Decoder & Stars
+                    Logs from Clarity & Decoder
                 </Text>
 
                 {groupedLogs.length === 0 ? (
                     <View style={profileStyles.emptyState}>
                         <Ionicons name="file-tray-outline" size={32} color="#D1D1D6" />
                         <Text style={profileStyles.emptyText}>No saved logs yet.</Text>
-                        <Text style={profileStyles.emptySubtext}>Use Clarity, Decoder, or Stars and hit "Save" to build your analysis history.</Text>
+                        <Text style={profileStyles.emptySubtext}>Use Clarity or Decoder and hit "Save" to build your analysis history.</Text>
                     </View>
                 ) : (
                     <View style={{ gap: 24 }}>
