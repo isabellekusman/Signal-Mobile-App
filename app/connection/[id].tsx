@@ -2214,66 +2214,43 @@ const ProfileContent = ({ connection, onNavigateToSource }: { connection: Connec
 
             {/* Log Detail Modal — Structured UI by source type */}
 
-
-            <View style={{ height: 40 }} />
-        </View >
-    );
-};
-
-const TrackContent = ({ connection }: { connection: Connection }) => {
-    const { subscriptionTier, isTrialActive, setShowPaywall } = useConnections();
-    const dailyLogs = connection.dailyLogs || [];
-
-    const formatDate = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    };
-
-    return (
-        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}>
             {/* Daily Check-In History */}
-            {
-                dailyLogs.length > 0 ? (
-                    <View style={profileStyles.logsSection}>
-                        <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
-                        <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
-                            Dynamic check-in history
-                        </Text>
-                        <View style={{ gap: 10 }}>
-                            {dailyLogs.slice(0, 10).map((log) => (
-                                <View key={log.id} style={profileStyles.dailyLogCard}>
-                                    <Text style={profileStyles.dailyLogDate}>{formatDate(log.date)}</Text>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
-                                            <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
-                                        </View>
-                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                            <Text style={[profileStyles.dailyTagText, { color: '#1C1C1E' }]}>{log.direction}</Text>
-                                        </View>
-                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                            <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>{log.structured_emotion_state}</Text>
-                                        </View>
-                                        <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
-                                            <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>Clarity: {log.clarity}%</Text>
-                                        </View>
+            {dailyLogs.length > 0 && (
+                <View style={profileStyles.logsSection}>
+                    <Text style={profileStyles.sectionTitle}>DAILY LOGS</Text>
+                    <Text style={{ color: '#8E8E93', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                        Dynamic check-in history
+                    </Text>
+                    <View style={{ gap: 10 }}>
+                        {dailyLogs.slice(0, 10).map((log) => (
+                            <View key={log.id} style={profileStyles.dailyLogCard}>
+                                <Text style={profileStyles.dailyLogDate}>
+                                    {new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                </Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#FDF2F8' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#ec4899' }]}>{log.energyExchange}</Text>
                                     </View>
-                                    {log.notable ? (
-                                        <Text style={profileStyles.dailyNote}>"{log.notable}"</Text>
-                                    ) : null}
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#1C1C1E' }]}>{log.direction}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>{log.structured_emotion_state}</Text>
+                                    </View>
+                                    <View style={[profileStyles.dailyTag, { backgroundColor: '#F9FAFB' }]}>
+                                        <Text style={[profileStyles.dailyTagText, { color: '#8E8E93' }]}>Clarity: {log.clarity}%</Text>
+                                    </View>
                                 </View>
-                            ))}
-                        </View>
+                                {log.notable ? (
+                                    <Text style={profileStyles.dailyNote}>"{log.notable}"</Text>
+                                ) : null}
+                            </View>
+                        ))}
                     </View>
-                ) : (
-                    <View style={profileStyles.emptyState}>
-                        <Ionicons name="calendar-outline" size={32} color="#D1D1D6" />
-                        <Text style={profileStyles.emptyText}>No daily logs yet.</Text>
-                        <Text style={profileStyles.emptySubtext}>Use the Dynamic tool to log your daily encounters.</Text>
-                    </View>
-                )
-            }
+                </View>
+            )}
 
-            {/* Monthly/Weekly Patterns — Signal Tier Feature */}
+            {/* Monthly/Weekly Patterns */}
             <View style={profileStyles.logsSection}>
                 <Text style={profileStyles.sectionTitle}>
                     {dailyLogs.length >= 30 ? 'MONTHLY PATTERNS' : 'WEEKLY PATTERNS'}
@@ -2291,9 +2268,13 @@ const TrackContent = ({ connection }: { connection: Connection }) => {
                     />
                 )}
             </View>
-        </View>
+
+            <View style={{ height: 40 }} />
+        </View >
     );
 };
+
+
 
 const profileStyles = StyleSheet.create({
     infoCard: {
@@ -2496,13 +2477,13 @@ export default function ConnectionDetailScreen() {
     const { connections, updateConnection, deleteConnection, setShowPaywall } = useConnections();
 
     // Determine initial section from route params
-    type HubSection = 'OVERVIEW' | 'TRACK' | 'UNDERSTAND';
+    type HubSection = 'OVERVIEW' | 'UNDERSTAND' | 'CLARITY';
     type UnderstandTool = 'DECODER' | 'STARS' | 'DYNAMIC' | 'CLARITY' | null;
 
     const mapParamToSection = (tab: string): { section: HubSection; tool: UnderstandTool } => {
         switch (tab) {
-            case 'CLARITY': return { section: 'UNDERSTAND', tool: 'CLARITY' };
-            case 'TRACK': return { section: 'TRACK', tool: null };
+            case 'CLARITY': return { section: 'CLARITY', tool: null };
+
             case 'DECODER': return { section: 'UNDERSTAND', tool: 'DECODER' };
             case 'STARS': return { section: 'UNDERSTAND', tool: 'STARS' };
             case 'DYNAMIC': return { section: 'UNDERSTAND', tool: 'DYNAMIC' };
@@ -2570,13 +2551,12 @@ export default function ConnectionDetailScreen() {
         );
     }
 
-    const SECTIONS: HubSection[] = ['OVERVIEW', 'TRACK', 'UNDERSTAND'];
+    const SECTIONS: HubSection[] = ['OVERVIEW', 'UNDERSTAND', 'CLARITY'];
 
     const UNDERSTAND_TOOLS = [
         { id: 'DECODER' as const, label: 'Decoder', icon: 'scan-outline' as const, description: 'Read between the lines' },
         { id: 'STARS' as const, label: 'Stars', icon: 'sparkles-outline' as const, description: 'Cosmic compatibility' },
         { id: 'DYNAMIC' as const, label: 'Dynamic', icon: 'pulse-outline' as const, description: 'Daily energy log' },
-        { id: 'CLARITY' as const, label: 'Clarity', icon: 'chatbubble-ellipses-outline' as const, description: 'Find perspective' },
     ];
 
     const handleSectionChange = (section: HubSection) => {
@@ -2694,6 +2674,58 @@ export default function ConnectionDetailScreen() {
                     {/* Section Content */}
                     {activeSection === 'OVERVIEW' && (
                         <>
+                            {/* Daily Check-in Prompt */}
+                            {connection && (() => {
+                                const todayStr = new Date().toISOString().split('T')[0];
+                                const hasLoggedToday = (connection.dailyLogs || []).some(
+                                    (log) => log.date && log.date.startsWith(todayStr)
+                                );
+                                if (hasLoggedToday) return null;
+                                return (
+                                    <TouchableOpacity
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            gap: 12,
+                                            marginHorizontal: 20,
+                                            marginTop: 8,
+                                            marginBottom: 4,
+                                            paddingHorizontal: 16,
+                                            paddingVertical: 14,
+                                            backgroundColor: '#FDF2F8',
+                                            borderRadius: 14,
+                                            borderWidth: 1,
+                                            borderColor: '#ec489920',
+                                        }}
+                                        activeOpacity={0.7}
+                                        onPress={() => {
+                                            haptics.selection();
+                                            setActiveSection('UNDERSTAND');
+                                            setActiveTool('DYNAMIC');
+                                        }}
+                                    >
+                                        <View style={{
+                                            width: 36,
+                                            height: 36,
+                                            borderRadius: 18,
+                                            backgroundColor: '#ec489915',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}>
+                                            <Ionicons name="pulse-outline" size={18} color="#ec4899" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#1C1C1E' }}>
+                                                Log today's check-in
+                                            </Text>
+                                            <Text style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
+                                                Capture how this connection felt today
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={16} color="#ec4899" />
+                                    </TouchableOpacity>
+                                );
+                            })()}
                             {connection && <ProfileContent
                                 connection={connection}
                                 onNavigateToSource={handleNavigateToLog}
@@ -2745,11 +2777,9 @@ export default function ConnectionDetailScreen() {
                         <DynamicContent connection={connection} />
                     )}
 
-                    {activeSection === 'TRACK' && connection && (
-                        <TrackContent connection={connection} />
-                    )}
 
-                    {activeSection === 'UNDERSTAND' && activeTool === 'CLARITY' && (
+
+                    {activeSection === 'CLARITY' && (
                         <ClarityContent
                             name={Array.isArray(name) ? name[0] : name}
                             connectionId={connectionId}
