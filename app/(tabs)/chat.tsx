@@ -10,7 +10,7 @@ export default function ChatScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                     {/* Page Header */}
                     <View style={styles.header}>
